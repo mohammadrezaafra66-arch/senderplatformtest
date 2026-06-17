@@ -59,6 +59,8 @@ class StagedQueueItemStatus(str, enum.Enum):
     BLOCKED = "blocked"
     SKIPPED = "skipped"
     READY = "ready"
+    PUSHING = "pushing"
+    QUEUED = "queued"
 
 
 class RenderStatus(str, enum.Enum):
