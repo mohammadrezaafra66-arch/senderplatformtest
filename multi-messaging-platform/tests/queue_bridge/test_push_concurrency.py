@@ -308,3 +308,25 @@ def test_non_running_campaign_is_skipped(pg_session_factory, fake_redis, enable_
     finally:
         s2.close()
 
+
+@pytest.mark.integration
+def test_celery_beat_task_runs(monkeypatch, pg_session_factory, fake_redis):
+    monkeypatch.setenv("REAL_QUEUE_PUSH_ENABLED", "true")
+    get_settings.cache_clear()
+
+    s = pg_session_factory()
+    try:
+        campaign = _seed_campaign_bundle(s)
+        campaign.status = CampaignStatus.RUNNING.value
+        _seed_accounts(s, PlatformType.BALE, count=1)
+        _seed_ready_items(s, campaign.id, n=3)
+        s.commit()
+    finally:
+        s.close()
+
+    from core_engine.tasks import push_ready_staged_items_task
+
+    result = push_ready_staged_items_task()
+    assert result["pushed"] == 3
+    assert len(fake_redis.calls) == 3
+

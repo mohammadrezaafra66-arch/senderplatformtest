@@ -57,6 +57,30 @@ services:
       - core_api
       - redis
 
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mmp_celery_beat
+    command: [
+      "celery",
+      "-A", "core_engine.tasks.celery_app",
+      "beat",
+      "--loglevel=info",
+      "--schedule=/tmp/celerybeat-schedule"
+    ]
+    env_file:
+      - .env
+    environment:
+      DRY_RUN: ${DRY_RUN:-false}
+      SHADOW_MODE: ${SHADOW_MODE:-false}
+      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+    depends_on:
+      - core_api
+      - redis
+      - celery_worker
+
   prometheus:
     image: prom/prometheus:latest
     container_name: mmp_prometheus
