@@ -2,6 +2,7 @@
 
 **Repository:** https://github.com/mohammadrezaafra66-arch/senderplatformtest  
 **Completion date:** 2026-06-17  
+**Release commit (main):** `c729d2e4422f1dfe57723819d18031661ed71fea`  
 **Scope:** `multi-messaging-platform/` (Phase 6 — testing, hardening, release readiness)
 
 ## Phase 6 capability summary
@@ -81,3 +82,5 @@ pytest -m ""
 
 GitHub Actions workflow: `.github/workflows/tests.yml`  
 Runs `pytest -m "not stress and not chaos"` on push and pull_request with Python 3.11.
+
+**Status:** GitHub Actions **passed** on branch `main` at commit `c729d2e4422f1dfe57723819d18031661ed71fea`.

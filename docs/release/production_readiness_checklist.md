@@ -21,6 +21,7 @@
 - [x] Dry-run and shadow mode tested
 - [x] Prometheus KPI metrics at `GET /metrics`
 - [x] GitHub Actions CI workflow (`.github/workflows/tests.yml`)
+- [x] GitHub Actions CI passed on `main` (commit `c729d2e`)
 - [x] Release evidence document (`docs/release/phase6_release_evidence.md`)
 
 ## Still required before production
