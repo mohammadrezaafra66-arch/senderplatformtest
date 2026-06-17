@@ -1,5 +1,7 @@
 """Schemaهای request/response برای API."""
 
+from datetime import datetime
+
 from pydantic import BaseModel, model_validator
 
 from core_engine.models import PlatformType
@@ -40,6 +42,61 @@ class CampaignFromImportResponse(BaseModel):
     contacts_attached_count: int
     skipped_contacts_count: int
     message: str
+
+
+class CampaignStatsData(BaseModel):
+    """Stats درون Campaign detail response."""
+
+    total_recipients: int
+    queued: int
+    processing: int
+    sent: int
+    failed: int
+    progress_percent: float
+    eta_seconds: int | None = None
+
+
+class CampaignListItemResponse(BaseModel):
+    """خلاصه Campaign برای لیست."""
+
+    id: int
+    name: str
+    title: str
+    platform: PlatformType
+    status: str  # "draft", "prepared", "running", etc.
+    created_at: datetime
+    total_recipients: int
+
+
+class CampaignDetailResponse(BaseModel):
+    """جزئیات کامل Campaign."""
+
+    id: int
+    name: str
+    title: str
+    channel: str
+    platform: PlatformType
+    status: str
+    template_text: str | None = None
+    use_gpt: bool
+    include_products: bool
+    intent: str | None = None
+    message_goal: str | None = None
+    max_contacts: int | None = None
+    daily_limit: int | None = None
+    schedule_start_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+    stats: CampaignStatsData
+
+
+class CampaignsListResponse(BaseModel):
+    """پاسخ لیست کمپین‌ها."""
+
+    items: list[CampaignListItemResponse]
+    total_count: int
+    limit: int
+    offset: int
 
 
 class KnowledgeBaseReadResponse(BaseModel):
