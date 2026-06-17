@@ -1,3 +1,4 @@
+import asyncio
 import os
 import threading
 
@@ -145,7 +146,7 @@ def test_push_concurrency_no_duplicate_push(pg_session_factory, fake_redis):
         session = pg_session_factory()
         try:
             barrier.wait()
-            push_staged_items_to_worker_queue(session, batch_size=100)
+            asyncio.run(push_staged_items_to_worker_queue(session, batch_size=100))
         finally:
             session.close()
 
@@ -203,7 +204,7 @@ def test_consent_becomes_blocked_skips_item(pg_session_factory, fake_redis):
 
     s3 = pg_session_factory()
     try:
-        result = push_staged_items_to_worker_queue(s3, batch_size=10)
+        result = asyncio.run(push_staged_items_to_worker_queue(s3, batch_size=10))
         assert result["skipped_consent"] == 1
         refreshed = s3.get(StagedQueueItem, item_id)
         assert refreshed.status == StagedQueueItemStatus.SKIPPED.value
@@ -227,7 +228,7 @@ def test_no_active_account_returns_item_to_ready(pg_session_factory, fake_redis)
 
     s2 = pg_session_factory()
     try:
-        result = push_staged_items_to_worker_queue(s2, batch_size=10)
+        result = asyncio.run(push_staged_items_to_worker_queue(s2, batch_size=10))
         assert result["skipped_no_account"] == 2
         states = {
             row.id: row.status

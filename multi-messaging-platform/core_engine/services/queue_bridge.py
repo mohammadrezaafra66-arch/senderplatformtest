@@ -9,7 +9,6 @@ This is the first place where we push to the real worker delivery queues.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from typing import Any
@@ -30,22 +29,7 @@ from workers.redis_keys import queue_key
 logger = logging.getLogger(__name__)
 
 
-def _run_async(coro):
-    """Run an async Redis call from sync code.
-
-    This function is used to keep the public API synchronous as requested.
-    """
-
-    try:
-        asyncio.get_running_loop()
-    except RuntimeError:
-        return asyncio.run(coro)
-    # If we're already in an event loop, we can't blockingly wait here.
-    # For now, schedule and let it run; callers should keep bridge synchronous.
-    return asyncio.create_task(coro)
-
-
-def push_staged_items_to_worker_queue(
+async def push_staged_items_to_worker_queue(
     db: Session,
     batch_size: int = 100,
 ) -> dict[str, int]:
@@ -136,7 +120,7 @@ def push_staged_items_to_worker_queue(
 
             key = queue_key(item.channel, account.id)
             raw_payload = json.dumps(payload, ensure_ascii=False)
-            _run_async(redis.rpush(key, raw_payload))
+            await redis.rpush(key, raw_payload)
 
             item.status = StagedQueueItemStatus.QUEUED.value
             item.skip_reason = None
