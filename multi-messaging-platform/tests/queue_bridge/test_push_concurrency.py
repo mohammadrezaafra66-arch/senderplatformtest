@@ -1,11 +1,13 @@
 import asyncio
 import os
 import threading
+from unittest.mock import patch
 
 import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
+from core_engine.config import Settings, get_settings
 from core_engine.database import Base
 from core_engine.models import (
     Account,
@@ -59,6 +61,14 @@ def pg_session_factory(pg_engine):
 
 
 @pytest.fixture
+def enable_real_push(monkeypatch):
+    monkeypatch.setenv("REAL_QUEUE_PUSH_ENABLED", "true")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+@pytest.fixture
 def fake_redis(monkeypatch):
     fake = FakeRedis()
     monkeypatch.setattr(
@@ -74,7 +84,7 @@ def _seed_campaign_bundle(session):
         channel="bale",
         title="t-queue-bridge",
         platform=PlatformType.BALE,
-        status=CampaignStatus.DRAFT.value,
+        status=CampaignStatus.RUNNING.value,
     )
     session.add(campaign)
     session.flush()
@@ -128,7 +138,7 @@ def _seed_ready_items(session, campaign_id: int, n: int = 10):
 
 
 @pytest.mark.integration
-def test_push_concurrency_no_duplicate_push(pg_session_factory, fake_redis):
+def test_push_concurrency_no_duplicate_push(pg_session_factory, fake_redis, enable_real_push):
     # Arrange
     s = pg_session_factory()
     try:
@@ -175,7 +185,7 @@ def test_push_concurrency_no_duplicate_push(pg_session_factory, fake_redis):
 
 
 @pytest.mark.integration
-def test_consent_becomes_blocked_skips_item(pg_session_factory, fake_redis):
+def test_consent_becomes_blocked_skips_item(pg_session_factory, fake_redis, enable_real_push):
     s = pg_session_factory()
     try:
         campaign = _seed_campaign_bundle(s)
@@ -215,7 +225,7 @@ def test_consent_becomes_blocked_skips_item(pg_session_factory, fake_redis):
 
 
 @pytest.mark.integration
-def test_no_active_account_returns_item_to_ready(pg_session_factory, fake_redis):
+def test_no_active_account_returns_item_to_ready(pg_session_factory, fake_redis, enable_real_push):
     s = pg_session_factory()
     try:
         campaign = _seed_campaign_bundle(s)
@@ -236,6 +246,65 @@ def test_no_active_account_returns_item_to_ready(pg_session_factory, fake_redis)
         }
         assert set(states.values()) == {StagedQueueItemStatus.READY.value}
         assert len(fake_redis.calls) == 0
+    finally:
+        s2.close()
+
+
+@pytest.mark.integration
+def test_disabled_flag_prevents_push(pg_session_factory, fake_redis):
+    get_settings.cache_clear()
+    s = pg_session_factory()
+    try:
+        campaign = _seed_campaign_bundle(s)
+        _seed_accounts(s, PlatformType.BALE, count=1)
+        items = _seed_ready_items(s, campaign.id, n=3)
+        s.commit()
+        ids = [it.id for it in items]
+    finally:
+        s.close()
+
+    s2 = pg_session_factory()
+    try:
+        result = asyncio.run(push_staged_items_to_worker_queue(s2, batch_size=100))
+        assert result["pushed"] == 0
+        assert result["skipped_consent"] == 0
+        assert result["skipped_no_account"] == 0
+        assert result["failed"] == 0
+        assert len(fake_redis.calls) == 0
+
+        states = {
+            row.id: row.status
+            for row in s2.query(StagedQueueItem).filter(StagedQueueItem.id.in_(ids)).all()
+        }
+        assert set(states.values()) == {StagedQueueItemStatus.READY.value}
+    finally:
+        s2.close()
+
+
+@pytest.mark.integration
+def test_non_running_campaign_is_skipped(pg_session_factory, fake_redis, enable_real_push):
+    s = pg_session_factory()
+    try:
+        campaign = _seed_campaign_bundle(s)
+        campaign.status = CampaignStatus.DRAFT.value
+        _seed_accounts(s, PlatformType.BALE, count=1)
+        items = _seed_ready_items(s, campaign.id, n=4)
+        s.commit()
+        ids = [it.id for it in items]
+    finally:
+        s.close()
+
+    s2 = pg_session_factory()
+    try:
+        result = asyncio.run(push_staged_items_to_worker_queue(s2, batch_size=100))
+        assert result["pushed"] == 0
+        assert len(fake_redis.calls) == 0
+
+        states = {
+            row.id: row.status
+            for row in s2.query(StagedQueueItem).filter(StagedQueueItem.id.in_(ids)).all()
+        }
+        assert set(states.values()) == {StagedQueueItemStatus.READY.value}
     finally:
         s2.close()
 

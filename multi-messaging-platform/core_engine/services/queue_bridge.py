@@ -15,9 +15,12 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from core_engine.config import get_settings
 from core_engine.models import (
     Account,
     AccountStatus,
+    Campaign,
+    CampaignStatus,
     PlatformType,
     StagedQueueItem,
     StagedQueueItemStatus,
@@ -33,6 +36,15 @@ async def push_staged_items_to_worker_queue(
     db: Session,
     batch_size: int = 100,
 ) -> dict[str, int]:
+    settings = get_settings()
+    if not settings.REAL_QUEUE_PUSH_ENABLED:
+        return {
+            "pushed": 0,
+            "skipped_consent": 0,
+            "skipped_no_account": 0,
+            "failed": 0,
+        }
+
     pushed = 0
     skipped_consent = 0
     skipped_no_account = 0
@@ -43,7 +55,11 @@ async def push_staged_items_to_worker_queue(
     # (a) Claim items using row-level locking and SKIP LOCKED.
     claimed_items = (
         db.query(StagedQueueItem)
-        .filter(StagedQueueItem.status == StagedQueueItemStatus.READY.value)
+        .join(Campaign, StagedQueueItem.campaign_id == Campaign.id)
+        .filter(
+            StagedQueueItem.status == StagedQueueItemStatus.READY.value,
+            Campaign.status == CampaignStatus.RUNNING.value,
+        )
         .order_by(StagedQueueItem.id.asc())
         .limit(batch_size)
         .with_for_update(skip_locked=True)
