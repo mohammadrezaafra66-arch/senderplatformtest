@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from core_engine.api.auth import require_roles, router as auth_router
+from core_engine.api.accounts import router as accounts_router
 from core_engine.api.audit import router as audit_router
 from core_engine.api.campaigns import router as campaigns_router
 from core_engine.api.controls import router as controls_router
@@ -83,6 +84,7 @@ app.add_middleware(
 app.add_middleware(MetricsMiddleware)
 
 app.include_router(auth_router)
+app.include_router(accounts_router)
 app.include_router(audit_router)
 app.include_router(campaigns_router)
 app.include_router(controls_router)

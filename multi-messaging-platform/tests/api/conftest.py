@@ -66,3 +66,19 @@ def api_auth_bypass():
         yield
     finally:
         app.dependency_overrides.pop(get_current_user, None)
+
+
+@pytest.fixture
+def admin_auth():
+    """Override auth as admin for account management tests."""
+
+    async def _fake_admin():
+        return {
+            "username": "admin",
+            "password": "admin123",
+            "role": "admin",
+        }
+
+    app.dependency_overrides[get_current_user] = _fake_admin
+    yield
+    app.dependency_overrides.pop(get_current_user, None)

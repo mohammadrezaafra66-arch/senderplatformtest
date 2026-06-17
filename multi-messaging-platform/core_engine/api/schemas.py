@@ -2,9 +2,9 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, Field, model_validator
 
-from core_engine.models import PlatformType
+from core_engine.models import AccountStatus, PlatformType
 
 
 class ImportCommitRequest(BaseModel):
@@ -97,6 +97,61 @@ class CampaignsListResponse(BaseModel):
     total_count: int
     limit: int
     offset: int
+
+
+class AccountResponse(BaseModel):
+    """نمایش یک اکانت پیام‌رسان."""
+
+    id: int
+    platform: PlatformType
+    account_identifier: str | None = None
+    label: str | None = None
+    status: AccountStatus
+    proxy_url: str | None = None
+    policy_id: int | None = None
+    created_at: datetime
+    updated_at: datetime
+    last_used_at: datetime | None = None
+
+
+class AccountCreateRequest(BaseModel):
+    platform: PlatformType
+    account_identifier: str = Field(..., min_length=1, max_length=32)
+    label: str | None = Field(default=None, max_length=255)
+    proxy_url: str | None = Field(default=None, max_length=512)
+    status: AccountStatus = AccountStatus.ACTIVE
+
+
+class AccountCreateResponse(BaseModel):
+    status: str
+    account_id: int
+    message: str
+
+
+class AccountUpdateRequest(BaseModel):
+    account_identifier: str | None = Field(default=None, min_length=1, max_length=32)
+    label: str | None = Field(default=None, max_length=255)
+    proxy_url: str | None = Field(default=None, max_length=512)
+    status: AccountStatus | None = None
+
+
+class AccountTestConnectionRequest(BaseModel):
+    """بدنه اختیاری برای تست اتصال — فعلاً بدون فیلد اجباری."""
+
+    force_fail: bool = False
+
+
+class AccountTestConnectionResponse(BaseModel):
+    success: bool
+    account_id: int
+    platform: PlatformType
+    message: str
+    error: str | None = None
+
+
+class AccountsListResponse(BaseModel):
+    items: list[AccountResponse]
+    total_count: int
 
 
 class KnowledgeBaseReadResponse(BaseModel):
