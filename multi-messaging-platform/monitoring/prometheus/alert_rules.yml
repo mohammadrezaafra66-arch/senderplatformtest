@@ -1,0 +1,47 @@
+groups:
+  - name: mmp_alerts
+    rules:
+      - alert: RedisDown
+        expr: mmp_redis_available == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Redis is unavailable
+          description: mmp_redis_available has been 0 for more than 30 seconds.
+
+      - alert: DatabaseDown
+        expr: mmp_db_available == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: Database is unavailable
+          description: mmp_db_available has been 0 for more than 30 seconds.
+
+      - alert: KillSwitchEnabled
+        expr: mmp_kill_switch_enabled == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Kill switch is enabled
+          description: System kill switch has been enabled for more than 1 minute.
+
+      - alert: QueueBacklogHigh
+        expr: mmp_queue_pending > 100
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: High queue backlog on {{ $labels.queue_name }}
+          description: Queue {{ $labels.queue_name }} has more than 100 pending items for 2 minutes.
+
+      - alert: ApiErrorsHigh
+        expr: sum(rate(mmp_http_requests_total{status_code=~"5.."}[1m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: API 5xx errors detected
+          description: One or more HTTP 5xx responses were recorded in the last minute.

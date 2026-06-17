@@ -1,0 +1,4 @@
+venv/
+.playwright-venv/
+
+multi-messaging-platform/test_fixtures/phase2/oversized.xlsx

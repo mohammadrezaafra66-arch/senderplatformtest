@@ -1,0 +1,88 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: mmp_postgres
+    environment:
+      POSTGRES_USER: mmp_user
+      POSTGRES_PASSWORD: mmp_pass
+      POSTGRES_DB: mmp_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: mmp_redis
+    ports:
+      - "6379:6379"
+
+  core_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mmp_core_api
+    command: ["uvicorn", "core_engine.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8001:8000"
+    env_file:
+      - .env
+    environment:
+      DRY_RUN: ${DRY_RUN:-false}
+      SHADOW_MODE: ${SHADOW_MODE:-false}
+      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+    volumes:
+      - ./storage/browser_profiles:/app/storage/browser_profiles
+    depends_on:
+      - postgres
+      - redis
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mmp_celery_worker
+    command: ["celery", "-A", "core_engine.tasks.celery_app", "worker", "--loglevel=info"]
+    env_file:
+      - .env
+    environment:
+      DRY_RUN: ${DRY_RUN:-false}
+      SHADOW_MODE: ${SHADOW_MODE:-false}
+      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+    depends_on:
+      - core_api
+      - redis
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: mmp_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+    depends_on:
+      - core_api
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: mmp_grafana
+    ports:
+      - "3002:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+  grafana_data:

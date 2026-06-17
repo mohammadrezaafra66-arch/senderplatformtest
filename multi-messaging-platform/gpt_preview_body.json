@@ -1,0 +1,9 @@
+{
+  "first_name": "علی",
+  "last_name": "رضایی",
+  "channel": "bale",
+  "goal": "معرفی سه محصول موجود",
+  "include_products": true,
+  "max_kb_chars": 1000,
+  "max_products": 3
+}
