@@ -4,17 +4,26 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 revision: str = "e7f8a9b0c1d2"
 down_revision: Union[str, Sequence[str], None] = "d6e7f8a9b0c1"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-role_type_enum = sa.Enum("admin", "operator", "viewer", name="roletype")
+# Create the enum type explicitly (checkfirst), then reuse without re-creating.
+role_type_enum_create = postgresql.ENUM("admin", "operator", "viewer", name="roletype")
+role_type_enum = postgresql.ENUM(
+    "admin",
+    "operator",
+    "viewer",
+    name="roletype",
+    create_type=False,
+)
 
 
 def upgrade() -> None:
-    role_type_enum.create(op.get_bind(), checkfirst=True)
+    role_type_enum_create.create(op.get_bind(), checkfirst=True)
     op.create_table(
         "users",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -45,4 +54,4 @@ def downgrade() -> None:
     op.drop_index("ix_audit_logs_action", table_name="audit_logs")
     op.drop_table("audit_logs")
     op.drop_table("users")
-    role_type_enum.drop(op.get_bind(), checkfirst=True)
+    # Enum type may be shared across revisions; do not drop it here.

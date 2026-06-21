@@ -1,0 +1,33 @@
+[
+  {
+    "id": "default-proxy",
+    "default": true,
+    "type": "socks5",
+    "host": "127.0.0.1",
+    "port": 1080,
+    "username": "proxy_user",
+    "password": "proxy_pass",
+    "comment": "Used when no accountId-specific entry exists. Set default: true OR id: default"
+  },
+  {
+    "id": "proxy-account-989048249523",
+    "accountId": "989048249523",
+    "type": "socks5",
+    "host": "127.0.0.1",
+    "port": 1081,
+    "username": "user1",
+    "password": "pass1",
+    "workerId": 1,
+    "comment": "Dedicated proxy — match accountId to sessions/{accountId}/ folder name (digits only)"
+  },
+  {
+    "id": "proxy-worker-2-pool",
+    "workerId": 2,
+    "type": "http",
+    "host": "proxy.example.com",
+    "port": 8080,
+    "username": "user2",
+    "password": "pass2",
+    "comment": "Optional: if exactly one proxy has workerId=N, all accounts on worker N use it"
+  }
+]

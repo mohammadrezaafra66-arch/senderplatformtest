@@ -10,14 +10,47 @@ from core_engine.api.schemas import (
     AccountCreateResponse,
     AccountResponse,
     AccountsListResponse,
+    AccountSessionRegisterRequest,
+    AccountSessionRegisterResponse,
+    AccountSessionStatusResponse,
+    AccountSendTestRequest,
+    AccountSendTestResponse,
+    LiveSendPreflightCheckItem,
+    LiveSendPreflightResponse,
     AccountTestConnectionRequest,
     AccountTestConnectionResponse,
     AccountUpdateRequest,
+    DeployReadinessResponse,
+    WhatsAppWebRegisterRequest,
+    WhatsAppWebRegisterResponse,
+    WhatsAppWebPoolStatusResponse,
+    WhatsAppWebStatusResponse,
 )
+from core_engine.services.redis_client import get_redis_client
 from core_engine.database import get_db
-from core_engine.models import Account, AccountStatus, PlatformType, RoleType
+from core_engine.models import Account, AccountStatus, PlatformType, RoleType, SessionType
 from core_engine.services.audit_service import record_audit
+from core_engine.services.account_session_wiring import (
+    build_account_session_status,
+    build_deploy_readiness,
+    evaluate_account_session_readiness,
+    register_api_token_session,
+    required_session_type,
+    resolve_whatsapp_delivery_mode,
+)
+from core_engine.services.operational_send import (
+    OperationalSendError,
+    build_live_send_preflight,
+    operational_send_capabilities,
+    send_account_test_message,
+)
 from core_engine.services.rbac import requires_role
+from core_engine.services.whatsapp_web_session import (
+    build_whatsapp_web_status,
+    resolve_whatsapp_profile_dir,
+    store_whatsapp_web_session,
+)
+from core_engine.services.worker_pool_status import list_whatsapp_pool_workers
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
@@ -203,26 +236,22 @@ def test_account_connection(
         raise HTTPException(status_code=404, detail="Account not found.")
 
     body = payload or AccountTestConnectionRequest()
-    success = True
-    message = "Account configuration looks valid (live channel test not enabled)."
-    error: str | None = None
+    readiness = evaluate_account_session_readiness(db, account)
+
+    success = readiness.ready
+    message = readiness.message
+    error: str | None = readiness.error
 
     if body.force_fail:
         success = False
-        error = "Forced failure for testing."
-        message = "Connection test failed."
+        error = "forced_failure"
+        message = "Connection test failed (forced)."
     elif account.status == AccountStatus.BANNED:
         success = False
-        error = "Account is banned."
-        message = "Connection test failed."
-    elif account.status == AccountStatus.REQUIRES_LOGIN:
-        success = False
-        error = "Account requires login."
-        message = "Connection test failed."
-    elif not account.phone_number:
-        success = False
-        error = "Missing account_identifier."
-        message = "Connection test failed."
+        error = "account_banned"
+        message = "Connection test failed: account is banned."
+    elif not success and error is None:
+        error = "session_not_ready"
 
     record_audit(
         db,
@@ -241,3 +270,239 @@ def test_account_connection(
         message=message,
         error=error,
     )
+
+
+@router.get("/whatsapp-web/pool-status", response_model=WhatsAppWebPoolStatusResponse)
+async def whatsapp_web_pool_status(
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
+):
+    """وضعیت replicaهای زنده whatsapp_worker_pool (heartbeat Redis)."""
+    redis_client = get_redis_client()
+    workers = await list_whatsapp_pool_workers(redis_client)
+    return WhatsAppWebPoolStatusResponse(workers=workers, total=len(workers))
+
+
+@router.get("/{account_id}/whatsapp-web/status", response_model=WhatsAppWebStatusResponse)
+def whatsapp_web_status(
+    account_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
+):
+    """وضعیت سشن واتساپ وب (پروفایل مرورگر + متادیتای ذخیره‌شده)."""
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found.")
+    if account.platform != PlatformType.WHATSAPP:
+        raise HTTPException(
+            status_code=400,
+            detail="WhatsApp Web status is only available for WhatsApp accounts.",
+        )
+
+    status = build_whatsapp_web_status(db, account_id)
+    return WhatsAppWebStatusResponse(**status)
+
+
+@router.post(
+    "/{account_id}/whatsapp-web/register",
+    response_model=WhatsAppWebRegisterResponse,
+)
+def register_whatsapp_web_session(
+    account_id: int,
+    payload: WhatsAppWebRegisterRequest,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
+):
+    """ثبت یا به‌روزرسانی متادیتای سشن واتساپ وب پس از اسکن QR."""
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found.")
+    if account.platform != PlatformType.WHATSAPP:
+        raise HTTPException(
+            status_code=400,
+            detail="WhatsApp Web registration is only available for WhatsApp accounts.",
+        )
+
+    profile_dir = resolve_whatsapp_profile_dir(account_id)
+    store_whatsapp_web_session(
+        db,
+        account_id=account_id,
+        linked=payload.linked,
+        phone=payload.phone or account.phone_number,
+        profile_dir=profile_dir,
+    )
+    if payload.linked and account.status == AccountStatus.REQUIRES_LOGIN:
+        account.status = AccountStatus.ACTIVE
+
+    record_audit(
+        db,
+        current_user["username"],
+        "register_whatsapp_web_session",
+        "account",
+        str(account.id),
+        {"linked": payload.linked, "profile_dir": str(profile_dir)},
+    )
+    db.commit()
+
+    message = (
+        "WhatsApp Web session registered and marked linked."
+        if payload.linked
+        else "WhatsApp Web session metadata saved (not linked)."
+    )
+    return WhatsAppWebRegisterResponse(
+        success=True,
+        account_id=account.id,
+        message=message,
+        profile_dir=str(profile_dir),
+        linked=payload.linked,
+    )
+
+
+@router.get("/deploy/readiness", response_model=DeployReadinessResponse)
+def deploy_readiness(
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
+):
+    """چک‌لیست عملیاتی فاز ۸ — وضعیت سشن اکانت‌ها و فلگ‌های امنیتی."""
+    return DeployReadinessResponse(**build_deploy_readiness(db))
+
+
+@router.get("/operational-send/capabilities")
+def operational_send_status(
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
+):
+    """وضعیت فلگ‌های ارسال live از طریق API (فاز ۹.۲)."""
+    return operational_send_capabilities()
+
+
+@router.get("/{account_id}/session/status", response_model=AccountSessionStatusResponse)
+def account_session_status(
+    account_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
+):
+    """وضعیت یکپارچه سشن اکانت (همه کانال‌ها)."""
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found.")
+    return AccountSessionStatusResponse(**build_account_session_status(db, account))
+
+
+@router.post(
+    "/{account_id}/session/register",
+    response_model=AccountSessionRegisterResponse,
+)
+def register_account_session(
+    account_id: int,
+    payload: AccountSessionRegisterRequest,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
+):
+    """ثبت توکن API رمزشده برای بله، تلگرام، روبیکا یا واتساپ Cloud API."""
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found.")
+
+    if account.platform == PlatformType.WHATSAPP:
+        mode = resolve_whatsapp_delivery_mode()
+        if mode == "web":
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "WhatsApp Web uses browser profile sessions. "
+                    "Use /whatsapp-web/register after QR scan."
+                ),
+            )
+    elif account.platform not in (
+        PlatformType.BALE,
+        PlatformType.TELEGRAM,
+        PlatformType.RUBIKA,
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Platform {account.platform.value} does not support API token registration.",
+        )
+
+    try:
+        register_api_token_session(db, account=account, session_payload=payload.session_payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    session_type = required_session_type(account.platform)
+    record_audit(
+        db,
+        current_user["username"],
+        "register_account_session",
+        "account",
+        str(account.id),
+        {"platform": account.platform.value, "session_type": session_type.value},
+    )
+    db.commit()
+
+    return AccountSessionRegisterResponse(
+        success=True,
+        account_id=account.id,
+        platform=account.platform,
+        session_type=session_type.value,
+        message="Encrypted session registered successfully.",
+    )
+
+
+@router.get(
+    "/{account_id}/operational-send/preflight",
+    response_model=LiveSendPreflightResponse,
+)
+def live_send_preflight(
+    account_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
+):
+    """چک‌لیست پیش از ارسال live برای یک اکانت."""
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found.")
+    return LiveSendPreflightResponse(**build_live_send_preflight(db, account))
+
+
+@router.post("/{account_id}/send-test", response_model=AccountSendTestResponse)
+async def send_test_message(
+    account_id: int,
+    payload: AccountSendTestRequest,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
+):
+    """ارسال یک پیام تست عملیاتی (پیش‌فرض: dry-run — بدون ارسال واقعی)."""
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found.")
+
+    try:
+        result = await send_account_test_message(
+            db,
+            account,
+            message_text=payload.message_text,
+            recipient=payload.recipient,
+            dry_run=payload.dry_run,
+            confirm_live_send=payload.confirm_live_send,
+        )
+    except OperationalSendError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    record_audit(
+        db,
+        current_user["username"],
+        "send_test_message",
+        "account",
+        str(account.id),
+        {
+            "dry_run": payload.dry_run,
+            "live_send": not payload.dry_run,
+            "success": result["success"],
+            "status": result["status"],
+            "recipient": result["recipient"],
+            "message_text": payload.message_text,
+            "platform_message_id": result.get("platform_message_id"),
+        },
+    )
+    db.commit()
+
+    return AccountSendTestResponse(**result)

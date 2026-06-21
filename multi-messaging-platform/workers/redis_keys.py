@@ -21,9 +21,21 @@ def kill_switch_key() -> str:
     return "system:kill_switch"
 
 
+def whatsapp_send_kill_switch_key() -> str:
+    return "system:whatsapp_send_disabled"
+
+
 def account_pause_key(account_id: int | str) -> str:
     return f"account:{account_id}:paused"
 
 
 def campaign_pause_key(campaign_id: int | str) -> str:
     return f"campaign:{campaign_id}:paused"
+
+
+def whatsapp_browser_lock_key(account_id: int | str) -> str:
+    return f"lock:wa:browser:{account_id}"
+
+
+def worker_heartbeat_key(platform: str, hostname: str) -> str:
+    return f"worker:alive:{platform}:{hostname}"

@@ -32,6 +32,11 @@ from workers.redis_keys import queue_key
 logger = logging.getLogger(__name__)
 
 
+def _is_baileys_mode() -> bool:
+    return get_settings().WHATSAPP_DELIVERY_MODE.strip().lower() == "baileys"
+
+
+
 async def push_staged_items_to_worker_queue(
     db: Session,
     batch_size: int = 100,
@@ -134,9 +139,15 @@ async def push_staged_items_to_worker_queue(
             payload["account_id"] = int(account.id)
             item.queue_payload = payload  # re-assign for JSONB change detection
 
-            key = queue_key(item.channel, account.id)
-            raw_payload = json.dumps(payload, ensure_ascii=False)
-            await redis.rpush(key, raw_payload)
+            if platform_enum == PlatformType.WHATSAPP and _is_baileys_mode():
+                from core_engine.services.baileys_queue import enqueue_baileys_from_worker_payload
+
+                await enqueue_baileys_from_worker_payload(db, payload, route="campaign")
+            else:
+                key = queue_key(item.channel, account.id)
+                raw_payload = json.dumps(payload, ensure_ascii=False)
+                await redis.rpush(key, raw_payload)
+
 
             item.status = StagedQueueItemStatus.QUEUED.value
             item.skip_reason = None

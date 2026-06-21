@@ -4,13 +4,14 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import postgresql
 
 revision: str = "d6e7f8a9b0c1"
 down_revision: Union[str, Sequence[str], None] = "c5d6e7f8a9b0"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-platform_type_enum = sa.Enum(
+platform_type_enum = postgresql.ENUM(
     "whatsapp",
     "telegram",
     "rubika",

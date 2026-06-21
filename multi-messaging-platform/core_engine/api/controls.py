@@ -20,6 +20,10 @@ from core_engine.services.control_service import (
     set_kill_switch,
 )
 from core_engine.services.rbac import requires_role
+from core_engine.services.whatsapp_send_guard import (
+    set_whatsapp_send_kill_switch,
+    whatsapp_send_guard_status,
+)
 
 router = APIRouter(prefix="/controls", tags=["controls"])
 
@@ -67,6 +71,37 @@ async def controls_set_kill_switch(
         "controls",
         "kill_switch",
         {"enabled": payload.enabled},
+    )
+    db.commit()
+    return result
+
+
+@router.get("/whatsapp-send-kill-switch")
+async def controls_get_whatsapp_send_kill_switch():
+    try:
+        return await whatsapp_send_guard_status()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.post("/whatsapp-send-kill-switch")
+async def controls_set_whatsapp_send_kill_switch(
+    payload: KillSwitchUpdateRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))],
+):
+    try:
+        result = await set_whatsapp_send_kill_switch(payload.enabled)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    record_audit(
+        db,
+        current_user["username"],
+        "set_whatsapp_send_kill_switch",
+        "controls",
+        "whatsapp_send",
+        {"enabled": payload.enabled, **result},
     )
     db.commit()
     return result

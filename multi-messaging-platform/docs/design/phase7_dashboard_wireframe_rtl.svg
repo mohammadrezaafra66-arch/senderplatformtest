@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980">
+  <defs>
+    <style>
+      .box { fill: #ffffff; stroke: #222; stroke-width: 2; }
+      .muted { fill: #f7f7f7; stroke: #222; stroke-width: 2; }
+      .txt { font-family: "Vazirmatn","Vazir","IRANSans","Tahoma","Segoe UI",sans-serif; font-size: 18px; fill: #111; direction: rtl; unicode-bidi: plaintext; }
+      .h { font-size: 22px; font-weight: 700; }
+      .s { font-size: 16px; fill: #333; }
+      .chip { fill: #f0f0f0; stroke: #222; stroke-width: 1.5; }
+      .thin { stroke-width: 1.5; }
+      .dash { stroke-dasharray: 6 6; }
+    </style>
+  </defs>
+
+  <!-- Canvas title -->
+  <text x="1540" y="40" class="txt h">'3�� 'HD�G /'4(H1/ (RTL)  A'2 �</text>
+  <text x="1540" y="70" class="txt s">Low-fidelity Wireframe (SVG)  B'(D '3*A'/G /1 E1H1�1/Figma</text>
+
+  <!-- Global navigation mock (RTL: sidebar on the right) -->
+  <rect x="1320" y="100" width="250" height="820" class="muted"/>
+  <text x="1540" y="140" class="txt h">F'H(1�</text>
+  <text x="1540" y="180" class="txt">/'4(H1/</text>
+  <text x="1540" y="220" class="txt">'�'F*G'</text>
+  <text x="1540" y="260" class="txt">E.'7('F</text>
+  <text x="1540" y="300" class="txt">�E~�FG'</text>
+  <text x="1540" y="340" class="txt">�2'14G'</text>
+  <text x="1540" y="380" class="txt">*F8�E'*</text>
+  <rect x="1340" y="820" width="210" height="80" class="box"/>
+  <text x="1540" y="855" class="txt s">FB4 �'1(1: Admin/Operator/Viewer</text>
+  <text x="1540" y="885" class="txt">.1H,</text>
+
+  <!-- Top bar mock -->
+  <rect x="40" y="100" width="1260" height="60" class="box"/>
+  <text x="1280" y="138" class="txt">F'E 3'2E'F / 9FH'F 3�3*E</text>
+  <text x="80" y="138" class="txt s">,3*,H " '9D'FG' " ~1HA'�D</text>
+
+  <!-- Screen cards area -->
+  <!-- 1) Login -->
+  <rect x="40" y="190" width="400" height="330" class="box"/>
+  <text x="420" y="225" class="txt h">�) 5A-G H1H/</text>
+  <rect x="70" y="250" width="340" height="48" class="muted thin"/>
+  <text x="400" y="282" class="txt s">F'E �'1(1�</text>
+  <rect x="70" y="315" width="340" height="48" class="muted thin"/>
+  <text x="400" y="347" class="txt s">1E2 9(H1</text>
+  <rect x="240" y="385" width="170" height="52" class="box"/>
+  <text x="395" y="420" class="txt">H1H/</text>
+  <text x="420" y="475" class="txt s">FE'�4 .7'G' / H69�* D'��F</text>
+
+  <!-- 2) Dashboard -->
+  <rect x="470" y="190" width="830" height="330" class="box"/>
+  <text x="1280" y="225" class="txt h">�) /'4(H1/</text>
+  <!-- KPI cards -->
+  <rect x="500" y="245" width="150" height="80" class="muted thin"/>
+  <rect x="660" y="245" width="150" height="80" class="muted thin"/>
+  <rect x="820" y="245" width="150" height="80" class="muted thin"/>
+  <rect x="980" y="245" width="150" height="80" class="muted thin"/>
+  <rect x="1140" y="245" width="150" height="80" class="muted thin"/>
+  <text x="640" y="275" class="txt s">5A ~�'EG'</text>
+  <text x="800" y="275" class="txt s">EHAB</text>
+  <text x="960" y="275" class="txt s">F'EHAB</text>
+  <text x="1120" y="275" class="txt s">(1.H1/ F1.E-/H/�*</text>
+  <text x="1280" y="275" class="txt s">2E'F ~1/'24</text>
+  <text x="1280" y="305" class="txt s">E�'F��F/5/�G'</text>
+  <!-- recent campaigns table -->
+  <rect x="500" y="345" width="770" height="150" class="muted thin"/>
+  <text x="1280" y="375" class="txt s">�E~�FG'� '.�1 (,/HD)</text>
+  <text x="1280" y="405" class="txt s">3*HFG': F'E " �'F'D " H69�* " ~�41A* " 41H9/*HBA</text>
+
+  <!-- 3) Accounts management -->
+  <rect x="40" y="545" width="600" height="375" class="box"/>
+  <text x="620" y="580" class="txt h">�) E/�1�* '�'F*G'</text>
+  <!-- Tabs -->
+  <rect x="70" y="605" width="120" height="40" class="chip"/>
+  <rect x="200" y="605" width="120" height="40" class="chip"/>
+  <rect x="330" y="605" width="120" height="40" class="chip"/>
+  <rect x="460" y="605" width="150" height="40" class="chip"/>
+  <text x="175" y="632" class="txt s">H'*3'~</text>
+  <text x="305" y="632" class="txt s">*D�1'E</text>
+  <text x="435" y="632" class="txt s">(DG</text>
+  <text x="600" y="632" class="txt s">1H(̩'</text>
+  <!-- Actions -->
+  <rect x="70" y="660" width="160" height="44" class="box"/>
+  <text x="220" y="690" class="txt">'A2H/F '�'F*</text>
+  <rect x="240" y="660" width="120" height="44" class="muted thin"/>
+  <text x="350" y="690" class="txt s">H�1'�4</text>
+  <rect x="370" y="660" width="160" height="44" class="muted thin"/>
+  <text x="520" y="690" class="txt s">:�1A9'D/-0A</text>
+  <!-- Table -->
+  <rect x="70" y="720" width="540" height="170" class="muted thin"/>
+  <text x="610" y="750" class="txt s">D�3* '�'F*G' (H69�* '*5'D ".1�F .7' *3* '*5'D)</text>
+
+  <!-- 4) Contacts upload -->
+  <rect x="670" y="545" width="630" height="375" class="box"/>
+  <text x="1280" y="580" class="txt h">�) ('1�0'1� E.'7('F</text>
+  <rect x="700" y="610" width="570" height="110" class="muted thin dash"/>
+  <text x="1260" y="645" class="txt s">Drag & Drop A'�D Excel/CSV �' 'F*.'( A'�D</text>
+  <text x="1260" y="675" class="txt s">'9*('13F,�: 4E'1G/4F'3G *�1'1�G' A�D/G'� 61H1�</text>
+  <rect x="700" y="735" width="570" height="120" class="muted thin"/>
+  <text x="1260" y="765" class="txt s">~�4FE'�4 /'/GG' + E~�F� 3*HFG'</text>
+  <rect x="1100" y="865" width="170" height="44" class="box"/>
+  <text x="1260" y="895" class="txt">+(* D�3*</text>
+
+  <!-- Flow arrows (simple) -->
+  <line x1="440" y1="355" x2="470" y2="355" stroke="#222" stroke-width="2"/>
+  <polygon points="470,355 458,348 458,362" fill="#222"/>
+  <line x1="640" y1="730" x2="670" y2="730" stroke="#222" stroke-width="2"/>
+  <polygon points="670,730 658,723 658,737" fill="#222"/>
+
+  <!-- Notes legend -->
+  <rect x="40" y="930" width="1530" height="40" class="muted"/>
+  <text x="1540" y="957" class="txt s">1'GFE': '�F '3�� 51A'K ��/E'F H E3�1G' 1' F4'F E�/G/ ,2&�'* UI/Validation/Permissions /1 3F/ Markdown "E/G '3*.</text>
+</svg>

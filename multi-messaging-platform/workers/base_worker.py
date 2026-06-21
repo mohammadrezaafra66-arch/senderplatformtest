@@ -19,6 +19,7 @@ from workers.db import log_worker_event as db_log_worker_event
 from workers.db import update_message_attempt_result
 from workers.errors import PayloadValidationError, WorkerError
 from workers.logging_utils import get_worker_logger, log_worker_event
+from workers.payload_adapter import normalize_queue_payload
 from workers.payloads import WorkerPayload, WorkerResult
 from workers.redis_keys import (
     account_pause_key,
@@ -196,6 +197,8 @@ class BaseWorker(ABC):
         else:
             data = raw_payload
 
+        data = normalize_queue_payload(data)
+
         missing = [field for field in REQUIRED_PAYLOAD_FIELDS if not data.get(field)]
         if missing:
             raise PayloadValidationError(
@@ -261,6 +264,9 @@ class BaseWorker(ABC):
             platform_message_id=result.platform_message_id,
             error_code=result.error_code,
             error_message=result.error_message,
+            campaign_id=payload.campaign_id,
+            contact_id=payload.contact_id,
+            success=result.success,
         )
 
     async def handle_error(

@@ -20,6 +20,7 @@ from core_engine.api.debug_staging import router as debug_staging_router
 from core_engine.api.dev_pricing import router as dev_pricing_router
 from core_engine.api.imports import router as imports_router
 from core_engine.api.metrics import router as metrics_router
+from core_engine.api.whatsapp import router as whatsapp_router
 from core_engine.middleware.metrics_middleware import MetricsMiddleware
 from core_engine.api.schemas import (
     EncodingEchoRequest,
@@ -76,6 +77,10 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://localhost:3010",
+        "http://127.0.0.1:3010",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -97,6 +102,7 @@ app.include_router(debug_staging_router)
 app.include_router(dev_pricing_router)
 app.include_router(imports_router)
 app.include_router(metrics_router)
+app.include_router(whatsapp_router)
 
 
 @app.on_event("startup")

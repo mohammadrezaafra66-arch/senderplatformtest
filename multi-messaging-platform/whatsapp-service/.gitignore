@@ -1,0 +1,3 @@
+# Baileys session creds — never commit
+sessions/
+.env

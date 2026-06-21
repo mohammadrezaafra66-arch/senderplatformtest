@@ -1,6 +1,8 @@
-"""کارگر placeholder بله — بدون ارسال واقعی."""
+"""کارگر بله — dry-run/shadow در فاز ۸؛ ارسال live در مرحله بعد."""
 
 from workers.base_worker import BaseWorker
+from workers.config import get_worker_settings
+from workers.delivery import deliver_platform_message
 from workers.payloads import WorkerPayload, WorkerResult
 
 
@@ -24,11 +26,8 @@ class BaleWorker(BaseWorker):
         )
 
     async def send_message(self, payload: WorkerPayload) -> WorkerResult:
-        return WorkerResult(
-            success=False,
-            status="placeholder_not_implemented",
-            error_code="not_implemented",
-            error_message="Real platform delivery is not implemented in this phase",
-            platform_message_id=None,
-            retryable=False,
+        return await deliver_platform_message(
+            self.platform,
+            payload,
+            get_worker_settings(),
         )

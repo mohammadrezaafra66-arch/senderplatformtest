@@ -99,6 +99,42 @@ class CampaignsListResponse(BaseModel):
     offset: int
 
 
+class CampaignStartResponse(BaseModel):
+    status: str
+    campaign_id: int
+    message: str
+    bridge_result: dict[str, int | str] | None = None
+
+
+class CampaignStopResponse(BaseModel):
+    status: str
+    campaign_id: int
+    message: str
+    paused_in_redis: bool
+
+
+class CampaignRecipientItemResponse(BaseModel):
+    """یک ردیف message log (گیرنده کمپین + مخاطب)."""
+
+    id: int
+    campaign_id: int
+    contact_id: int
+    phone: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    render_status: str
+    send_status: str
+    updated_at: datetime
+
+
+class CampaignRecipientsListResponse(BaseModel):
+    campaign_id: int
+    items: list[CampaignRecipientItemResponse]
+    total_count: int
+    limit: int
+    offset: int
+
+
 class AccountResponse(BaseModel):
     """نمایش یک اکانت پیام‌رسان."""
 
@@ -147,6 +183,144 @@ class AccountTestConnectionResponse(BaseModel):
     platform: PlatformType
     message: str
     error: str | None = None
+
+
+class WhatsAppWebStatusResponse(BaseModel):
+    account_id: int
+    delivery_mode: str
+    profile_dir: str
+    profile_exists: bool
+    session_registered: bool
+    linked: bool
+    needs_qr: bool
+    phone: str | None = None
+    linked_at: str | None = None
+    message: str
+
+
+class WhatsAppWebRegisterRequest(BaseModel):
+    linked: bool = True
+    phone: str | None = Field(default=None, max_length=32)
+
+
+class WhatsAppWebRegisterResponse(BaseModel):
+    success: bool
+    account_id: int
+    message: str
+    profile_dir: str
+    linked: bool
+
+
+class WhatsAppWebPoolWorkerItem(BaseModel):
+    hostname: str
+    pool_size: int
+    pool_index: int
+    assigned_account_ids: list[int]
+    updated_at: str | None = None
+
+
+class WhatsAppWebPoolStatusResponse(BaseModel):
+    workers: list[WhatsAppWebPoolWorkerItem]
+    total: int
+
+
+class AccountSessionStatusResponse(BaseModel):
+    account_id: int
+    platform: str
+    account_status: str
+    session_type: str
+    session_registered: bool
+    ready_for_delivery: bool
+    message: str
+    error: str | None = None
+    delivery_mode: str | None = None
+    linked: bool | None = None
+    needs_qr: bool | None = None
+    profile_exists: bool | None = None
+    profile_dir: str | None = None
+    linked_at: str | None = None
+
+
+class AccountSessionRegisterRequest(BaseModel):
+    """Plain bot token or JSON credentials (WhatsApp Cloud API)."""
+
+    session_payload: str = Field(..., min_length=1, max_length=8192)
+
+
+class AccountSessionRegisterResponse(BaseModel):
+    success: bool
+    account_id: int
+    platform: PlatformType
+    session_type: str
+    message: str
+
+
+class AccountSendTestRequest(BaseModel):
+    """One-off operational test message (dry-run by default)."""
+
+    message_text: str = Field(
+        default="پیام تست عملیاتی — Sender Platform",
+        min_length=1,
+        max_length=4096,
+    )
+    recipient: str | None = Field(
+        default=None,
+        max_length=128,
+        description="Phone (WhatsApp) or chat_id/@username (bot platforms).",
+    )
+    dry_run: bool = True
+    confirm_live_send: bool = False
+
+
+class AccountSendTestResponse(BaseModel):
+    account_id: int
+    platform: str
+    dry_run: bool
+    live_send: bool
+    recipient: str
+    recipient_type: str
+    success: bool
+    status: str
+    platform_message_id: str | None = None
+    error_code: str | None = None
+    error_message: str | None = None
+    retryable: bool = False
+    message: str
+
+
+class LiveSendPreflightCheckItem(BaseModel):
+    key: str
+    passed: bool
+    message: str
+
+
+class LiveSendPreflightResponse(BaseModel):
+    account_id: int
+    platform: str
+    ready_for_live_send: bool
+    checks: list[LiveSendPreflightCheckItem]
+
+
+class DeployReadinessWorkerService(BaseModel):
+    name: str
+    platform: str
+    mode: str
+    enabled_when: str | None = None
+
+
+class DeployReadinessResponse(BaseModel):
+    phase: str
+    safety: dict[str, bool]
+    dry_run: bool
+    shadow_mode: bool
+    whatsapp_delivery_mode: str
+    operational_send: dict[str, bool]
+    worker_services: list[DeployReadinessWorkerService]
+    accounts_total: int
+    active_accounts_total: int
+    active_accounts_ready: int
+    all_active_accounts_ready: bool
+    accounts: list[AccountSessionStatusResponse]
 
 
 class AccountsListResponse(BaseModel):

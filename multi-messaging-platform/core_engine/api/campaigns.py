@@ -3,6 +3,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from core_engine.api.schemas import (
@@ -10,8 +11,11 @@ from core_engine.api.schemas import (
     CampaignFromImportRequest,
     CampaignFromImportResponse,
     CampaignListItemResponse,
+    CampaignRecipientsListResponse,
     CampaignsListResponse,
+    CampaignStartResponse,
     CampaignStatsData,
+    CampaignStopResponse,
 )
 from core_engine.database import get_db
 from core_engine.models import (
@@ -28,6 +32,15 @@ from core_engine.models import (
     SendStatus,
 )
 from core_engine.services.audit_service import record_audit
+from core_engine.services.campaign_control import start_campaign, stop_campaign
+from core_engine.services.campaign_recipients import (
+    CSV_EXPORT_MAX_ROWS,
+    build_recipients_csv_bytes,
+    export_filename,
+    fetch_campaign_recipient_rows,
+    get_campaign_or_404,
+    recipient_to_response,
+)
 from core_engine.services.dashboard import get_campaign_stats
 from core_engine.services.rbac import requires_role
 
@@ -108,6 +121,140 @@ def get_campaign_detail(
         created_at=campaign.created_at,
         updated_at=campaign.updated_at,
         stats=stats,
+    )
+
+
+@router.post("/{campaign_id}/start", response_model=CampaignStartResponse)
+async def start_campaign_endpoint(
+    campaign_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))] = None,
+):
+    """شروع کمپین: RUNNING در DB + حذف pause از Redis + push اولیه staged items."""
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found.")
+
+    try:
+        result = await start_campaign(db, campaign)
+        record_audit(
+            db,
+            current_user["username"],
+            "start_campaign",
+            "campaign",
+            str(campaign.id),
+            {"bridge_result": result.get("bridge_result")},
+        )
+        db.commit()
+        db.refresh(campaign)
+        return CampaignStartResponse(**result)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to start campaign.") from exc
+
+
+@router.post("/{campaign_id}/stop", response_model=CampaignStopResponse)
+async def stop_campaign_endpoint(
+    campaign_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))] = None,
+):
+    """توقف کمپین: PAUSED در DB + set کردن campaign pause در Redis."""
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found.")
+
+    try:
+        result = await stop_campaign(db, campaign)
+        record_audit(
+            db,
+            current_user["username"],
+            "stop_campaign",
+            "campaign",
+            str(campaign.id),
+            {"paused_in_redis": result["paused_in_redis"]},
+        )
+        db.commit()
+        db.refresh(campaign)
+        return CampaignStopResponse(**result)
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to stop campaign.") from exc
+
+
+@router.get("/{campaign_id}/recipients/export")
+def export_campaign_recipients_csv(
+    campaign_id: int,
+    send_status: str | None = None,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str],
+        Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR, RoleType.VIEWER)),
+    ] = None,
+):
+    """دانلود CSV گیرندگان کمپین (message logs)."""
+    get_campaign_or_404(db, campaign_id)
+    rows, total_count = fetch_campaign_recipient_rows(
+        db,
+        campaign_id,
+        send_status=send_status,
+        limit=CSV_EXPORT_MAX_ROWS,
+        offset=0,
+    )
+    if total_count > CSV_EXPORT_MAX_ROWS:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Export limit exceeded ({total_count} rows). "
+                f"Maximum export size is {CSV_EXPORT_MAX_ROWS} rows. "
+                "Apply send_status filter to narrow results."
+            ),
+        )
+
+    content = build_recipients_csv_bytes(rows)
+    filename = export_filename(campaign_id)
+    return Response(
+        content=content,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/{campaign_id}/recipients", response_model=CampaignRecipientsListResponse)
+def list_campaign_recipients(
+    campaign_id: int,
+    limit: int = 50,
+    offset: int = 0,
+    send_status: str | None = None,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str],
+        Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR, RoleType.VIEWER)),
+    ] = None,
+):
+    """Message logs: لیست گیرندگان کمپین با وضعیت render/send."""
+    rows, total_count = fetch_campaign_recipient_rows(
+        db,
+        campaign_id,
+        send_status=send_status,
+        limit=limit,
+        offset=offset,
+    )
+
+    items = [recipient_to_response(recipient, contact) for recipient, contact in rows]
+
+    return CampaignRecipientsListResponse(
+        campaign_id=campaign_id,
+        items=items,
+        total_count=total_count,
+        limit=limit,
+        offset=offset,
     )
 
 

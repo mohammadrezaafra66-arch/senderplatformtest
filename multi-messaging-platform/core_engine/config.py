@@ -61,6 +61,24 @@ class Settings(BaseSettings):
     SHADOW_MODE: bool = False
     SHADOW_PHONE_NUMBER: str = ""
 
+    WHATSAPP_WEB_PROFILE_ROOT: str = "storage/browser_profiles/whatsapp"
+    WHATSAPP_DELIVERY_MODE: str = "web"
+
+    # Phase 9.2 — explicit API gate for live operational test sends (default off).
+    OPS_LIVE_SEND_API_ENABLED: bool = False
+
+    # Phase 9 dev — route WhatsApp Web live API test sends to Redis worker queue
+    # (use with whatsapp_worker_pool_windows.ps1 on the host).
+    WHATSAPP_OPS_SEND_VIA_WORKER_QUEUE: bool = False
+
+    # Node.js whatsapp-service mini-API (Baileys admin + warmup).
+    WHATSAPP_SERVICE_URL: str = "http://localhost:3000"
+    WHATSAPP_SERVICE_API_KEY: str = ""
+
+    # Emergency stop for all WhatsApp Web sends (UI, worker, scripts). Requires process restart
+    # to take effect in long-running workers unless Redis kill switch is also used.
+    WHATSAPP_SENDING_DISABLED: bool = False
+
     @field_validator("SESSION_SECRET")
     @classmethod
     def validate_session_secret(cls, value: str) -> str:

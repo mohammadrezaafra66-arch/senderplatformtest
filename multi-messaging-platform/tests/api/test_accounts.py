@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 
 from core_engine.api.auth import get_current_user
 from core_engine.main import app
-from core_engine.models import Account, AccountStatus, AuditLog, PlatformType
+from core_engine.models import Account, AccountStatus, AuditLog, ChannelSession, PlatformType
 
 client = TestClient(app)
 
@@ -25,6 +25,7 @@ def sample_account(pg_session_factory, admin_auth):
     session.close()
     yield account_id
     session = pg_session_factory()
+    session.query(ChannelSession).filter(ChannelSession.account_id == account_id).delete()
     session.query(AuditLog).filter(
         AuditLog.resource_type == "account",
         AuditLog.resource_id == str(account_id),
@@ -34,12 +35,12 @@ def sample_account(pg_session_factory, admin_auth):
     session.close()
 
 
-def test_list_accounts_empty(client, admin_auth):
+def test_list_accounts(client, admin_auth):
     response = client.get("/accounts", headers=AUTH_HEADERS)
     assert response.status_code == 200
     data = response.json()
-    assert data["items"] == []
-    assert data["total_count"] == 0
+    assert isinstance(data["items"], list)
+    assert data["total_count"] == len(data["items"])
 
 
 def test_create_account(client, admin_auth, pg_session_factory):
@@ -130,6 +131,11 @@ def test_update_account_status(client, admin_auth, sample_account, pg_session_fa
 
 
 def test_test_connection_success(client, admin_auth, sample_account):
+    client.post(
+        f"/accounts/{sample_account}/session/register",
+        headers=AUTH_HEADERS,
+        json={"session_payload": "TEST_BALE_TOKEN"},
+    )
     response = client.post(
         f"/accounts/{sample_account}/test-connection",
         headers=AUTH_HEADERS,

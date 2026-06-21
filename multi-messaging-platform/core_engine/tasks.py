@@ -18,6 +18,14 @@ celery_app.conf.beat_schedule = {
         "task": "push_ready_staged_items",
         "schedule": schedule(run_every=5),
     },
+    "consume-whatsapp-baileys-results-every-10-seconds": {
+        "task": "consume_whatsapp_baileys_results",
+        "schedule": schedule(run_every=10),
+    },
+    "consume-whatsapp-session-status-every-10-seconds": {
+        "task": "consume_whatsapp_baileys_session_status",
+        "schedule": schedule(run_every=10),
+    },
 }
 
 
@@ -55,4 +63,38 @@ def push_ready_staged_items_task():
         return {"error": str(exc)}
     finally:
         session.close()
+
+
+@celery_app.task(name="consume_whatsapp_baileys_results")
+def consume_whatsapp_baileys_results_task():
+    """Drain whatsapp:results (Baileys Node workers) into audit_logs."""
+    from core_engine.config import get_settings
+    from core_engine.services.baileys_results_consumer import consume_whatsapp_results_batch
+
+    if get_settings().WHATSAPP_DELIVERY_MODE.strip().lower() != "baileys":
+        return {"processed": 0, "skipped": True}
+
+    try:
+        return consume_whatsapp_results_batch()
+    except Exception as exc:
+        logger.exception("consume_whatsapp_baileys_results_task failed: %s", exc)
+        return {"error": str(exc)}
+
+
+@celery_app.task(name="consume_whatsapp_baileys_session_status")
+def consume_whatsapp_baileys_session_status_task():
+    """Apply session_invalid events → channel_sessions + account status."""
+    from core_engine.config import get_settings
+    from core_engine.services.baileys_results_consumer import (
+        consume_whatsapp_session_status_batch,
+    )
+
+    if get_settings().WHATSAPP_DELIVERY_MODE.strip().lower() != "baileys":
+        return {"processed": 0, "skipped": True}
+
+    try:
+        return consume_whatsapp_session_status_batch()
+    except Exception as exc:
+        logger.exception("consume_whatsapp_baileys_session_status_task failed: %s", exc)
+        return {"error": str(exc)}
 
