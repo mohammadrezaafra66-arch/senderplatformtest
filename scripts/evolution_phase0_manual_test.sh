@@ -39,11 +39,16 @@ curl_evo() {
   shift 3
 
   local response
-  if ! response="$(curl -sS -w "\n%{http_code}" -X "${method}" "${url}" \
+  local curl_status
+  set +e
+  response="$(curl -sS -w "\n%{http_code}" -X "${method}" "${url}" \
     -H "apikey: ${EVOLUTION_API_KEY}" \
-    "$@")"; then
-    echo "Evolution API در دسترس نیست، ابتدا این را بررسی کنید / Evolution API is not reachable — check service, URL, and network first." >&2
-    echo "خطا در فراخوانی ${label}: اتصال برقرار نشد (curl exit $?)" >&2
+    "$@")"
+  curl_status=$?
+  set -e
+  if [[ ${curl_status} -ne 0 ]]; then
+    echo "Evolution API در دسترس نیست، ابتدا این را بررسی کنید" >&2
+    echo "خطا در فراخوانی ${label}: اتصال برقرار نشد (curl exit ${curl_status})" >&2
     exit 1
   fi
 
@@ -87,10 +92,16 @@ echo
 
 # مرحله ۰ — بررسی در دسترس بودن Evolution API
 echo "--- [0/3] GET /instance/fetchInstances ---"
-if ! response="$(curl -sS -w "\n%{http_code}" -X GET "${EVOLUTION_API_URL}/instance/fetchInstances" \
-  -H "apikey: ${EVOLUTION_API_KEY}")"; then
+local_fetch_status=0
+set +e
+response="$(curl -sS -w "\n%{http_code}" -X GET "${EVOLUTION_API_URL}/instance/fetchInstances" \
+  -H "apikey: ${EVOLUTION_API_KEY}")"
+local_fetch_status=$?
+set -e
+if [[ ${local_fetch_status} -ne 0 ]]; then
   echo "Evolution API در دسترس نیست، ابتدا این را بررسی کنید" >&2
   echo "Evolution API is not reachable — check docker compose, EVOLUTION_API_URL, and EVOLUTION_API_KEY first." >&2
+  echo "خطا در فراخوانی fetchInstances: اتصال برقرار نشد (curl exit ${local_fetch_status})" >&2
   exit 1
 fi
 CURL_EVO_BODY="$(echo "${response}" | sed '$d')"
