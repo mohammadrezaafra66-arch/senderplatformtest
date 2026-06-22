@@ -30,6 +30,13 @@ IP را per-request می‌چرخانند و پروتکل خام proxy نمی‌
 ## لاگ تغییرات این فاز
 - <TODO>
 
+## اسکریپت‌های کمکی فاز ۰ (خارج از scope تسک‌های شماره‌گذاری‌شده)
+
+### `scripts/create_evolution_db.sh`
+- **چه می‌کند:** از ریشهٔ repo اجرا می‌شود؛ به `multi-messaging-platform` می‌رود و با `docker compose exec postgres` دیتابیس `evolution_db` را روی همان Postgres موجود پروژه می‌سازد (idempotent با `WHERE NOT EXISTS`) و `GRANT ALL` به `mmp_user` می‌دهد.
+- **چرا لازم بود:** سرویس `evolution_api` در `docker-compose.yml` به `evolution_db` وصل است؛ mount خودکار `postgres-init` حذف شده و Evolution schema را خود image می‌سازد — فقط **خود دیتابیس** باید یک‌بار قبل از اولین `docker compose up evolution_api` وجود داشته باشد.
+- **scope:** مانند `setup_vps.sh` — **خارج از scope تسک‌های شماره‌گذاری‌شده**؛ افزودهٔ جانبی در پرامپت پیاده‌سازی فاز ۰ (bootstrap DB). نگه داشته می‌شود چون بدون آن Evolution روی Postgres مشترک بالا نمی‌آید.
+
 ## TODO فاز ۳ — Webhook FastAPI
 - مسیر webhook Evolution باید **عیناً** در روتر FastAPI ثبت شود:
   `POST /webhooks/whatsapp/evolution`
