@@ -120,20 +120,21 @@ fi
 echo
 
 # ۱) ساخت instance با proxy اختصاصی (از متغیرهای PROXY_TEST_*)
+# Proxy fields are top-level per Evolution API v2.1.1 instanceSchema — NOT a nested "proxy" object.
+# Source: evolution-foundation/evolution-api @ 4ca141b4 (version 2.1.1, 2024-09-22)
+#   src/validate/instance.schema.ts — proxyHost, proxyPort, proxyProtocol, proxyUsername, proxyPassword
+#   src/api/controllers/instance.controller.ts — reads instanceData.proxyHost etc. on create
 echo "--- [1/3] POST /instance/create (with proxy) ---"
 CREATE_PAYLOAD="$(cat <<EOF
 {
   "instanceName": "${EVOLUTION_TEST_INSTANCE_NAME}",
   "qrcode": true,
   "integration": "WHATSAPP-BAILEYS",
-  "proxy": {
-    "enabled": true,
-    "host": "${PROXY_TEST_HOST}",
-    "port": "${PROXY_TEST_PORT}",
-    "protocol": "${PROXY_TEST_PROTOCOL}",
-    "username": "${PROXY_TEST_USER}",
-    "password": "${PROXY_TEST_PASS}"
-  }
+  "proxyHost": "${PROXY_TEST_HOST}",
+  "proxyPort": "${PROXY_TEST_PORT}",
+  "proxyProtocol": "${PROXY_TEST_PROTOCOL}",
+  "proxyUsername": "${PROXY_TEST_USER}",
+  "proxyPassword": "${PROXY_TEST_PASS}"
 }
 EOF
 )"
