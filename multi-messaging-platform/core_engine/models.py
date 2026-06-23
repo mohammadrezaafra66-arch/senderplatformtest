@@ -99,6 +99,7 @@ class SessionType(str, enum.Enum):
     MTPROTO_SESSION = "mtproto_session"
     BROWSER_PROFILE = "browser_profile"
     STRING_SESSION = "string_session"
+    EVOLUTION_INSTANCE = "evolution_instance"  # جدید — برای Evolution API
 
 
 class ImportStatus(str, enum.Enum):
@@ -154,6 +155,8 @@ class Account(Base):
     )
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    evolution_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True, default=dict)
+
     policy: Mapped["RatePolicy | None"] = relationship(
         "RatePolicy",
         back_populates="accounts",
@@ -194,6 +197,23 @@ class ChannelSession(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
+
+    instance_name: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True, index=True)
+    evolution_status: Mapped[str | None] = mapped_column(String(32), nullable=True, default="disconnected")
+    evolution_qr_code: Mapped[str | None] = mapped_column(Text, nullable=True)
+    evolution_phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    evolution_profile_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    evolution_webhook_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    connected_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    disconnected_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    proxy_host: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    proxy_port: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    proxy_protocol: Mapped[str | None] = mapped_column(String(16), nullable=True, default="http")
+    proxy_username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    proxy_password_ciphertext: Mapped[str | None] = mapped_column(Text, nullable=True)
+    proxy_pool_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    proxy_assigned_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     account: Mapped["Account"] = relationship("Account", back_populates="channel_sessions")
 
@@ -824,4 +844,30 @@ class StagedQueueItem(Base):
     rendered_message: Mapped["RenderedMessage | None"] = relationship(
         "RenderedMessage",
         back_populates="staged_items",
+    )
+
+
+class EvolutionWebhookEvent(Base):
+    __tablename__ = "evolution_webhook_events"
+    __table_args__ = (
+        Index("ix_evolution_webhook_events_timestamp", "created_at"),
+        Index("ix_evolution_webhook_events_instance", "instance_name"),
+        Index("ix_evolution_webhook_events_message_id", "platform_message_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    instance_name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    platform_message_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    remote_jid: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    raw_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    processed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    message_attempt_id: Mapped[int | None] = mapped_column(
+        ForeignKey("message_attempts.id"), nullable=True, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
     )
