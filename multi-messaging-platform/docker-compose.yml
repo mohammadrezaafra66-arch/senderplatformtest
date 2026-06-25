@@ -1,293 +1,312 @@
-
 services:
-  postgres:
-    image: postgres:15
-    container_name: mmp_postgres
-    environment:
-      POSTGRES_USER: mmp_user
-      POSTGRES_PASSWORD: mmp_pass
-      POSTGRES_DB: mmp_db
-    ports:
-      # Host 5433 avoids conflict with a local PostgreSQL install on Windows (port 5432).
-      - "5433:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7
-    container_name: mmp_redis
-    command: redis-server --save 60 1 --loglevel warning
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-
-  core_api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: mmp_core_api
-    command: ["uvicorn", "core_engine.main:app", "--host", "0.0.0.0", "--port", "8000"]
-    ports:
-      - "8001:8000"
-    env_file:
-      - .env
-    environment:
-      DRY_RUN: ${DRY_RUN:-false}
-      SHADOW_MODE: ${SHADOW_MODE:-false}
-      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
-    volumes:
-      - ./storage/browser_profiles:/app/storage/browser_profiles
-      - ./core_engine:/app/core_engine
-      - ./workers:/app/workers
-      - ./scripts:/app/scripts
-    depends_on:
-      - postgres
-      - redis
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-
-  celery_worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: mmp_celery_worker
-    command: ["celery", "-A", "core_engine.tasks.celery_app", "worker", "--loglevel=info"]
-    env_file:
-      - .env
-    environment:
-      DRY_RUN: ${DRY_RUN:-false}
-      SHADOW_MODE: ${SHADOW_MODE:-false}
-      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
-    depends_on:
-      - core_api
-      - redis
-
-  celery_beat:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: mmp_celery_beat
-    command: [
-      "celery",
-      "-A", "core_engine.tasks.celery_app",
-      "beat",
-      "--loglevel=info",
-      "--schedule=/tmp/celerybeat-schedule"
-    ]
-    env_file:
-      - .env
-    environment:
-      DRY_RUN: ${DRY_RUN:-false}
-      SHADOW_MODE: ${SHADOW_MODE:-false}
-      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
-    depends_on:
-      - core_api
-      - redis
-
   bale_worker:
     build:
       context: .
       dockerfile: Dockerfile
+    command:
+    - python
+    - -m
+    - workers.run_forever
     container_name: mmp_bale_worker
-    command: ["python", "-m", "workers.run_forever"]
+    depends_on:
+    - postgres
+    - redis
+    - celery_worker
     env_file:
-      - .env
+    - .env
     environment:
+      CHANNEL_CONNECTORS_ENABLED: ${CHANNEL_CONNECTORS_ENABLED:-false}
+      DRY_RUN: ${DRY_RUN:-true}
+      REAL_MESSAGE_SENDING_ENABLED: ${REAL_MESSAGE_SENDING_ENABLED:-false}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+      SHADOW_MODE: ${SHADOW_MODE:-false}
+      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
+      WHATSAPP_DELIVERY_MODE: web
+      WORKER_ACCOUNT_ID: ${WORKER_ACCOUNT_ID:-1}
       WORKER_PLATFORM: bale
-      WORKER_ACCOUNT_ID: ${WORKER_ACCOUNT_ID:-1}
       WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-5}
-      DRY_RUN: ${DRY_RUN:-true}
-      SHADOW_MODE: ${SHADOW_MODE:-false}
-      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
-      REAL_MESSAGE_SENDING_ENABLED: ${REAL_MESSAGE_SENDING_ENABLED:-false}
-      CHANNEL_CONNECTORS_ENABLED: ${CHANNEL_CONNECTORS_ENABLED:-false}
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
-    depends_on:
-      - postgres
-      - redis
-      - celery_worker
-
-  telegram_worker:
+  celery_beat:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: mmp_telegram_worker
-    restart: unless-stopped
-    command: ["python", "-m", "workers.run_forever"]
+    command:
+    - celery
+    - -A
+    - core_engine.tasks.celery_app
+    - beat
+    - --loglevel=info
+    - --schedule=/tmp/celerybeat-schedule
+    container_name: mmp_celery_beat
+    depends_on:
+    - core_api
+    - redis
     env_file:
-      - .env
+    - .env
     environment:
-      WORKER_PLATFORM: telegram
-      WORKER_ACCOUNT_ID: ${WORKER_ACCOUNT_ID:-1}
-      WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-5}
-      DRY_RUN: ${DRY_RUN:-true}
+      DRY_RUN: ${DRY_RUN:-false}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
       SHADOW_MODE: ${SHADOW_MODE:-false}
       SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
-      REAL_MESSAGE_SENDING_ENABLED: ${REAL_MESSAGE_SENDING_ENABLED:-false}
-      CHANNEL_CONNECTORS_ENABLED: ${CHANNEL_CONNECTORS_ENABLED:-false}
-      TELEGRAM_API_BASE_URL: ${TELEGRAM_API_BASE_URL:-https://api.telegram.org}
-      TELEGRAM_API_TIMEOUT_SECONDS: ${TELEGRAM_API_TIMEOUT_SECONDS:-30}
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
-    depends_on:
-      - postgres
-      - redis
-      - celery_worker
-
-  whatsapp_worker:
+  celery_worker:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: mmp_whatsapp_worker
-    restart: unless-stopped
-    command: ["python", "-m", "workers.run_forever"]
-    profiles:
-      - whatsapp_cloud
+    command:
+    - celery
+    - -A
+    - core_engine.tasks.celery_app
+    - worker
+    - --loglevel=info
+    container_name: mmp_celery_worker
+    depends_on:
+    - core_api
+    - redis
     env_file:
-      - .env
+    - .env
     environment:
-      WORKER_PLATFORM: whatsapp
-      WHATSAPP_DELIVERY_MODE: cloud_api
-      WORKER_ACCOUNT_ID: ${WORKER_ACCOUNT_ID:-1}
-      WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-5}
-      DRY_RUN: ${DRY_RUN:-true}
+      DRY_RUN: ${DRY_RUN:-false}
+      PYTHONPATH: /app
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
       SHADOW_MODE: ${SHADOW_MODE:-false}
       SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
-      REAL_MESSAGE_SENDING_ENABLED: ${REAL_MESSAGE_SENDING_ENABLED:-false}
-      CHANNEL_CONNECTORS_ENABLED: ${CHANNEL_CONNECTORS_ENABLED:-false}
-      WHATSAPP_API_BASE_URL: ${WHATSAPP_API_BASE_URL:-https://graph.facebook.com/v21.0}
-      WHATSAPP_API_TIMEOUT_SECONDS: ${WHATSAPP_API_TIMEOUT_SECONDS:-30}
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+    volumes:
+    - ./core_engine:/app/core_engine
+    - ./workers:/app/workers
+    - ./scripts:/app/scripts
+  core_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+    - uvicorn
+    - core_engine.main:app
+    - --host
+    - 0.0.0.0
+    - --port
+    - '8000'
+    container_name: mmp_core_api
     depends_on:
-      - postgres
-      - redis
-      - celery_worker
-
+    - postgres
+    - redis
+    env_file:
+    - .env
+    environment:
+      DRY_RUN: ${DRY_RUN:-false}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+      SHADOW_MODE: ${SHADOW_MODE:-false}
+      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
+    extra_hosts:
+    - host.docker.internal:host-gateway
+    ports:
+    - 8001:8000
+    volumes:
+    - ./storage/browser_profiles:/app/storage/browser_profiles
+    - ./core_engine:/app/core_engine
+    - ./workers:/app/workers
+    - ./scripts:/app/scripts
+    - /var/run/docker.sock:/var/run/docker.sock
+    - /usr/bin/docker:/usr/bin/docker:ro
+  evolution_api:
+    container_name: mmp_evolution_api
+    depends_on:
+    - postgres
+    - redis
+    environment:
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      AUTHENTICATION_TYPE: apikey
+      CACHE_LOCAL_ENABLED: 'true'
+      CACHE_REDIS_ENABLED: 'false'
+      CONFIG_SESSION_PHONE_VERSION: 2.3000.1033773198
+      DATABASE_CONNECTION_URI: postgresql://mmp_user:mmp_pass@postgres:5432/evolution_db
+      DATABASE_ENABLED: 'true'
+      DATABASE_PROVIDER: postgresql
+      DATABASE_SAVE_DATA_CHATS: 'false'
+      DATABASE_SAVE_DATA_CONTACTS: 'false'
+      DATABASE_SAVE_DATA_HISTORIC: 'false'
+      DATABASE_SAVE_DATA_LABELS: 'false'
+      REDIS_ENABLED: 'false'
+      WEBHOOK_ENABLED: 'true'
+      WEBHOOK_EVENTS: APPLICATION_STARTUP,QRCODE_UPDATED,MESSAGES_SET,MESSAGES_UPSERT,SEND_MESSAGE,CONNECTION_UPDATE
+      WEBHOOK_URL: ${EVOLUTION_WEBHOOK_URL:-http://core_api:8000/webhooks/whatsapp/evolution}
+    image: atendai/evolution-api:v2.1.1
+    ports:
+    - 8080:8080
+    restart: unless-stopped
+    volumes:
+    - evolution_instances:/evolution/instances
+  grafana:
+    container_name: mmp_grafana
+    depends_on:
+    - prometheus
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: admin
+    image: grafana/grafana:latest
+    ports:
+    - 3002:3000
+    volumes:
+    - grafana_data:/var/lib/grafana
+    - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+  postgres:
+    container_name: mmp_postgres
+    environment:
+      POSTGRES_DB: mmp_db
+      POSTGRES_PASSWORD: mmp_pass
+      POSTGRES_USER: mmp_user
+    image: postgres:15
+    ports:
+    - 5433:5432
+    volumes:
+    - postgres_data:/var/lib/postgresql/data
+  prometheus:
+    container_name: mmp_prometheus
+    depends_on:
+    - core_api
+    image: prom/prometheus:latest
+    ports:
+    - 9090:9090
+    volumes:
+    - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    - ./monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+  redis:
+    command: redis-server /usr/local/etc/redis/redis.conf
+    container_name: mmp_redis
+    image: redis:7
+    ports:
+    - 127.0.0.1:6379:6379
+    restart: unless-stopped
+    volumes:
+    - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
   rubika_worker:
     build:
       context: .
       dockerfile: Dockerfile
+    command:
+    - python
+    - -m
+    - workers.run_forever
     container_name: mmp_rubika_worker
-    command: ["python", "-m", "workers.run_forever"]
-    restart: unless-stopped
+    depends_on:
+    - postgres
+    - redis
+    - celery_worker
     env_file:
-      - .env
+    - .env
     environment:
-      WORKER_PLATFORM: rubika
-      WORKER_ACCOUNT_ID: ${WORKER_ACCOUNT_ID:-1}
-      WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-5}
-      DRY_RUN: ${DRY_RUN:-true}
-      SHADOW_MODE: ${SHADOW_MODE:-false}
-      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
-      REAL_MESSAGE_SENDING_ENABLED: ${REAL_MESSAGE_SENDING_ENABLED:-false}
       CHANNEL_CONNECTORS_ENABLED: ${CHANNEL_CONNECTORS_ENABLED:-false}
+      DRY_RUN: ${DRY_RUN:-true}
+      REAL_MESSAGE_SENDING_ENABLED: ${REAL_MESSAGE_SENDING_ENABLED:-false}
       RUBIKA_API_BASE_URL: ${RUBIKA_API_BASE_URL:-https://botapi.rubika.ir/v3}
       RUBIKA_API_TIMEOUT_SECONDS: ${RUBIKA_API_TIMEOUT_SECONDS:-30}
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+      SHADOW_MODE: ${SHADOW_MODE:-false}
+      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
+      WORKER_ACCOUNT_ID: ${WORKER_ACCOUNT_ID:-1}
+      WORKER_PLATFORM: rubika
+      WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-5}
+    restart: unless-stopped
+  telegram_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+    - python
+    - -m
+    - workers.run_forever
+    container_name: mmp_telegram_worker
     depends_on:
-      - postgres
-      - redis
-      - celery_worker
-
+    - postgres
+    - redis
+    - celery_worker
+    env_file:
+    - .env
+    environment:
+      CHANNEL_CONNECTORS_ENABLED: ${CHANNEL_CONNECTORS_ENABLED:-false}
+      DRY_RUN: ${DRY_RUN:-true}
+      REAL_MESSAGE_SENDING_ENABLED: ${REAL_MESSAGE_SENDING_ENABLED:-false}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+      SHADOW_MODE: ${SHADOW_MODE:-false}
+      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
+      TELEGRAM_API_BASE_URL: ${TELEGRAM_API_BASE_URL:-https://api.telegram.org}
+      TELEGRAM_API_TIMEOUT_SECONDS: ${TELEGRAM_API_TIMEOUT_SECONDS:-30}
+      WORKER_ACCOUNT_ID: ${WORKER_ACCOUNT_ID:-1}
+      WORKER_PLATFORM: telegram
+      WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-5}
+    restart: unless-stopped
+  whatsapp_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+    - python
+    - -m
+    - workers.run_forever
+    container_name: mmp_whatsapp_worker
+    depends_on:
+    - postgres
+    - redis
+    - celery_worker
+    env_file:
+    - .env
+    environment:
+      CHANNEL_CONNECTORS_ENABLED: ${CHANNEL_CONNECTORS_ENABLED:-false}
+      DRY_RUN: ${DRY_RUN:-true}
+      REAL_MESSAGE_SENDING_ENABLED: ${REAL_MESSAGE_SENDING_ENABLED:-false}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+      SHADOW_MODE: ${SHADOW_MODE:-false}
+      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
+      WHATSAPP_API_BASE_URL: ${WHATSAPP_API_BASE_URL:-https://graph.facebook.com/v21.0}
+      WHATSAPP_API_TIMEOUT_SECONDS: ${WHATSAPP_API_TIMEOUT_SECONDS:-30}
+      WHATSAPP_DELIVERY_MODE: cloud_api
+      WORKER_ACCOUNT_ID: ${WORKER_ACCOUNT_ID:-1}
+      WORKER_PLATFORM: whatsapp
+      WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-5}
+    profiles:
+    - whatsapp_cloud
+    restart: unless-stopped
   whatsapp_worker_pool:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["python", "-m", "workers.run_pool_forever"]
-    restart: unless-stopped
+    command:
+    - python
+    - -m
+    - workers.run_pool_forever
+    depends_on:
+    - postgres
+    - redis
+    - celery_worker
     env_file:
-      - .env
+    - .env
     environment:
-      WORKER_PLATFORM: whatsapp
-      WHATSAPP_DELIVERY_MODE: ${WHATSAPP_DELIVERY_MODE:-web}
-      WHATSAPP_ACCOUNT_IDS: ${WHATSAPP_ACCOUNT_IDS:-1}
-      WORKER_POOL_SIZE: ${WORKER_POOL_SIZE:-1}
-      WORKER_POOL_INDEX: ${WORKER_POOL_INDEX:--1}
-      WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-5}
+      CHANNEL_CONNECTORS_ENABLED: ${CHANNEL_CONNECTORS_ENABLED:-false}
       DRY_RUN: ${DRY_RUN:-true}
+      REAL_MESSAGE_SENDING_ENABLED: ${REAL_MESSAGE_SENDING_ENABLED:-false}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
       SHADOW_MODE: ${SHADOW_MODE:-false}
       SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
-      REAL_MESSAGE_SENDING_ENABLED: ${REAL_MESSAGE_SENDING_ENABLED:-false}
-      CHANNEL_CONNECTORS_ENABLED: ${CHANNEL_CONNECTORS_ENABLED:-false}
-      WHATSAPP_WEB_HEADLESS: ${WHATSAPP_WEB_HEADLESS:-true}
-      WHATSAPP_WEB_SEND_TIMEOUT_SECONDS: ${WHATSAPP_WEB_SEND_TIMEOUT_SECONDS:-90}
-      WHATSAPP_POOL_BROWSER_LOCK: ${WHATSAPP_POOL_BROWSER_LOCK:-true}
-      WHATSAPP_MAX_RETRY_ATTEMPTS: ${WHATSAPP_MAX_RETRY_ATTEMPTS:-3}
-      WHATSAPP_RETRY_BASE_DELAY_SECONDS: ${WHATSAPP_RETRY_BASE_DELAY_SECONDS:-5}
-      WHATSAPP_MIN_SEND_DELAY_SECONDS: ${WHATSAPP_MIN_SEND_DELAY_SECONDS:-3}
-      WHATSAPP_HOURLY_SEND_CAP: ${WHATSAPP_HOURLY_SEND_CAP:-100}
+      WHATSAPP_ACCOUNT_IDS: ${WHATSAPP_ACCOUNT_IDS:-1}
+      WHATSAPP_DELIVERY_MODE: ${WHATSAPP_DELIVERY_MODE:-web}
       WHATSAPP_DISTRIBUTED_LOCK_ENABLED: ${WHATSAPP_DISTRIBUTED_LOCK_ENABLED:-true}
       WHATSAPP_DISTRIBUTED_LOCK_TTL_SECONDS: ${WHATSAPP_DISTRIBUTED_LOCK_TTL_SECONDS:-120}
+      WHATSAPP_HOURLY_SEND_CAP: ${WHATSAPP_HOURLY_SEND_CAP:-100}
+      WHATSAPP_MAX_RETRY_ATTEMPTS: ${WHATSAPP_MAX_RETRY_ATTEMPTS:-3}
+      WHATSAPP_MIN_SEND_DELAY_SECONDS: ${WHATSAPP_MIN_SEND_DELAY_SECONDS:-3}
+      WHATSAPP_POOL_BROWSER_LOCK: ${WHATSAPP_POOL_BROWSER_LOCK:-true}
+      WHATSAPP_RETRY_BASE_DELAY_SECONDS: ${WHATSAPP_RETRY_BASE_DELAY_SECONDS:-5}
+      WHATSAPP_WEB_HEADLESS: ${WHATSAPP_WEB_HEADLESS:-true}
+      WHATSAPP_WEB_SEND_TIMEOUT_SECONDS: ${WHATSAPP_WEB_SEND_TIMEOUT_SECONDS:-90}
       WORKER_HEARTBEAT_INTERVAL_SECONDS: ${WORKER_HEARTBEAT_INTERVAL_SECONDS:-15}
       WORKER_HEARTBEAT_TTL_SECONDS: ${WORKER_HEARTBEAT_TTL_SECONDS:-45}
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
-    volumes:
-      - ./storage/browser_profiles:/app/storage/browser_profiles
-    depends_on:
-      - postgres
-      - redis
-      - celery_worker
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: mmp_prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
-    depends_on:
-      - core_api
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: mmp_grafana
-    ports:
-      - "3002:3000"
-    environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
-    depends_on:
-      - prometheus
-
-  evolution_api:
-    image: atendai/evolution-api:v2.1.1
-    container_name: mmp_evolution_api
+      WORKER_PLATFORM: whatsapp
+      WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-5}
+      WORKER_POOL_INDEX: ${WORKER_POOL_INDEX:--1}
+      WORKER_POOL_SIZE: ${WORKER_POOL_SIZE:-1}
     restart: unless-stopped
-    ports:
-      - "8080:8080"
-    environment:
-      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
-      AUTHENTICATION_TYPE: "apikey"
-      DATABASE_ENABLED: "true"
-      DATABASE_PROVIDER: "postgresql"
-      DATABASE_CONNECTION_URI: "postgresql://mmp_user:mmp_pass@postgres:5432/evolution_db"
-      
-      WEBHOOK_ENABLED: "true"
-      WEBHOOK_URL: ${EVOLUTION_WEBHOOK_URL:-http://core_api:8000/webhooks/whatsapp/evolution}
-      WEBHOOK_EVENTS: "APPLICATION_STARTUP,QRCODE_UPDATED,MESSAGES_SET,MESSAGES_UPSERT,SEND_MESSAGE,CONNECTION_UPDATE"
-      REDIS_ENABLED: "false"
-      CACHE_REDIS_ENABLED: "false"
-      CACHE_LOCAL_ENABLED: "true"
-      DATABASE_SAVE_DATA_CHATS: "false"
-      DATABASE_SAVE_DATA_CONTACTS: "false"
-      DATABASE_SAVE_DATA_HISTORIC: "false"
-      DATABASE_SAVE_DATA_LABELS: "false"
-      CONFIG_SESSION_PHONE_VERSION: "2.3000.1033773198"
-      
     volumes:
-      - evolution_instances:/evolution/instances
-    depends_on:
-      - postgres
-      - redis
-
+    - ./storage/browser_profiles:/app/storage/browser_profiles
 volumes:
-  postgres_data:
-  grafana_data:
-  evolution_instances:
+  evolution_instances: null
+  grafana_data: null
+  postgres_data: null
