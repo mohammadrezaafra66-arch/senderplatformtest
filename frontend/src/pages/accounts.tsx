@@ -5,9 +5,13 @@ import { useTranslation } from "react-i18next";
 import { Layout } from "@/components/Layout";
 import { ApiTokenSessionPanel } from "@/components/ApiTokenSessionPanel";
 import { WhatsAppWebPanel } from "@/components/WhatsAppWebPanel";
+import WhatsAppEvolutionPanel from "@/components/WhatsAppEvolutionPanel";
+import ProxyAssignmentForm from "@/components/ProxyAssignmentForm";
+import TooltipHint from "@/components/TooltipHint";
 import { Button, PageContent } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import {
+  assignAccountProxy,
   createAccount,
   fetchAccounts,
   testAccountConnection,
@@ -18,6 +22,7 @@ import type {
   AccountItem,
   AccountStatusOption,
   PlatformOption,
+  ProxyAssignRequest,
 } from "@/types/account";
 import {
   ACCOUNT_STATUS_OPTIONS,
@@ -27,6 +32,9 @@ import {
 } from "@/utils/account-status";
 import { toJalaliDateTime } from "@/utils/jalali";
 import { canManageAccounts } from "@/utils/permissions";
+
+const EVOLUTION_MODE =
+  process.env.NEXT_PUBLIC_WHATSAPP_DELIVERY_MODE === "evolution";
 
 const panelStyle: React.CSSProperties = {
   marginTop: 16,
@@ -187,6 +195,21 @@ export default function AccountsPage() {
     }
   }
 
+  async function handleAssignProxy(accountId: number, proxyData: ProxyAssignRequest) {
+    if (!canManage) return;
+    setError(null);
+    setNotice(null);
+    try {
+      await assignAccountProxy(accountId, proxyData);
+      setNotice("پروکسی با موفقیت تخصیص یافت");
+    } catch (err) {
+      setError("خطا در تخصیص پروکسی");
+      throw err;
+    } finally {
+      await loadAccounts();
+    }
+  }
+
   async function handleTestConnection(accountId: number) {
     if (!canManage) return;
     setTestingId(accountId);
@@ -246,7 +269,7 @@ export default function AccountsPage() {
                       cursor: "pointer",
                     }}
                   >
-                    {p}
+                    {t(p)}
                   </button>
                 ))}
               </div>
@@ -269,6 +292,7 @@ export default function AccountsPage() {
                 >
                   {showCreate ? t("cancel") : t("addAccount")}
                 </button>
+                <TooltipHint text="یک اکانت واتساپ، تلگرام، بله یا روبیکا جدید به سیستم اضافه کنید" />
               </div>
 
               {showCreate ? (
@@ -296,7 +320,7 @@ export default function AccountsPage() {
                     >
                       {PLATFORM_OPTIONS.map((p) => (
                         <option key={p} value={p}>
-                          {p}
+                          {t(p)}
                         </option>
                       ))}
                     </select>
@@ -406,7 +430,7 @@ export default function AccountsPage() {
                         <Fragment key={account.id}>
                           <tr style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>
                             <td style={{ padding: 10 }}>{account.id}</td>
-                            <td style={{ padding: 10 }}>{account.platform}</td>
+                            <td style={{ padding: 10 }}>{t(account.platform)}</td>
                             <td style={{ padding: 10 }}>{account.label ?? "—"}</td>
                             <td style={{ padding: 10 }}>{account.account_identifier ?? "—"}</td>
                             <td style={{ padding: 10, color: accountStatusColor(account.status) }}>
@@ -426,6 +450,7 @@ export default function AccountsPage() {
                                 >
                                   {t("editAccount")}
                                 </button>
+                                <TooltipHint text="ویرایش اطلاعات پایه این اکانت مانند برچسب و آدرس Proxy" />
                                 <button
                                   type="button"
                                   disabled={testingId === account.id}
@@ -434,26 +459,36 @@ export default function AccountsPage() {
                                 >
                                   {testingId === account.id ? t("loading") : t("testConnection")}
                                 </button>
+                                <TooltipHint text="بررسی می‌کند که آیا این اکانت واتساپ در حال حاضر به سرور متصل است یا خیر" />
                                 {account.platform === "whatsapp" ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSessionPanelId(null);
-                                      setWaPanelId((current) =>
-                                        current === account.id ? null : account.id,
-                                      );
-                                    }}
-                                    style={{
-                                      padding: "6px 10px",
-                                      borderRadius: 8,
-                                      background:
-                                        waPanelId === account.id
-                                          ? "rgba(29,78,216,0.12)"
-                                          : undefined,
-                                    }}
-                                  >
-                                    {t("waWebConnect")}
-                                  </button>
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSessionPanelId(null);
+                                        setWaPanelId((current) =>
+                                          current === account.id ? null : account.id,
+                                        );
+                                      }}
+                                      style={{
+                                        padding: "6px 10px",
+                                        borderRadius: 8,
+                                        background:
+                                          waPanelId === account.id
+                                            ? "rgba(29,78,216,0.12)"
+                                            : undefined,
+                                      }}
+                                    >
+                                      {EVOLUTION_MODE ? "اتصال Evolution" : t("waWebConnect")}
+                                    </button>
+                                    <TooltipHint
+                                      text={
+                                        EVOLUTION_MODE
+                                          ? "مشاهده وضعیت اتصال این اکانت واتساپ از طریق Evolution API و مدیریت Proxy آن"
+                                          : "مشاهده وضعیت اتصال این اکانت واتساپ و دریافت QR Code برای ورود"
+                                      }
+                                    />
+                                  </>
                                 ) : null}
                                 {isApiTokenPlatform(account.platform) ? (
                                   <button
@@ -482,11 +517,33 @@ export default function AccountsPage() {
                           {waPanelId === account.id && account.platform === "whatsapp" ? (
                             <tr>
                               <td colSpan={7} style={{ padding: "0 12px 12px" }}>
-                                <WhatsAppWebPanel
-                                  accountId={account.id}
-                                  accountPhone={account.account_identifier}
-                                  onRegistered={() => void loadAccounts()}
-                                />
+                                {EVOLUTION_MODE ? (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                                    <WhatsAppEvolutionPanel
+                                      accountId={account.id}
+                                      accountLabel={account.label ?? undefined}
+                                      onAssignProxy={() =>
+                                        setNotice(
+                                          "برای تخصیص پروکسی، فرم «تخصیص Proxy» را در همین بخش تکمیل و ذخیره کنید.",
+                                        )
+                                      }
+                                    />
+                                    <ProxyAssignmentForm
+                                      accountId={account.id}
+                                      accountLabel={account.label ?? undefined}
+                                      isConnected={false}
+                                      onAssign={(proxyData) =>
+                                        handleAssignProxy(account.id, proxyData)
+                                      }
+                                    />
+                                  </div>
+                                ) : (
+                                  <WhatsAppWebPanel
+                                    accountId={account.id}
+                                    accountPhone={account.account_identifier}
+                                    onRegistered={() => void loadAccounts()}
+                                  />
+                                )}
                               </td>
                             </tr>
                           ) : null}

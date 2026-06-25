@@ -64,6 +64,14 @@ export type WhatsAppWebRegisterResult = {
   linked: boolean;
 };
 
+export type WhatsAppWebLinkSession = {
+  account_id: number;
+  linked: boolean;
+  status: string;
+  qr_code_base64: string | null;
+  message: string;
+};
+
 export type WhatsAppWebPoolWorkerItem = {
   hostname: string;
   pool_size: number;
@@ -138,4 +146,34 @@ export type LiveSendPreflight = {
   platform: string;
   ready_for_live_send: boolean;
   checks: LiveSendPreflightCheck[];
+};
+
+export type EvolutionInstanceStatus = {
+  account_id: number;
+  instance_name: string | null;
+  state: "open" | "close" | "connecting" | "disconnected";
+  connected: boolean;
+  phone: string | null;
+  qr_code_base64: string | null;
+  proxy_assigned: boolean;
+  proxy_pool_id: string | null;
+  connected_at: string | null;
+};
+
+export type EvolutionQrLinkSession = {
+  account_id: number;
+  instance_name: string;
+  success: boolean;
+  qr_code_base64: string | null;
+  message: string;
+  status: "qr_generated" | "already_connected" | "error";
+};
+
+export type ProxyAssignRequest = {
+  host: string;
+  port: number;
+  protocol: "http" | "socks5";
+  username?: string;
+  password?: string;
+  pool_id?: string;
 };

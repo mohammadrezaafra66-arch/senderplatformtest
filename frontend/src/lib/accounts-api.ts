@@ -8,9 +8,13 @@ import type {
   AccountSendTestResult,
   AccountTestConnectionResult,
   AccountUpdatePayload,
+  EvolutionInstanceStatus,
+  EvolutionQrLinkSession,
   LiveSendPreflight,
+  ProxyAssignRequest,
   OperationalSendCapabilities,
   PlatformOption,
+  WhatsAppWebLinkSession,
   WhatsAppWebPoolStatus,
   WhatsAppWebRegisterResult,
   WhatsAppWebStatus,
@@ -73,6 +77,18 @@ export async function registerWhatsAppWebSession(
   return response.json() as Promise<WhatsAppWebRegisterResult>;
 }
 
+export async function startWhatsAppQrLink(accountId: number): Promise<WhatsAppWebLinkSession> {
+  const response = await apiFetch(`/accounts/${accountId}/whatsapp-web/link-session`, {
+    method: "POST",
+  });
+  return response.json() as Promise<WhatsAppWebLinkSession>;
+}
+
+export async function fetchWhatsAppQrLinkStatus(accountId: number): Promise<WhatsAppWebLinkSession> {
+  const response = await apiFetch(`/accounts/${accountId}/whatsapp-web/link-session`);
+  return response.json() as Promise<WhatsAppWebLinkSession>;
+}
+
 export async function fetchWhatsAppWebPoolStatus(): Promise<WhatsAppWebPoolStatus> {
   const response = await apiFetch("/accounts/whatsapp-web/pool-status");
   return response.json() as Promise<WhatsAppWebPoolStatus>;
@@ -129,4 +145,45 @@ export async function sendAccountTestMessage(
     }),
   });
   return response.json() as Promise<AccountSendTestResult>;
+}
+
+export async function fetchEvolutionInstanceStatus(
+  accountId: number
+): Promise<EvolutionInstanceStatus> {
+  const response = await apiFetch(
+    `/whatsapp/evolution/instance/${accountId}/status`
+  );
+  return response.json();
+}
+
+export async function startEvolutionQrLink(
+  accountId: number
+): Promise<EvolutionQrLinkSession> {
+  const response = await apiFetch(
+    `/whatsapp/evolution/instance/${accountId}/connect`,
+    { method: "POST" }
+  );
+  return response.json();
+}
+
+export async function disconnectEvolutionInstance(
+  accountId: number
+): Promise<{ success: boolean; message: string }> {
+  const response = await apiFetch(
+    `/whatsapp/evolution/instance/${accountId}/logout`,
+    { method: "POST" }
+  );
+  return response.json();
+}
+
+export async function assignAccountProxy(
+  accountId: number,
+  proxy: ProxyAssignRequest
+): Promise<{ success: boolean; account_id: number; proxy_assigned: boolean }> {
+  const response = await apiFetch(`/whatsapp/evolution/instance/${accountId}/proxy/assign`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(proxy),
+  });
+  return response.json();
 }
