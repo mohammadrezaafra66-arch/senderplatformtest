@@ -1,3 +1,4 @@
+
 services:
   postgres:
     image: postgres:15
@@ -15,6 +16,8 @@ services:
   redis:
     image: redis:7
     container_name: mmp_redis
+    command: redis-server --save 60 1 --loglevel warning
+    restart: unless-stopped
     ports:
       - "6379:6379"
 
@@ -263,12 +266,21 @@ services:
       AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
       AUTHENTICATION_TYPE: "apikey"
       DATABASE_ENABLED: "true"
-      DATABASE_CONNECTION: postgresql://mmp_user:mmp_pass@postgres:5432/evolution_db
+      DATABASE_PROVIDER: "postgresql"
+      DATABASE_CONNECTION_URI: "postgresql://mmp_user:mmp_pass@postgres:5432/evolution_db"
+      
       WEBHOOK_ENABLED: "true"
       WEBHOOK_URL: ${EVOLUTION_WEBHOOK_URL:-http://core_api:8000/webhooks/whatsapp/evolution}
       WEBHOOK_EVENTS: "APPLICATION_STARTUP,QRCODE_UPDATED,MESSAGES_SET,MESSAGES_UPSERT,SEND_MESSAGE,CONNECTION_UPDATE"
-      REDIS_ENABLED: "true"
-      REDIS_URI: redis://redis:6379/1
+      REDIS_ENABLED: "false"
+      CACHE_REDIS_ENABLED: "false"
+      CACHE_LOCAL_ENABLED: "true"
+      DATABASE_SAVE_DATA_CHATS: "false"
+      DATABASE_SAVE_DATA_CONTACTS: "false"
+      DATABASE_SAVE_DATA_HISTORIC: "false"
+      DATABASE_SAVE_DATA_LABELS: "false"
+      CONFIG_SESSION_PHONE_VERSION: "2.3000.1033773198"
+      
     volumes:
       - evolution_instances:/evolution/instances
     depends_on:
