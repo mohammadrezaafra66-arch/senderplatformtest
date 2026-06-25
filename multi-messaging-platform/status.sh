@@ -4,7 +4,7 @@ echo "=========================="
 docker compose ps
 echo ""
 echo "وضعیت Redis:"
-docker compose exec redis redis-cli INFO replication | grep role
+docker compose exec redis redis-cli -a SenderPlatform2026SecureRedis! INFO replication 2>/dev/null | grep role
 echo ""
 echo "وضعیت Evolution API:"
 curl -s http://localhost:8080/instance/fetchInstances \
