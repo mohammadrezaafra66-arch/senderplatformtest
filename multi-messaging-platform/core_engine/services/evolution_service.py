@@ -156,13 +156,20 @@ async def create_or_get_instance(
                 json=payload,
             )
 
-        if resp.status_code not in (200, 201):
+        if resp.status_code in (200, 201):
+            result = resp.json()
+        elif resp.status_code == 403 and "already in use" in resp.text.lower():
+            # Evolution می‌گوید این Instance از قبل وجود دارد — خطا نیست.
+            logger.info(
+                "evolution_instance_already_in_use account_id=%s instance=%s",
+                account_id, instance,
+            )
+            result = {"instanceName": instance, "already_in_use": True}
+        else:
             raise RuntimeError(
                 f"Evolution API خطا داد هنگام ایجاد Instance '{instance}': "
                 f"HTTP {resp.status_code} — {resp.text[:300]}"
             )
-
-        result = resp.json()
 
         # گام ۶: ذخیره‌ی اطلاعات Instance در ChannelSession
         cs = _get_or_create_channel_session(db_session, account_id)
