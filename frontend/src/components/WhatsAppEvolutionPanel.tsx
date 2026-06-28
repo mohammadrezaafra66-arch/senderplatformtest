@@ -268,7 +268,11 @@ export default function WhatsAppEvolutionPanel({
           <div style={{ textAlign: "center", marginBottom: 16 }}>
             {localQr ? (
               <img
-                src={`data:image/png;base64,${localQr}`}
+                src={
+                  localQr.startsWith("data:")
+                    ? localQr
+                    : `data:image/png;base64,${localQr}`
+                }
                 width={256}
                 height={256}
                 alt="WhatsApp QR Code"
