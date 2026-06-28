@@ -230,6 +230,31 @@ def evaluate_account_session_readiness(
     mode = whatsapp_delivery_mode or resolve_whatsapp_delivery_mode()
     session_type = required_session_type(account.platform, whatsapp_delivery_mode=mode)
 
+    # WhatsApp via Evolution API: readiness is driven by a live EVOLUTION_INSTANCE
+    # ChannelSession whose evolution_status is "open" (resolve_whatsapp_delivery_mode
+    # collapses "evolution" to "web", so the raw setting must be read directly).
+    raw_delivery_mode = get_settings().WHATSAPP_DELIVERY_MODE.strip().lower()
+    if account.platform == PlatformType.WHATSAPP and raw_delivery_mode == "evolution":
+        evolution_session = (
+            db.query(ChannelSession)
+            .filter(
+                ChannelSession.account_id == account.id,
+                ChannelSession.session_type == SessionType.EVOLUTION_INSTANCE,
+            )
+            .order_by(ChannelSession.id.desc())
+            .first()
+        )
+        if (
+            evolution_session is not None
+            and (evolution_session.evolution_status or "").strip().lower() == "open"
+        ):
+            return SessionReadiness(True, "Evolution instance connected")
+        return SessionReadiness(
+            False,
+            "Evolution instance is not connected.",
+            error="evolution_not_connected",
+        )
+
     if account.platform == PlatformType.WHATSAPP and mode == "web":
         try:
             wa_status = build_whatsapp_web_status(db, account.id)
