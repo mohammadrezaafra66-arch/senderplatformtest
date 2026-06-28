@@ -80,6 +80,12 @@ async def deliver_platform_message(
 
     if platform == "whatsapp":
         mode = settings.WHATSAPP_DELIVERY_MODE.strip().lower()
+        if mode == "evolution":
+            from workers.connectors.whatsapp_evolution import (
+                deliver_whatsapp_evolution_live,
+            )
+
+            return await deliver_whatsapp_evolution_live(payload, settings)
         if mode == "web":
             return await deliver_whatsapp_web_live(payload, settings)
         return await deliver_whatsapp_cloud_live(payload, settings)

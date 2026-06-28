@@ -66,8 +66,10 @@ class WorkerSettings(BaseSettings):
     @classmethod
     def normalize_whatsapp_delivery_mode(cls, value: object) -> str:
         mode = str(value or "web").strip().lower()
-        if mode not in {"web", "cloud_api"}:
-            raise ValueError("WHATSAPP_DELIVERY_MODE must be 'web' or 'cloud_api'.")
+        if mode not in {"web", "cloud_api", "evolution"}:
+            raise ValueError(
+                "WHATSAPP_DELIVERY_MODE must be 'web', 'cloud_api' or 'evolution'."
+            )
         return mode
 
     @field_validator("SHADOW_PHONE_NUMBER", mode="before")

@@ -64,6 +64,12 @@ class Settings(BaseSettings):
     WHATSAPP_WEB_PROFILE_ROOT: str = "storage/browser_profiles/whatsapp"
     WHATSAPP_DELIVERY_MODE: str = "web"
 
+    # Evolution API (WhatsApp) integration.
+    EVOLUTION_API_URL: str = "http://localhost:8080"
+    EVOLUTION_API_KEY: str = ""
+    EVOLUTION_WEBHOOK_URL: str = ""
+    WHATSAPP_EVOLUTION_REQUIRE_PROXY: bool = False
+
     # Phase 9.2 — explicit API gate for live operational test sends (default off).
     OPS_LIVE_SEND_API_ENABLED: bool = False
 
