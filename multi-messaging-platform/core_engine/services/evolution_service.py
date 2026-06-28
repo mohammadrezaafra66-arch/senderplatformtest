@@ -77,10 +77,10 @@ async def create_or_get_instance(
     settings = get_settings()
     base_url = settings.EVOLUTION_API_URL.rstrip("/")
     api_key = settings.EVOLUTION_API_KEY
-    instance = _instance_name(account_id)
 
     owns_session = db is None
     db_session = db or SessionLocal()
+    instance = _get_instance_name(db_session, account_id)
 
     try:
         # گام ۱: بررسی وجود Instance در Evolution
@@ -193,7 +193,11 @@ async def get_instance_qr(account_id: int) -> str | None:
     settings = get_settings()
     base_url = settings.EVOLUTION_API_URL.rstrip("/")
     api_key = settings.EVOLUTION_API_KEY
-    instance = _instance_name(account_id)
+    _db = SessionLocal()
+    try:
+        instance = _get_instance_name(_db, account_id)
+    finally:
+        _db.close()
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:
@@ -262,10 +266,10 @@ async def logout_instance(
     settings = get_settings()
     base_url = settings.EVOLUTION_API_URL.rstrip("/")
     api_key = settings.EVOLUTION_API_KEY
-    instance = _instance_name(account_id)
 
     owns_session = db is None
     db_session = db or SessionLocal()
+    instance = _get_instance_name(db_session, account_id)
 
     try:
         async with httpx.AsyncClient(timeout=30) as client:
