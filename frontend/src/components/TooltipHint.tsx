@@ -50,7 +50,7 @@ export default function TooltipHint({ text }: TooltipHintProps) {
             boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
             pointerEvents: "none",
             direction: "rtl",
-            whiteSpace: "pre-line",
+            whiteSpace: "normal",
           }}
         >
           {text}

@@ -114,7 +114,7 @@ export function Layout({ title, children }: LayoutProps) {
         </div>
 
         <aside className={`app-sidebar${sidebarOpen ? " app-sidebar--open" : ""}`}>
-          <div className="app-brand">Sender Platform</div>
+          <div className="app-brand">{t("senderPlatform")}</div>
           {navItems}
         </aside>
       </div>

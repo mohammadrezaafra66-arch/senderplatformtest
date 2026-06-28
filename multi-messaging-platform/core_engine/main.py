@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 from core_engine.api.auth import require_roles, router as auth_router
 from core_engine.api.accounts import router as accounts_router
 from core_engine.api.audit import router as audit_router
+from core_engine.api.evolution_webhook import router as evolution_webhook_router
+from core_engine.api.evolution_whatsapp import router as evolution_whatsapp_router
 from core_engine.api.campaigns import router as campaigns_router
 from core_engine.api.controls import router as controls_router
 from core_engine.api.dashboard import router as dashboard_router
@@ -103,6 +105,8 @@ app.include_router(dev_pricing_router)
 app.include_router(imports_router)
 app.include_router(metrics_router)
 app.include_router(whatsapp_router)
+app.include_router(evolution_whatsapp_router)
+app.include_router(evolution_webhook_router)
 
 
 @app.on_event("startup")

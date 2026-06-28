@@ -177,7 +177,7 @@ export default function ProxyAssignmentForm({
         <div style={{ flex: 2 }}>
           <div style={fieldLabelStyle}>
             آدرس Host{" "}
-            <TooltipHint text={"آدرس سرور Proxy که از ارائه‌دهنده‌ی Proxy دریافت کرده‌اید.\nمثال: proxy.example.com یا 45.132.10.55\nاین آدرس را از پنل کاربری سرویس Proxy خود کپی کنید."} />
+            <TooltipHint text="آدرس سرور Proxy — مثال: proxy.example.com یا 192.168.1.1" />
           </div>
           <input
             value={host}
@@ -189,7 +189,7 @@ export default function ProxyAssignmentForm({
         <div style={{ flex: 1 }}>
           <div style={fieldLabelStyle}>
             پورت{" "}
-            <TooltipHint text={"شماره پورت اتصال به Proxy — معمولاً یکی از این اعداد است:\n- 8080 (رایج‌ترین)\n- 3128\n- 1080\nاین عدد را از پنل کاربری سرویس Proxy خود پیدا کنید."} />
+            <TooltipHint text="شماره پورت Proxy — معمولاً ۸۰۸۰، ۳۱۲۸ یا ۱۰۸۰" />
           </div>
           <input
             value={port}
@@ -205,7 +205,7 @@ export default function ProxyAssignmentForm({
         <div style={{ flex: 1 }}>
           <div style={fieldLabelStyle}>
             پروتکل{" "}
-            <TooltipHint text={"نوع اتصال به Proxy:\n- HTTP — برای واتساپ توصیه می‌شود\n- SOCKS5 — اگر ارائه‌دهنده فقط SOCKS5 دارد\nاگر مطمئن نیستید، HTTP را انتخاب کنید."} />
+            <TooltipHint text="نوع اتصال به Proxy — برای واتساپ از HTTP استفاده کنید" />
           </div>
           <select
             value={protocol}
@@ -219,7 +219,7 @@ export default function ProxyAssignmentForm({
         <div style={{ flex: 1 }}>
           <div style={fieldLabelStyle}>
             شناسه Pool <span style={{ color: "#aaa", fontWeight: 400 }}>(اختیاری)</span>{" "}
-            <TooltipHint text={"یک نام دلخواه برای گروه‌بندی Proxy ها.\nمثال: pool-tehran-01 یا proxy-group-A\nاگر فقط یک Proxy دارید، این فیلد را خالی بگذارید."} />
+            <TooltipHint text="شناسه گروه‌بندی Proxy — اختیاری است و برای مدیریت گروهی Proxy ها استفاده می‌شود" />
           </div>
           <input
             value={poolId}
@@ -234,7 +234,7 @@ export default function ProxyAssignmentForm({
         <div style={{ flex: 1 }}>
           <div style={fieldLabelStyle}>
             نام کاربری{" "}
-            <TooltipHint text={"نام کاربری احراز هویت Proxy.\nاین اطلاعات را از ارائه‌دهنده‌ی Proxy دریافت می‌کنید.\nاگر Proxy رایگان یا بدون رمز است، این فیلد را خالی بگذارید."} />
+            <TooltipHint text="نام کاربری احراز هویت Proxy — در صورت نیاز وارد کنید" />
           </div>
           <input
             value={username}
@@ -246,7 +246,7 @@ export default function ProxyAssignmentForm({
         <div style={{ flex: 1 }}>
           <div style={fieldLabelStyle}>
             رمز عبور{" "}
-            <TooltipHint text={"رمز عبور احراز هویت Proxy.\nاین اطلاعات را از ارائه‌دهنده‌ی Proxy دریافت می‌کنید.\nرمز عبور به‌صورت رمزنگاری‌شده ذخیره می‌شود و قابل مشاهده نیست."} />
+            <TooltipHint text="رمز عبور احراز هویت Proxy — اطلاعات رمزنگاری‌شده ذخیره می‌شوند" />
           </div>
           <input
             value={password}
@@ -325,7 +325,7 @@ export default function ProxyAssignmentForm({
       >
         {submitLabel}
       </button>
-      <TooltipHint text={"با کلیک این دکمه، اطلاعات Proxy به این اکانت واتساپ تخصیص داده می‌شود.\nپس از ذخیره، می‌توانید اتصال واتساپ را برقرار کنید.\nتوجه: تغییر Proxy روی اکانت متصل، ریسک قطع اتصال دارد."} />
+      <TooltipHint text="اطلاعات Proxy را ذخیره کرده و به این اکانت تخصیص می‌دهد — پس از ذخیره می‌توانید اتصال را برقرار کنید" />
     </div>
   );
 }
