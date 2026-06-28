@@ -162,11 +162,11 @@ export type EvolutionInstanceStatus = {
 
 export type EvolutionQrLinkSession = {
   account_id: number;
+  already_connected: boolean;
   instance_name: string;
-  success: boolean;
-  qr_code_base64: string | null;
-  message: string;
-  status: "qr_generated" | "already_connected" | "error";
+  evolution_status: string;
+  qr_code?: string | null;
+  instance?: unknown;
 };
 
 export type ProxyAssignRequest = {

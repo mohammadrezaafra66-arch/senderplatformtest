@@ -74,7 +74,7 @@ export default function WhatsAppEvolutionPanel({
     setError(null);
     try {
       const result = await startEvolutionQrLink(accountId);
-      if (result.qr_code_base64) setLocalQr(result.qr_code_base64);
+      if (result.qr_code) setLocalQr(result.qr_code);
       setPolling(true);
     } catch {
       setError("خطا در دریافت QR");
