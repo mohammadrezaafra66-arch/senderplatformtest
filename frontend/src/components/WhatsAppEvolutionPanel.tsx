@@ -6,6 +6,7 @@ import {
 } from "@/lib/accounts-api";
 import type { EvolutionInstanceStatus } from "@/types/account";
 import TooltipHint from "@/components/TooltipHint";
+import { OperationalSendTestForm } from "@/components/OperationalSendTestForm";
 
 interface WhatsAppEvolutionPanelProps {
   accountId: number;
@@ -421,6 +422,18 @@ export default function WhatsAppEvolutionPanel({
           </button>
           <TooltipHint text="وضعیت اتصال را از سرور دریافت و نمایش می‌دهد" />
         </div>
+
+        {displayState === "connected" && (
+          <div style={{ marginTop: 16 }}>
+            <OperationalSendTestForm
+              accountId={accountId}
+              defaultRecipient={status?.phone}
+              recipientLabel="شماره گیرنده"
+              recipientPlaceholder="مثلاً 98912xxxxxxx"
+              sessionReady={displayState === "connected"}
+            />
+          </div>
+        )}
       </div>
     </>
   );
