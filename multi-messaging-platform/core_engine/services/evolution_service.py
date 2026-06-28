@@ -115,17 +115,19 @@ async def create_or_get_instance(
                 "(توصیه نمی‌شود)."
             )
 
-        # گام ۳: تعیین Webhook URL
-        webhook_url = (
-            settings.EVOLUTION_WEBHOOK_URL
-            or "http://core_api:8000/webhooks/whatsapp/evolution"
-        )
+        # گام ۳: تعیین Webhook URL (فقط اگر صریحاً ست شده باشد)
+        webhook_url = (settings.EVOLUTION_WEBHOOK_URL or "").strip()
 
         # گام ۴: ساخت payload ایجاد Instance
         payload: dict[str, Any] = {
             "instanceName": instance,
             "integration": "WHATSAPP-BAILEYS",
-            "webhook": {
+        }
+
+        # webhook فقط وقتی به payload اضافه می‌شود که EVOLUTION_WEBHOOK_URL ست شده باشد؛
+        # در غیر این صورت برخی نسخه‌های Evolution روی URL نامعتبر، ساخت Instance را رد می‌کنند.
+        if webhook_url:
+            payload["webhook"] = {
                 "enabled": True,
                 "url": webhook_url,
                 "events": [
@@ -136,8 +138,7 @@ async def create_or_get_instance(
                     "SEND_MESSAGE",
                     "CONNECTION_UPDATE",
                 ],
-            },
-        }
+            }
         # پسورد proxy هرگز در لاگ نمی‌آید — فقط وجود/نبودش لاگ می‌شود
         if proxy_config:
             payload["proxy"] = proxy_config
