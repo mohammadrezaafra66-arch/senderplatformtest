@@ -107,6 +107,9 @@ export default function WhatsAppEvolutionPanel({
     return "disconnected";
   })();
 
+  // اتصال واقعی، مستقل از تخصیص proxy — برای نمایش دکمه‌ی قطع اتصال
+  const isConnected = status?.state === "open" || status?.connected === true;
+
   const badgeConfig: Record<
     string,
     { palette: typeof colors.green; label: string; showSpinner?: boolean }
@@ -396,7 +399,7 @@ export default function WhatsAppEvolutionPanel({
             </button>
           )}
 
-          {displayState === "connected" && (
+          {isConnected && (
             <button
               type="button"
               onClick={handleDisconnect}
