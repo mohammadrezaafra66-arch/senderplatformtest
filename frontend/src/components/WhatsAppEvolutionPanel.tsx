@@ -7,6 +7,7 @@ import {
 import type { EvolutionInstanceStatus } from "@/types/account";
 import TooltipHint from "@/components/TooltipHint";
 import { OperationalSendTestForm } from "@/components/OperationalSendTestForm";
+import DelaySetting from "@/components/DelaySetting";
 
 interface WhatsAppEvolutionPanelProps {
   accountId: number;
@@ -438,6 +439,8 @@ export default function WhatsAppEvolutionPanel({
             />
           </div>
         )}
+
+        <DelaySetting accountId={accountId} />
       </div>
     </>
   );
