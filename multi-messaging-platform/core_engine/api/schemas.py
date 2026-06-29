@@ -124,6 +124,7 @@ class CampaignRecipientItemResponse(BaseModel):
     last_name: str | None = None
     render_status: str
     send_status: str
+    failure_reason: str | None = None
     updated_at: datetime
 
 

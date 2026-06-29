@@ -195,6 +195,7 @@ def update_message_attempt_result(
     campaign_id: int | str | None = None,
     contact_id: int | str | None = None,
     account_id: int | str | None = None,
+    failure_reason: str | None = None,
     success: bool | None = None,
     db: Session | None = None,
 ) -> None:
@@ -223,6 +224,10 @@ def update_message_attempt_result(
             )
             if recipient is not None and send_status is not None:
                 recipient.send_status = send_status
+                if failure_reason:
+                    recipient.failure_reason = failure_reason
+                elif send_status in (SendStatus.DELIVERED, SendStatus.READ):
+                    recipient.failure_reason = None
                 if message_id_int is not None:
                     # message_id here is rendered_messages.id, not messages.id
                     # try to find existing Message, or create one from RenderedMessage

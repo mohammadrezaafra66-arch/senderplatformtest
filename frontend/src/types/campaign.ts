@@ -42,6 +42,7 @@ export type CampaignRecipientItem = {
   last_name: string | null;
   render_status: string;
   send_status: string;
+  failure_reason: string | null;
   updated_at: string;
 };
 

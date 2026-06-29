@@ -17,6 +17,7 @@ import {
   tableClassName,
 } from "@/components/ui";
 import { ApiError } from "@/lib/api";
+import { getFailureReasonFa } from "@/lib/failure-reason";
 import {
   fetchCampaignDetail,
   fetchCampaignRecipients,
@@ -241,7 +242,24 @@ export default function CampaignMonitorPage() {
                               {[r.first_name, r.last_name].filter(Boolean).join(" ") || "—"}
                             </td>
                             <td>{r.render_status}</td>
-                            <td>{r.send_status}</td>
+                            <td>
+                              {r.send_status}
+                              {getFailureReasonFa(r.send_status, r.failure_reason) && (
+                                <div
+                                  style={{
+                                    marginTop: "4px",
+                                    fontSize: "12px",
+                                    color: "#dc2626",
+                                    background: "#fef2f2",
+                                    border: "1px solid #fecaca",
+                                    borderRadius: "6px",
+                                    padding: "4px 8px",
+                                  }}
+                                >
+                                  ⚠️ {getFailureReasonFa(r.send_status, r.failure_reason)}
+                                </div>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
