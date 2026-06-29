@@ -74,7 +74,7 @@ export default function WhatsAppEvolutionPanel({
     setError(null);
     try {
       const result = await startEvolutionQrLink(accountId);
-      if (result.qr_code_base64) setLocalQr(result.qr_code_base64);
+      if (result.qr_code) setLocalQr(result.qr_code);
       setPolling(true);
     } catch {
       setError("خطا در دریافت QR");
@@ -268,7 +268,11 @@ export default function WhatsAppEvolutionPanel({
           <div style={{ textAlign: "center", marginBottom: 16 }}>
             {localQr ? (
               <img
-                src={`data:image/png;base64,${localQr}`}
+                src={
+                  localQr.startsWith("data:")
+                    ? localQr
+                    : `data:image/png;base64,${localQr}`
+                }
                 width={256}
                 height={256}
                 alt="WhatsApp QR Code"
