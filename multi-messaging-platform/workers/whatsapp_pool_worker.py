@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import random
 
+from sqlalchemy.orm import Session
+
+from core_engine.database import SessionLocal
+from core_engine.models import AccountSendSettings
 from core_engine.services.delivery_audit import record_worker_whatsapp_delivery
 
 from workers.config import WorkerSettings, get_worker_settings
@@ -19,6 +24,23 @@ from workers.rate_limit import (
     set_min_delay,
 )
 from workers.redis_keys import whatsapp_browser_lock_key
+
+
+def _get_account_delay(account_id: int) -> tuple[int, int]:
+    """خواندن min/max delay از DB. در صورت خطا، پیشفرض امن برگردانده می‌شود."""
+    try:
+        db: Session = SessionLocal()
+        settings = (
+            db.query(AccountSendSettings)
+            .filter_by(account_id=account_id)
+            .first()
+        )
+        db.close()
+        if settings:
+            return settings.min_delay_seconds, settings.max_delay_seconds
+    except Exception:
+        pass
+    return 45, 90  # پیشفرض امن
 
 
 class WhatsAppPoolWorker(MultiAccountWorker):
@@ -163,10 +185,12 @@ class WhatsAppPoolWorker(MultiAccountWorker):
 
         if result.success:
             await record_successful_send(self.redis, account_id)
+            min_d, max_d = _get_account_delay(account_id)
+            actual_delay = random.uniform(min_d, max_d)
             await set_min_delay(
                 self.redis,
                 account_id,
-                settings.WHATSAPP_MIN_SEND_DELAY_SECONDS,
+                int(actual_delay),
             )
 
         return result
