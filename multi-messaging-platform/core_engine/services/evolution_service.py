@@ -41,6 +41,20 @@ def _get_instance_name(db: "Session", account_id: int) -> str:
     )
     if cs and cs.instance_name:
         return cs.instance_name
+
+    # Fallback: هر ChannelSession این اکانت که instance_name دارد —
+    # مثلاً وقتی ردیف با session_type متفاوت/NULL ذخیره شده باشد.
+    cs_any = (
+        db.query(ChannelSession)
+        .filter(
+            ChannelSession.account_id == account_id,
+            ChannelSession.instance_name.isnot(None),
+        )
+        .first()
+    )
+    if cs_any and cs_any.instance_name:
+        return cs_any.instance_name
+
     return _instance_name(account_id)
 
 
