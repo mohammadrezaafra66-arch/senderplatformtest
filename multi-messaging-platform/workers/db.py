@@ -14,6 +14,7 @@ from core_engine.models import (
     Message,
     MessageAttempt,
     MessageAttemptStatus,
+    RenderedMessage,
     SendStatus,
 )
 from workers.logging_utils import log_worker_event as _emit_worker_log
@@ -193,6 +194,7 @@ def update_message_attempt_result(
     error_message: str | None = None,
     campaign_id: int | str | None = None,
     contact_id: int | str | None = None,
+    account_id: int | str | None = None,
     success: bool | None = None,
     db: Session | None = None,
 ) -> None:
@@ -222,7 +224,28 @@ def update_message_attempt_result(
             if recipient is not None and send_status is not None:
                 recipient.send_status = send_status
                 if message_id_int is not None:
-                    recipient.final_message_id = message_id_int
+                    # message_id here is rendered_messages.id, not messages.id
+                    # try to find existing Message, or create one from RenderedMessage
+                    existing_message = session.get(Message, message_id_int)
+                    if existing_message is None:
+                        rendered = session.get(RenderedMessage, message_id_int)
+                        if rendered is not None:
+                            account_id_int = _coerce_int(account_id)
+                            new_message = Message(
+                                campaign_id=rendered.campaign_id,
+                                account_id=account_id_int or 2,
+                                contact_id=rendered.contact_id,
+                                rendered_text=rendered.final_text,
+                                dedupe_key=f"rm_{message_id_int}_{campaign_id_int}_{contact_id_int}",
+                                product_snapshot_id=rendered.product_snapshot_id,
+                                created_at=datetime.utcnow(),
+                                updated_at=datetime.utcnow(),
+                            )
+                            session.add(new_message)
+                            session.flush()
+                            existing_message = new_message
+                    if existing_message is not None:
+                        recipient.final_message_id = existing_message.id
 
         attempt_status = _RESULT_TO_ATTEMPT_STATUS.get(status)
         if attempt_status is None and success is True:

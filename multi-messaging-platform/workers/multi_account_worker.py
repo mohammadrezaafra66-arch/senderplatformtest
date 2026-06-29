@@ -211,6 +211,7 @@ class MultiAccountWorker(ABC):
             error_message=result.error_message,
             campaign_id=payload.campaign_id,
             contact_id=payload.contact_id,
+            account_id=payload.account_id,
             success=result.success,
         )
 
