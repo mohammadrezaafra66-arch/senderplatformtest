@@ -172,6 +172,30 @@ class Account(Base):
     )
 
 
+class AccountSendSettings(Base):
+    __tablename__ = "account_send_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id"), nullable=False, unique=True
+    )
+    min_delay_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=45)
+    max_delay_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=90)
+    floor_delay_seconds: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=10
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+
+    account: Mapped["Account"] = relationship(
+        "Account", backref="send_settings", uselist=False
+    )
+
+
 class ChannelSession(Base):
     __tablename__ = "channel_sessions"
 
