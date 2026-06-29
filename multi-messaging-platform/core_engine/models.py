@@ -538,6 +538,7 @@ class CampaignRecipient(Base):
         ForeignKey("messages.id"),
         nullable=True,
     )
+    failure_reason: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,

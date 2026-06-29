@@ -66,6 +66,7 @@ def recipient_to_response(
         send_status=recipient.send_status.value
         if hasattr(recipient.send_status, "value")
         else str(recipient.send_status),
+        failure_reason=recipient.failure_reason,
         updated_at=recipient.updated_at,
     )
 
