@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { Layout } from "@/components/Layout";
 import { ApiTokenSessionPanel } from "@/components/ApiTokenSessionPanel";
+import { RubikaUserAccountLoginPanel } from "@/components/RubikaUserAccountLoginPanel";
 import { WhatsAppWebPanel } from "@/components/WhatsAppWebPanel";
 import WhatsAppEvolutionPanel from "@/components/WhatsAppEvolutionPanel";
 import ProxyAssignmentForm from "@/components/ProxyAssignmentForm";
@@ -107,6 +108,7 @@ export default function AccountsPage() {
   const [testingId, setTestingId] = useState<number | null>(null);
   const [waPanelId, setWaPanelId] = useState<number | null>(null);
   const [sessionPanelId, setSessionPanelId] = useState<number | null>(null);
+  const [rubikaUserPanelId, setRubikaUserPanelId] = useState<number | null>(null);
 
   const loadAccounts = useCallback(async () => {
     if (!canManage) {
@@ -511,6 +513,30 @@ export default function AccountsPage() {
                                     {t("sessionConnect")}
                                   </button>
                                 ) : null}
+                                {account.platform === "rubika" ? (
+                                  <>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setSessionPanelId(null);
+                                        setRubikaUserPanelId((current) =>
+                                          current === account.id ? null : account.id,
+                                        );
+                                      }}
+                                      style={{
+                                        padding: "6px 10px",
+                                        borderRadius: 8,
+                                        background:
+                                          rubikaUserPanelId === account.id
+                                            ? "rgba(180,83,9,0.12)"
+                                            : undefined,
+                                      }}
+                                    >
+                                      {t("rubikaUserLoginButton")}
+                                    </button>
+                                    <TooltipHint text="ورود تعاملی با شماره موبایل و کد پیامکی برای حالت user_account (اکانت شخصی روبیکا) — جدا از توکن بات بالا" />
+                                  </>
+                                ) : null}
                               </div>
                             </td>
                           </tr>
@@ -554,6 +580,17 @@ export default function AccountsPage() {
                                   accountId={account.id}
                                   platform={account.platform}
                                   accountIdentifier={account.account_identifier}
+                                  onRegistered={() => void loadAccounts()}
+                                />
+                              </td>
+                            </tr>
+                          ) : null}
+                          {rubikaUserPanelId === account.id && account.platform === "rubika" ? (
+                            <tr>
+                              <td colSpan={7} style={{ padding: "0 12px 12px" }}>
+                                <RubikaUserAccountLoginPanel
+                                  accountId={account.id}
+                                  accountPhone={account.account_identifier}
                                   onRegistered={() => void loadAccounts()}
                                 />
                               </td>
