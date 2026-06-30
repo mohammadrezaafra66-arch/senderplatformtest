@@ -43,6 +43,34 @@ RubikaTooRequests = _rubpy_exceptions.too_requests
 RubikaRequestError = _rubpy_exceptions.request_error
 
 
+def _deep_find(data: Any, key: str) -> Any:
+    """جستجوی recursive درست در پاسخ rubpy — برای دور زدن باگ واقعی کتابخانه.
+
+    rubpy.types.Update.__getattr__ → find_keys فقط روی *اولین* فرزند dict سطح
+    بالا recurse می‌کند و همان نتیجه را برمی‌گرداند، حتی اگر None باشد، بدون
+    امتحان فرزندهای بعدی. تست تجربی شد: پاسخ واقعی addAddressBook ساختار
+    {"chat_update": {...بدون user_guid...}, "user": {"user_guid": "..."}}
+    دارد؛ result.user_guid چون اول وارد شاخه chat_update می‌شود None برمی‌گرداند
+    در حالی‌که user_guid واقعاً زیر "user" هست. این تابع همه شاخه‌ها را
+    می‌گردد، نه فقط اولی.
+    """
+    if hasattr(data, "to_dict"):
+        data = data.to_dict
+    if isinstance(data, dict):
+        if key in data:
+            return data[key]
+        for value in data.values():
+            found = _deep_find(value, key)
+            if found is not None:
+                return found
+    elif isinstance(data, list):
+        for item in data:
+            found = _deep_find(item, key)
+            if found is not None:
+                return found
+    return None
+
+
 async def load_rubika_user_client(account_id: int, db: Session | None = None) -> "rubpy.Client":
     """ساخت یک Client متصل‌نشده از envelope رمزگشایی‌شده در channel_sessions."""
     from rubpy import Client
@@ -106,7 +134,13 @@ async def _resolve_object_guid(
     *,
     contact: Contact,
 ) -> str:
-    """guid مقصد را برگردان — اول از کش contact.extra_variables، وگرنه add_address_book."""
+    """guid مقصد را برگردان — اول از کش contact.extra_variables، وگرنه add_address_book.
+
+    نکته: از _deep_find استفاده می‌شود، نه result.user_guid مستقیم — چون پاسخ واقعی
+    addAddressBook ساختار {"chat_update": {...}, "user": {"user_guid": "..."}} دارد
+    و دسترسی تک‌سطحی به‌خاطر باگ find_keys کتابخانه None برمی‌گرداند (تست شده دستی
+    با اکانت واقعی، خرداد ۱۴۰۵).
+    """
     cached = (contact.extra_variables or {}).get("rubika_guid")
     if cached:
         return str(cached)
@@ -121,7 +155,14 @@ async def _resolve_object_guid(
     result = await client.add_address_book(
         phone=phone, first_name=first_name, last_name=last_name
     )
-    guid = str(getattr(result, "user_guid", "") or getattr(result, "guid", "") or "").strip()
+
+    user_exists = _deep_find(result, "user_exist")
+    if user_exists is False:
+        raise PermanentWorkerError(
+            f"Phone ending {phone[-4:]} is not registered on Rubika (user_exist=false)."
+        )
+
+    guid = str(_deep_find(result, "user_guid") or "").strip()
     if not guid:
         raise PermanentWorkerError(
             f"Could not resolve a Rubika guid for phone ending {phone[-4:]} "
@@ -279,7 +320,7 @@ async def deliver_rubika_user_live(
                     text=payload.message_text,
                 )
 
-            message_id = str(getattr(result, "message_id", "") or "").strip()
+            message_id = str(_deep_find(result, "message_id") or "").strip()
 
         except RubikaNotRegistered as exc:
             pool.mark_account_failed(
