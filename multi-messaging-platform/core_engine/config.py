@@ -64,6 +64,12 @@ class Settings(BaseSettings):
     WHATSAPP_WEB_PROFILE_ROOT: str = "storage/browser_profiles/whatsapp"
     WHATSAPP_DELIVERY_MODE: str = "web"
 
+    # روبیکا v2 — لایه API هم باید حالت ارسال را بداند (مثلاً برای انتخاب
+    # فرم ثبت سشن: توکن بات در برابر OTP حساب شخصی). اعمال واقعی در
+    # workers/config.py انجام می‌شود؛ این فقط برای لایه core_engine/api است.
+    RUBIKA_DELIVERY_MODE: str = "bot_api"
+    RUBIKA_USER_ACCOUNT_ENABLED: bool = False
+
     # Evolution API (WhatsApp) integration.
     EVOLUTION_API_URL: str = "http://localhost:8080"
     EVOLUTION_API_KEY: str = ""
