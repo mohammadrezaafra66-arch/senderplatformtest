@@ -284,6 +284,156 @@ class RubikaUserLoginVerifyResponse(BaseModel):
     message: str
 
 
+# ─── فاز ۴ — Pool ───
+
+
+class RubikaPoolAccountItem(BaseModel):
+    account_id: int
+    label: str | None = None
+    phone_number: str | None = None
+    account_status: str
+    phase: str
+    priority: int
+    last_error_at: datetime | None = None
+    last_error_message: str | None = None
+    last_used_at: datetime | None = None
+
+
+class RubikaAccountsListResponse(BaseModel):
+    items: list[RubikaPoolAccountItem]
+    total_count: int
+
+
+class RubikaPoolUpsertRequest(BaseModel):
+    phase: str = Field(..., pattern="^(day|night|listener|status)$")
+    priority: int = Field(default=1, ge=1, le=100)
+
+
+class RubikaPoolUpsertResponse(BaseModel):
+    success: bool
+    account_id: int
+    phase: str
+    priority: int
+    message: str
+
+
+class RubikaPoolRestoreResponse(BaseModel):
+    success: bool
+    account_id: int
+    account_status: str
+    message: str
+
+
+# ─── فاز ۴ — لاگ ارسال ───
+
+
+class RubikaSendLogItem(BaseModel):
+    message_id: int
+    campaign_id: int
+    campaign_title: str | None = None
+    account_id: int
+    account_label: str | None = None
+    contact_id: int
+    contact_phone: str | None = None
+    rendered_text: str | None = None
+    status: str | None = None
+    platform_message_id: str | None = None
+    error_code: str | None = None
+    error_message: str | None = None
+    created_at: datetime
+
+
+class RubikaSendLogResponse(BaseModel):
+    items: list[RubikaSendLogItem]
+    total_count: int
+    limit: int
+    offset: int
+
+
+# ─── فاز ۴ — گروه‌ها ───
+
+
+class RubikaGroupCreateRequest(BaseModel):
+    group_guid: str = Field(..., min_length=1, max_length=255)
+    group_name: str | None = Field(default=None, max_length=512)
+    listener_account_id: int | None = None
+    keywords: list[str] = Field(default_factory=list)
+    keyword_response: str | None = None
+    red_keywords: list[str] = Field(default_factory=list)
+    conversation_mode_enabled: bool = False
+
+
+class RubikaGroupUpdateRequest(BaseModel):
+    group_name: str | None = None
+    listener_account_id: int | None = None
+    keywords: list[str] | None = None
+    keyword_response: str | None = None
+    red_keywords: list[str] | None = None
+    conversation_mode_enabled: bool | None = None
+    is_active: bool | None = None
+
+
+class RubikaGroupResponse(BaseModel):
+    id: int
+    group_guid: str
+    group_name: str | None = None
+    listener_account_id: int | None = None
+    keywords: list[str] = Field(default_factory=list)
+    keyword_response: str | None = None
+    red_keywords: list[str] = Field(default_factory=list)
+    conversation_mode_enabled: bool
+    is_active: bool
+    created_at: datetime
+
+
+class RubikaGroupsListResponse(BaseModel):
+    items: list[RubikaGroupResponse]
+    total_count: int
+
+
+class RubikaGroupMessageItem(BaseModel):
+    id: int
+    sender_name: str | None = None
+    sender_phone: str | None = None
+    message_type: str
+    message_text: str | None = None
+    transcription: str | None = None
+    image_extracted_text: str | None = None
+    is_reply_to_our_message: bool
+    has_red_keyword: bool
+    received_at: datetime
+
+
+class RubikaGroupMessagesResponse(BaseModel):
+    group_id: int
+    items: list[RubikaGroupMessageItem]
+    total_count: int
+    limit: int
+    offset: int
+
+
+# ─── فاز ۴ — زمان‌بندی روز/شب ───
+
+
+class RubikaScheduleItem(BaseModel):
+    phase: str
+    start_hour: int
+    end_hour: int
+    max_per_hour: int
+    is_active: bool
+
+
+class RubikaScheduleListResponse(BaseModel):
+    items: list[RubikaScheduleItem]
+
+
+class RubikaScheduleUpdateRequest(BaseModel):
+    start_hour: int = Field(..., ge=0, le=24)
+    end_hour: int = Field(..., ge=0, le=24)
+    max_per_hour: int = Field(..., ge=1, le=1000)
+    is_active: bool = True
+
+
 class AccountSendTestRequest(BaseModel):
     """One-off operational test message (dry-run by default)."""
 
