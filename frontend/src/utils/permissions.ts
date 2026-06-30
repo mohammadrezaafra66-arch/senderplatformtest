@@ -25,6 +25,10 @@ export function canManageAccounts(role: Role) {
   return role === "admin";
 }
 
+export function canManageRubika(role: Role) {
+  return role === "admin";
+}
+
 export function canUploadContacts(role: Role) {
   return role === "admin" || role === "operator";
 }
