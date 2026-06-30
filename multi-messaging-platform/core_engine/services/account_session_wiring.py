@@ -48,6 +48,11 @@ def required_session_type(
         if mode == "cloud_api":
             return SessionType.API_TOKEN
         return SessionType.BROWSER_PROFILE
+    if platform == PlatformType.RUBIKA:
+        rubika_mode = get_settings().RUBIKA_DELIVERY_MODE.strip().lower()
+        if rubika_mode == "user_account":
+            return SessionType.RUBIKA_SESSION
+        return SessionType.API_TOKEN
     if platform in _API_TOKEN_PLATFORMS:
         return SessionType.API_TOKEN
     raise ValueError(f"Unsupported platform for session wiring: {platform.value}")
@@ -104,6 +109,20 @@ def _validate_session_payload(platform: PlatformType, payload: str) -> str:
             {"access_token": access_token, "phone_number_id": phone_number_id},
             ensure_ascii=False,
         )
+
+    if (
+        platform == PlatformType.RUBIKA
+        and required_session_type(platform) == SessionType.RUBIKA_SESSION
+    ):
+        # ساخته‌شده توسط core_engine.services.rubika_user_session — اینجا فقط validate
+        # می‌کنیم، توسط این تابع register_api_token_session ساخته نمی‌شود.
+        from core_engine.services.rubika_user_session import parse_session_envelope
+
+        try:
+            parse_session_envelope(text)
+        except ValueError as exc:
+            raise ValueError(f"Rubika user-account session envelope invalid: {exc}") from exc
+        return text
 
     if text.startswith("{"):
         try:
@@ -323,7 +342,20 @@ def build_deploy_readiness(db: Session) -> dict[str, Any]:
     worker_services = [
         {"name": "bale_worker", "platform": "bale", "mode": "single_account"},
         {"name": "telegram_worker", "platform": "telegram", "mode": "single_account"},
-        {"name": "rubika_worker", "platform": "rubika", "mode": "single_account"},
+        {
+            "name": "rubika_worker",
+            "platform": "rubika",
+            "mode": "single_account",
+            "enabled_when": "RUBIKA_DELIVERY_MODE=bot_api",
+        },
+        {
+            "name": "rubika_user_pool",
+            "platform": "rubika",
+            "mode": "user_account_pool",
+            "enabled_when": (
+                "RUBIKA_DELIVERY_MODE=user_account و RUBIKA_USER_ACCOUNT_ENABLED=true"
+            ),
+        },
         {
             "name": "whatsapp_worker",
             "platform": "whatsapp",
