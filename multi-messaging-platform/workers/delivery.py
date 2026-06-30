@@ -91,7 +91,23 @@ async def deliver_platform_message(
         return await deliver_whatsapp_cloud_live(payload, settings)
 
     if platform == "rubika":
-        return await deliver_rubika_live(payload, settings)
+        mode = settings.RUBIKA_DELIVERY_MODE.strip().lower()
+        if mode == "user_account":
+            if not settings.RUBIKA_USER_ACCOUNT_ENABLED:
+                return WorkerResult(
+                    success=False,
+                    status="failed_permanent",
+                    error_code="rubika_user_account_disabled",
+                    error_message=(
+                        "RUBIKA_DELIVERY_MODE=user_account but "
+                        "RUBIKA_USER_ACCOUNT_ENABLED=false."
+                    ),
+                    retryable=False,
+                )
+            from workers.connectors.rubika_user import deliver_rubika_user_live
+
+            return await deliver_rubika_user_live(payload, settings)
+        return await deliver_rubika_live(payload, settings)  # bot_api — دست نزن
 
     return WorkerResult(
         success=False,
