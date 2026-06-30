@@ -256,6 +256,34 @@ class AccountSessionRegisterResponse(BaseModel):
     message: str
 
 
+class RubikaUserLoginStartRequest(BaseModel):
+    """شروع ورود تعاملی روبیکا. برای ادامه pass_key، registration_token را همراه پر کن."""
+
+    phone_number: str | None = Field(default=None, max_length=20)
+    pass_key: str | None = Field(default=None, max_length=64)
+    registration_token: str | None = Field(default=None, max_length=128)
+
+
+class RubikaUserLoginStartResponse(BaseModel):
+    registration_token: str
+    stage: str  # "code_required" | "pass_key_required"
+    message: str
+    hint_pass_key: str | None = None
+
+
+class RubikaUserLoginVerifyRequest(BaseModel):
+    registration_token: str = Field(..., min_length=1, max_length=128)
+    phone_code: str = Field(..., min_length=1, max_length=16)
+
+
+class RubikaUserLoginVerifyResponse(BaseModel):
+    success: bool
+    account_id: int
+    guid: str
+    phone_number: str
+    message: str
+
+
 class AccountSendTestRequest(BaseModel):
     """One-off operational test message (dry-run by default)."""
 
