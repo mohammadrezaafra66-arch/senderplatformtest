@@ -100,6 +100,7 @@ class SessionType(str, enum.Enum):
     BROWSER_PROFILE = "browser_profile"
     STRING_SESSION = "string_session"
     EVOLUTION_INSTANCE = "evolution_instance"  # جدید — برای Evolution API
+    RUBIKA_SESSION = "rubika_session"  # جدید — سشن rubpy برای حالت user_account
 
 
 class ImportStatus(str, enum.Enum):
@@ -895,4 +896,171 @@ class EvolutionWebhookEvent(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow
+    )
+
+
+# ─────────────────────────────────────────────────────────────────
+# روبیکا v2 — استخر چند اکانتی، پایش گروه، و هوش مصنوعی (سند خرداد ۱۴۰۵)
+#
+# طراحی این بخش عمداً سبک نگه داشته شده تا با زیرساخت موجود تداخل نکند:
+#   - سلامت اکانت: از Account.status (ACTIVE/RESTING/BANNED) استفاده می‌شود،
+#     نه یک فلگ is_healthy جدا (جلوگیری از دو منبع حقیقت ناهمگام).
+#   - سقف ارسال ساعتی و min-delay: از workers/rate_limit.py (Redis) استفاده
+#     می‌شود، نه شمارنده‌ای در دیتابیس.
+#   - dedup سراسری: روی contact_id (نه رشته خام تلفن) چون Contact.phone_e164
+#     از قبل به‌صورت سراسری unique است و نرمال‌سازی شماره از قبل وجود دارد.
+# ─────────────────────────────────────────────────────────────────
+
+
+class RubikaAccountPool(Base):
+    """عضویت یک اکانت در استخر روبیکا برای یک فاز مشخص (ارسال/پایش/استاتوس).
+
+    سلامت اکانت در این جدول تکرار نمی‌شود — Account.status منبع حقیقت است.
+    last_error_at/last_error_message فقط برای زمینه نوتیف ادمین نگه داشته می‌شود.
+    """
+
+    __tablename__ = "rubika_account_pool"
+    __table_args__ = (
+        UniqueConstraint("account_id", "phase", name="uq_rubika_pool_account_phase"),
+        Index("ix_rubika_pool_phase_priority", "phase", "priority"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id"), nullable=False, index=True
+    )
+    phase: Mapped[str] = mapped_column(String(16), nullable=False, default="day")
+    # phase: "day" | "night" | "listener" | "status"
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    last_error_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_error_message: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    account: Mapped["Account"] = relationship("Account")
+
+
+class RubikaGlobalSentRegistry(Base):
+    """جلوگیری از ارسال تکراری به یک مخاطب از طریق اکانت شخصی روبیکا.
+
+    این محدودیت فقط مخصوص حالت user_account است (ریسک بن اکانت شخصی در اثر
+    ارسال تکراری بین کمپین‌های مختلف) — کمپین‌های bot_api مشمول این قانون
+    نیستند و از مسیر معمول CampaignRecipient عبور می‌کنند.
+    کلید روی contact_id است، نه رشته خام تلفن، چون Contact.phone_e164 از قبل
+    در کل سیستم یکتا و نرمال‌شده است (excel_processor.normalize_phone).
+    """
+
+    __tablename__ = "rubika_global_sent_registry"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    contact_id: Mapped[int] = mapped_column(
+        ForeignKey("contacts.id"), nullable=False, unique=True, index=True
+    )
+    first_sent_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    last_sent_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    send_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    last_sent_campaign_id: Mapped[int | None] = mapped_column(
+        ForeignKey("campaigns.id"), nullable=True
+    )
+
+    contact: Mapped["Contact"] = relationship("Contact")
+    last_sent_campaign: Mapped["Campaign | None"] = relationship("Campaign")
+
+
+class RubikaAllowedGroup(Base):
+    """گروه‌های مجاز برای پایش — کلمات کلیدی per-group و پاسخ خودکار."""
+
+    __tablename__ = "rubika_allowed_groups"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    group_guid: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    group_name: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    listener_account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("accounts.id"), nullable=True
+    )
+    keywords: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=list)
+    keyword_response: Mapped[str | None] = mapped_column(Text, nullable=True)
+    red_keywords: Mapped[list | None] = mapped_column(JSONB, nullable=True, default=list)
+    conversation_mode_enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    listener_account: Mapped["Account | None"] = relationship("Account")
+    messages: Mapped[list["RubikaGroupMessage"]] = relationship(
+        "RubikaGroupMessage", back_populates="group"
+    )
+
+
+class RubikaGroupMessage(Base):
+    """هر پیام دریافتی در یک گروه مجاز — متن، ویس، عکس، یا ریپلای."""
+
+    __tablename__ = "rubika_group_messages"
+    __table_args__ = (
+        Index("ix_rubika_group_messages_group_received", "group_guid", "received_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    group_guid: Mapped[str] = mapped_column(
+        ForeignKey("rubika_allowed_groups.group_guid"), nullable=False, index=True
+    )
+    group_name: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    sender_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    sender_phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    message_type: Mapped[str] = mapped_column(String(32), nullable=False, default="text")
+    # message_type: "text" | "voice" | "image" | "reply" | "sticker"
+    message_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    voice_file_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    image_file_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    transcription: Mapped[str | None] = mapped_column(Text, nullable=True)
+    image_extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_reply_to_our_message: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+    has_red_keyword: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    ai_analyzed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+    group: Mapped["RubikaAllowedGroup"] = relationship(
+        "RubikaAllowedGroup", back_populates="messages"
+    )
+
+
+class RubikaSenderSchedule(Base):
+    """تعریف پنجره‌های زمانی فاز روز/شب — سراسری، نه per-account.
+
+    max_per_hour فقط مقدار پیش‌فرض نمایشی/راهنماست؛ اعمال واقعی سقف ساعتی
+    از طریق WorkerSettings.RUBIKA_HOURLY_SEND_CAP و workers/rate_limit.py
+    (Redis) انجام می‌شود تا با الگوی WHATSAPP_HOURLY_SEND_CAP یکسان بماند.
+    """
+
+    __tablename__ = "rubika_sender_schedules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    phase: Mapped[str] = mapped_column(String(16), nullable=False, unique=True, default="day")
+    start_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=8)
+    end_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=22)
+    max_per_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
