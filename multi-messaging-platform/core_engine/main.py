@@ -22,6 +22,7 @@ from core_engine.api.debug_staging import router as debug_staging_router
 from core_engine.api.dev_pricing import router as dev_pricing_router
 from core_engine.api.imports import router as imports_router
 from core_engine.api.metrics import router as metrics_router
+from core_engine.api.rubika import router as rubika_router
 from core_engine.api.send_settings import router as send_settings_router
 from core_engine.api.whatsapp import router as whatsapp_router
 from core_engine.middleware.metrics_middleware import MetricsMiddleware
@@ -105,6 +106,7 @@ app.include_router(debug_staging_router)
 app.include_router(dev_pricing_router)
 app.include_router(imports_router)
 app.include_router(metrics_router)
+app.include_router(rubika_router)
 app.include_router(send_settings_router)
 app.include_router(whatsapp_router)
 app.include_router(evolution_whatsapp_router)
