@@ -37,6 +37,23 @@ class WorkerSettings(BaseSettings):
     RUBIKA_API_BASE_URL: str = "https://botapi.rubika.ir/v3"
     RUBIKA_API_TIMEOUT_SECONDS: float = 30.0
 
+    # روبیکا v2 — حالت ارسال: bot_api (موجود، دست‌نخورده) یا user_account (rubpy، جدید).
+    RUBIKA_DELIVERY_MODE: str = "bot_api"
+    RUBIKA_USER_ACCOUNT_ENABLED: bool = False
+    RUBIKA_CONVERSATION_MODE_ENABLED: bool = False
+    RUBIKA_SESSION_DIR: str = "storage/rubika_sessions"
+    RUBIKA_MIN_SEND_DELAY_SECONDS: int = 5
+    RUBIKA_MAX_SEND_DELAY_SECONDS: int = 15
+    RUBIKA_HOURLY_SEND_CAP: int = 50
+    RUBIKA_DAY_PHASE_START_HOUR: int = 8
+    RUBIKA_DAY_PHASE_END_HOUR: int = 22
+    RUBIKA_LISTENER_ACCOUNT_ID: int = 0
+    RUBIKA_STATUS_ACCOUNT_ID: int = 0
+    RUBIKA_STATUS_LIKE_DELAY_MIN_SECONDS: int = 5
+    RUBIKA_STATUS_LIKE_DELAY_MAX_SECONDS: int = 30
+    RUBIKA_STATUS_HOURLY_LIKE_CAP: int = 30
+    RUBIKA_STATUS_DAILY_COMMENT_CAP: int = 10
+
     WHATSAPP_API_BASE_URL: str = "https://graph.facebook.com/v21.0"
     WHATSAPP_API_TIMEOUT_SECONDS: float = 30.0
 
@@ -71,6 +88,21 @@ class WorkerSettings(BaseSettings):
                 "WHATSAPP_DELIVERY_MODE must be 'web', 'cloud_api' or 'evolution'."
             )
         return mode
+
+    @field_validator("RUBIKA_DELIVERY_MODE", mode="before")
+    @classmethod
+    def normalize_rubika_delivery_mode(cls, value: object) -> str:
+        mode = str(value or "bot_api").strip().lower()
+        if mode not in {"bot_api", "user_account"}:
+            raise ValueError("RUBIKA_DELIVERY_MODE must be 'bot_api' or 'user_account'.")
+        return mode
+
+    @field_validator("RUBIKA_DAY_PHASE_START_HOUR", "RUBIKA_DAY_PHASE_END_HOUR")
+    @classmethod
+    def validate_rubika_phase_hour(cls, value: int) -> int:
+        if not 0 <= value <= 24:
+            raise ValueError("RUBIKA day-phase hours must be between 0 and 24.")
+        return value
 
     @field_validator("SHADOW_PHONE_NUMBER", mode="before")
     @classmethod
