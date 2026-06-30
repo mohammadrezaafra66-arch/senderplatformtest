@@ -75,6 +75,31 @@ async def load_rubika_user_client(account_id: int, db: Session | None = None) ->
     return Client(name=string_session, display_welcome=False)
 
 
+async def _connect_authenticated(client: "rubpy.Client") -> None:
+    """connect() در rubpy فقط auth/guid/private_key را از session می‌خواند —
+
+    import_key و decode_auth را ست نمی‌کند (آن دو فقط داخل start() ست می‌شوند،
+    که برای سشن از قبل لاگین‌شده صدا نمی‌زنیم چون start() مسیر ثبت‌نام
+    تعاملی/phone+OTP را هم در بر دارد). بدون import_key، هر درخواست امضادار
+    (add_address_book، send_message، ...) با
+    AttributeError: 'NoneType' object has no attribute 'sign' fail می‌شود
+    (در rubpy/network.py: Crypto.sign(self.client.import_key, ...)).
+    این تابع همان دو خط را که start() بعد از ورود موفق روی self انجام می‌دهد،
+    اینجا برای یک Client از قبل احراز‌شده تکرار می‌کند.
+    """
+    from Crypto.PublicKey import RSA
+    from Crypto.Signature import pkcs1_15
+    from rubpy.crypto import Crypto as RubikaCrypto
+
+    await client.connect()
+    client.decode_auth = RubikaCrypto.decode_auth(client.auth) if client.auth else None
+    client.import_key = (
+        pkcs1_15.new(RSA.import_key(client.private_key.encode()))
+        if client.private_key
+        else None
+    )
+
+
 async def _resolve_object_guid(
     client: "rubpy.Client",
     db: Session,
@@ -221,7 +246,7 @@ async def deliver_rubika_user_live(
                 retryable=False,
             )
 
-        await client.connect()
+        await _connect_authenticated(client)
         try:
             try:
                 guid = await _resolve_object_guid(client, session, contact=contact)
