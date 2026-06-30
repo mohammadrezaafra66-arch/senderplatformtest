@@ -297,7 +297,20 @@ async def test_deliver_rubika_user_live_success_and_then_duplicate(monkeypatch, 
     )
     settings = _live_settings()
 
-    fake_addr = Update({"user_guid": "uRESOLVEDCONTACT"})
+    # ساختار واقعی addAddressBook (گرفته‌شده از تست دستی با اکانت واقعی، خرداد ۱۴۰۵) —
+    # عمداً تو در تو و با chat_update قبل از user چیده شده تا اگر روزی کسی دوباره
+    # result.user_guid (تک‌سطحی، باگ‌دار) به‌جای _deep_find بنویسد، این تست fail شود.
+    fake_addr = Update(
+        {
+            "chat_update": {
+                "object_guid": "uRESOLVEDCONTACT",
+                "action": "Edit",
+                "chat": {"abs_object": {"object_guid": "uRESOLVEDCONTACT", "type": "User"}},
+            },
+            "user": {"user_guid": "uRESOLVEDCONTACT", "phone": "989120009999"},
+            "user_exist": True,
+        }
+    )
     fake_send = Update({"message_id": "555"})
 
     async def fake_connect(self):
