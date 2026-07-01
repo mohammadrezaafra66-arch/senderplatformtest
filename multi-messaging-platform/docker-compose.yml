@@ -206,6 +206,28 @@ services:
       WORKER_PLATFORM: rubika
       WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-5}
     restart: unless-stopped
+  rubika_listener:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+    - python
+    - -m
+    - workers.rubika_group_listener
+    container_name: mmp_rubika_listener
+    depends_on:
+    - postgres
+    - redis
+    env_file:
+    - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+      RUBIKA_DELIVERY_MODE: user_account
+      RUBIKA_USER_ACCOUNT_ENABLED: "true"
+    profiles:
+    - rubika_listener
+    restart: unless-stopped
   telegram_worker:
     build:
       context: .
