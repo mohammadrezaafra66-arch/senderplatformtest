@@ -5,7 +5,7 @@ import os
 from typing import Any
 
 from celery import Celery
-from celery.schedules import schedule
+from celery.schedules import crontab, schedule
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,14 @@ celery_app.conf.beat_schedule = {
     "process-rubika-images-every-minute": {
         "task": "process_rubika_images",
         "schedule": schedule(run_every=60),
+    },
+    "rubika-complaint-check": {
+        "task": "rubika_complaint_check",
+        "schedule": schedule(run_every=300),
+    },
+    "rubika-ai-daily": {
+        "task": "rubika_daily_ai_analysis",
+        "schedule": crontab(hour=22, minute=0),
     },
 }
 
@@ -137,6 +145,93 @@ def process_rubika_images_task():
         return asyncio.run(process_pending_images(session))
     except Exception as exc:
         logger.exception("process_rubika_images_task failed: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        session.close()
+
+
+@celery_app.task(name="rubika_complaint_check")
+def rubika_complaint_check_task():
+    """هر ۵ دقیقه: پیام‌های ai_analyzed=False را برای شکایت بررسی می‌کند."""
+    import asyncio
+    from core_engine.database import SessionLocal
+    from core_engine.models import RubikaGroupMessage
+    from core_engine.services.rubika_ai_analyzer import detect_complaints_and_alert
+
+    session = SessionLocal()
+    try:
+        pending = (
+            session.query(RubikaGroupMessage)
+            .filter(
+                RubikaGroupMessage.ai_analyzed.is_(False),
+                RubikaGroupMessage.message_type.in_(["text", "voice"]),
+            )
+            .limit(50)
+            .all()
+        )
+        complaints = 0
+        for row in pending:
+            try:
+                is_c = asyncio.run(
+                    detect_complaints_and_alert(session, message_id=row.id)
+                )
+                if is_c:
+                    complaints += 1
+            except Exception as e:
+                logger.warning("rubika_complaint_check skip msg %s: %s", row.id, e)
+        session.commit()
+        return {"checked": len(pending), "complaints": complaints}
+    except Exception as exc:
+        logger.exception("rubika_complaint_check_task failed: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        session.close()
+
+
+@celery_app.task(name="rubika_daily_ai_analysis")
+def rubika_daily_ai_analysis_task():
+    """هر شب ساعت ۲۲: استخراج قیمت + خلاصه روزانه برای همه گروه‌های فعال."""
+    import asyncio
+    from core_engine.database import SessionLocal
+    from core_engine.models import RubikaAllowedGroup
+    from core_engine.services.rubika_ai_analyzer import (
+        extract_prices_from_messages,
+        generate_daily_summary,
+    )
+
+    session = SessionLocal()
+    try:
+        groups = (
+            session.query(RubikaAllowedGroup)
+            .filter(RubikaAllowedGroup.is_active.is_(True))
+            .all()
+        )
+        results = []
+        for group in groups:
+            try:
+                price_result = asyncio.run(
+                    extract_prices_from_messages(session, group_guid=group.group_guid)
+                )
+                summary = asyncio.run(
+                    generate_daily_summary(session, group_guid=group.group_guid)
+                )
+                results.append({
+                    "group_guid": group.group_guid,
+                    "price_rows": price_result.get("price_rows_found", 0),
+                    "summary_len": len(summary),
+                })
+                logger.info(
+                    "rubika_daily: group=%s prices=%d summary=%d chars",
+                    group.group_guid,
+                    price_result.get("price_rows_found", 0),
+                    len(summary),
+                )
+            except Exception as e:
+                logger.exception("rubika_daily failed for group %s: %s", group.group_guid, e)
+                results.append({"group_guid": group.group_guid, "error": str(e)})
+        return {"groups_processed": len(results), "results": results}
+    except Exception as exc:
+        logger.exception("rubika_daily_ai_analysis_task failed: %s", exc)
         return {"error": str(exc)}
     finally:
         session.close()
