@@ -228,6 +228,30 @@ services:
     profiles:
     - rubika_listener
     restart: unless-stopped
+  rubika_status_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+    - python
+    - -m
+    - workers.rubika_status_bot
+    container_name: mmp_rubika_status_bot
+    depends_on:
+    - postgres
+    - redis
+    env_file:
+    - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+      RUBIKA_DELIVERY_MODE: user_account
+      RUBIKA_USER_ACCOUNT_ENABLED: "true"
+      RUBIKA_STATUS_HOURLY_LIKE_CAP: ${RUBIKA_STATUS_HOURLY_LIKE_CAP:-30}
+      RUBIKA_STATUS_DAILY_COMMENT_CAP: ${RUBIKA_STATUS_DAILY_COMMENT_CAP:-10}
+    profiles:
+    - rubika_status
+    restart: unless-stopped
   telegram_worker:
     build:
       context: .
