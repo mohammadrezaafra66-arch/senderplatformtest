@@ -26,6 +26,14 @@ celery_app.conf.beat_schedule = {
         "task": "consume_whatsapp_baileys_session_status",
         "schedule": schedule(run_every=10),
     },
+    "process-rubika-voices-every-minute": {
+        "task": "process_rubika_voices",
+        "schedule": schedule(run_every=60),
+    },
+    "process-rubika-images-every-minute": {
+        "task": "process_rubika_images",
+        "schedule": schedule(run_every=60),
+    },
 }
 
 
@@ -98,3 +106,37 @@ def consume_whatsapp_baileys_session_status_task():
         logger.exception("consume_whatsapp_baileys_session_status_task failed: %s", exc)
         return {"error": str(exc)}
 
+
+
+@celery_app.task(name="process_rubika_voices")
+def process_rubika_voices_task():
+    """هر دقیقه: ویس‌های بدون transcription را با Whisper پردازش می‌کند."""
+    import asyncio
+    from core_engine.database import SessionLocal
+    from core_engine.services.rubika_voice_processor import process_pending_voices
+
+    session = SessionLocal()
+    try:
+        return asyncio.run(process_pending_voices(session))
+    except Exception as exc:
+        logger.exception("process_rubika_voices_task failed: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        session.close()
+
+
+@celery_app.task(name="process_rubika_images")
+def process_rubika_images_task():
+    """هر دقیقه: تصاویر بدون image_extracted_text را با GPT-4o vision پردازش می‌کند."""
+    import asyncio
+    from core_engine.database import SessionLocal
+    from core_engine.services.rubika_image_processor import process_pending_images
+
+    session = SessionLocal()
+    try:
+        return asyncio.run(process_pending_images(session))
+    except Exception as exc:
+        logger.exception("process_rubika_images_task failed: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        session.close()
