@@ -42,6 +42,10 @@ celery_app.conf.beat_schedule = {
         "task": "rubika_daily_ai_analysis",
         "schedule": crontab(hour=22, minute=0),
     },
+    "rubika-cleanup-daily": {
+        "task": "rubika_daily_cleanup",
+        "schedule": crontab(hour=3, minute=0),
+    },
 }
 
 
@@ -235,3 +239,14 @@ def rubika_daily_ai_analysis_task():
         return {"error": str(exc)}
     finally:
         session.close()
+
+
+@celery_app.task(name="rubika_daily_cleanup")
+def rubika_daily_cleanup_task():
+    """هر روز ساعت ۳ صبح: پاکسازی فایل‌های قدیمی روبیکا."""
+    from core_engine.services.rubika_cleanup import run_daily_cleanup
+    try:
+        return run_daily_cleanup()
+    except Exception as exc:
+        logger.exception("rubika_daily_cleanup_task failed: %s", exc)
+        return {"error": str(exc)}
