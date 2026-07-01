@@ -62,6 +62,18 @@ class WorkerSettings(BaseSettings):
     WORKER_HEARTBEAT_INTERVAL_SECONDS: int = 15
     WORKER_HEARTBEAT_TTL_SECONDS: int = 45
 
+    # Telegram MTProto (Telethon)
+    TELEGRAM_DELIVERY_MODE: str = "bot_api"
+    TELEGRAM_API_ID: str = ""
+    TELEGRAM_API_HASH: str = ""
+    TELEGRAM_MTPROTO_SESSION_DIR: str = "storage/telegram_mtproto_sessions"
+    TELEGRAM_ENABLE_MTPROTO: bool = False
+    TELEGRAM_MIN_SEND_DELAY_SECONDS: int = 15
+    TELEGRAM_MAX_SEND_DELAY_SECONDS: int = 45
+    TELEGRAM_WARMUP_DAYS: int = 14
+    TELEGRAM_WARMUP_START_CAP: int = 10
+    TELEGRAM_WARMUP_FINAL_CAP: int = 80
+
     @field_validator("WHATSAPP_DELIVERY_MODE", mode="before")
     @classmethod
     def normalize_whatsapp_delivery_mode(cls, value: object) -> str:

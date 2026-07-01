@@ -98,3 +98,34 @@ def consume_whatsapp_baileys_session_status_task():
         logger.exception("consume_whatsapp_baileys_session_status_task failed: %s", exc)
         return {"error": str(exc)}
 
+
+
+@celery_app.task(name="check_telegram_send_window")
+def check_telegram_send_window_task():
+    import asyncio
+    from core_engine.database import SessionLocal
+    from core_engine.services.telegram_scheduler import check_and_enforce_telegram_send_window
+
+    session = SessionLocal()
+    try:
+        return asyncio.run(check_and_enforce_telegram_send_window(session))
+    except Exception as exc:
+        logger.exception("check_telegram_send_window_task failed: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        session.close()
+
+
+@celery_app.task(name="refresh_telegram_warmup_caps")
+def refresh_telegram_warmup_caps_task():
+    from core_engine.database import SessionLocal
+    from core_engine.services.telegram_warmup import refresh_all_account_caps
+
+    session = SessionLocal()
+    try:
+        return refresh_all_account_caps(session)
+    except Exception as exc:
+        logger.exception("refresh_telegram_warmup_caps_task failed: %s", exc)
+        return {"error": str(exc)}
+    finally:
+        session.close()

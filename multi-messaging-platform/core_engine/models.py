@@ -896,3 +896,51 @@ class EvolutionWebhookEvent(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow
     )
+
+
+class TelegramAccountPool(Base):
+    __tablename__ = "telegram_account_pool"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"), nullable=False, unique=True)
+    warm_up_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    is_warmed_up: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    daily_cap_today: Mapped[int] = mapped_column(Integer, nullable=False, default=10)
+    sent_today: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_count_reset_date: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    is_healthy: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    last_error_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class TelegramSenderSchedule(Base):
+    __tablename__ = "telegram_sender_schedules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    start_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=9)
+    end_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=21)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class TelegramGlobalSentRegistry(Base):
+    __tablename__ = "telegram_global_sent_registry"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    phone_number: Mapped[str] = mapped_column(String(20), nullable=False, unique=True, index=True)
+    first_sent_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    send_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    last_sent_campaign_id: Mapped[int | None] = mapped_column(ForeignKey("campaigns.id"), nullable=True)
+
+
+class TelegramMTProtoLead(Base):
+    __tablename__ = "telegram_mtproto_leads"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    phone_number: Mapped[str] = mapped_column(String(20), nullable=False, index=True)
+    telegram_user_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    last_activity_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
