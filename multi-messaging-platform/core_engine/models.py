@@ -1064,3 +1064,29 @@ class RubikaSenderSchedule(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
     )
+
+
+class RubikaContentSchedule(Base):
+    """زمان‌بندی محتوای استاتوس (Rubino) — نیازمندی ۲۴ سند.
+
+    هر ردیف یک عکس/ویدیو/متن است که در زمان scheduled_at توسط
+    workers/rubika_status_bot.py منتشر می‌شود. اکانت status باید
+    phase=status در rubika_account_pool داشته باشد و کاملاً مجزا باشد.
+    """
+
+    __tablename__ = "rubika_content_schedules"
+    __table_args__ = (
+        Index("ix_rubika_content_schedules_scheduled_at", "scheduled_at", "published"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    caption: Mapped[str | None] = mapped_column(Text, nullable=True)
+    media_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    content_type: Mapped[str] = mapped_column(String(32), nullable=False, default="Picture")
+    scheduled_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
