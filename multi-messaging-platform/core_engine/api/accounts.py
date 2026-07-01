@@ -1,9 +1,13 @@
 """API مدیریت اکانت‌های پیام‌رسان."""
 
+import logging
 from typing import Annotated
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
+from core_engine.config import get_settings
 
 from core_engine.api.schemas import (
     AccountCreateRequest,
@@ -50,9 +54,33 @@ from core_engine.services.whatsapp_web_session import (
     resolve_whatsapp_profile_dir,
     store_whatsapp_web_session,
 )
+from core_engine.services.evolution_service import _instance_name
 from core_engine.services.worker_pool_status import list_whatsapp_pool_workers
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/accounts", tags=["accounts"])
+
+
+def _create_evolution_instance(instance_name: str) -> None:
+    settings = get_settings()
+    evolution_url = settings.EVOLUTION_API_URL.rstrip("/")
+    evolution_key = settings.EVOLUTION_API_KEY
+    try:
+        with httpx.Client(timeout=30) as client:
+            resp = client.post(
+                f"{evolution_url}/instance/create",
+                headers={"apikey": evolution_key, "Content-Type": "application/json"},
+                json={"instanceName": instance_name, "integration": "WHATSAPP-BAILEYS"},
+            )
+            if resp.status_code not in (200, 201):
+                logger.warning(
+                    "Evolution instance create failed: %s %s",
+                    resp.status_code,
+                    resp.text,
+                )
+    except Exception as exc:
+        logger.warning("Evolution instance create error: %s", exc)
 
 
 def _account_to_response(account: Account) -> AccountResponse:
@@ -146,6 +174,12 @@ def create_account(
         )
         db.commit()
         db.refresh(account)
+
+        if (
+            account.platform == PlatformType.WHATSAPP
+            and resolve_whatsapp_delivery_mode() == "evolution"
+        ):
+            _create_evolution_instance(_instance_name(account.id))
 
         return AccountCreateResponse(
             status="created",
