@@ -11,9 +11,9 @@ logger = logging.getLogger("whatsapp_auto_reconnect")
 
 # backoff schedule (ثانیه)
 BACKOFF_SCHEDULE = [5, 15, 45, 90, 180]
-MAX_RECONNECT_ATTEMPTS = 5
+MAX_RECONNECT_ATTEMPTS = 3
 # yellow_card detection: بیش از این تعداد disconnect در این پنجره زمانی
-YELLOW_CARD_THRESHOLD = 4
+YELLOW_CARD_THRESHOLD = 3
 YELLOW_CARD_WINDOW_MINUTES = 10
 CHECK_INTERVAL_SECONDS = 20
 
