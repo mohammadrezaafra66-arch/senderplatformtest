@@ -224,6 +224,11 @@ class ChannelSession(Base):
 
     instance_name: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True, index=True)
     evolution_status: Mapped[str | None] = mapped_column(String(32), nullable=True, default="disconnected")
+    authorization_state: Mapped[str | None] = mapped_column(String(32), nullable=True, default="not_authorized")
+    socket_state: Mapped[str | None] = mapped_column(String(16), nullable=True, default="offline")
+    reconnect_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_disconnect_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    disconnect_events: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
     evolution_qr_code: Mapped[str | None] = mapped_column(Text, nullable=True)
     evolution_phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     evolution_profile_name: Mapped[str | None] = mapped_column(String(255), nullable=True)

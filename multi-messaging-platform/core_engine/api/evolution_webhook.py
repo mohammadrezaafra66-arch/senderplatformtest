@@ -73,22 +73,31 @@ async def evolution_webhook_receiver(request: Request):
                     if normalized == "connected":
                         cs.connected_at = now
                         cs.disconnected_at = None
+                        cs.authorization_state = "authorized"
+                        cs.socket_state = "online"
+                        cs.reconnect_attempts = 0
                     elif normalized == "disconnected":
                         cs.disconnected_at = now
-
-                    db.commit()
-                    logger.info(
-                        "evolution_webhook_db_updated account_id=%s status=%s",
-                        account_id, normalized,
-                    )
+                        cs.socket_state = "offline"
 
                     # تشخیص logout دائمی (401) — نیاز به QR جدید، auto-reconnect بی‌فایده است
                     if status_reason == 401:
+                        cs.authorization_state = "blocked"
+                        cs.socket_state = "offline"
                         logger.warning(
                             "evolution_webhook_401_logout account_id=%s instance=%s "
                             "NEEDS_NEW_QR — auto-reconnect skipped",
                             account_id, instance_name,
                         )
+
+                    db.commit()
+                    logger.info(
+                        "evolution_webhook_db_updated account_id=%s status=%s auth=%s socket=%s",
+                        account_id,
+                        normalized,
+                        cs.authorization_state,
+                        cs.socket_state,
+                    )
             except Exception as exc:
                 db.rollback()
                 logger.error(
