@@ -276,6 +276,41 @@ async def check_instance_connection(account_id: int, db=None) -> bool:
         return False
 
 
+async def reconnect_instance(account_id: int, db=None) -> bool:
+    """تلاش برای اتصال مجدد instance. True اگر درخواست موفق ارسال شد."""
+    settings = get_settings()
+    base_url = settings.EVOLUTION_API_URL.rstrip("/")
+    api_key = settings.EVOLUTION_API_KEY
+    from core_engine.database import SessionLocal as _SL
+    _owns = db is None
+    _db = db or _SL()
+    try:
+        instance = _get_instance_name(_db, account_id)
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                f"{base_url}/instance/connect/{instance}",
+                headers=_evo_headers(api_key),
+            )
+        ok = resp.status_code == 200
+        logger.info(
+            "evolution_reconnect account_id=%s http_status=%s ok=%s",
+            account_id,
+            resp.status_code,
+            ok,
+        )
+        return ok
+    except (httpx.TimeoutException, httpx.ConnectError) as exc:
+        logger.warning(
+            "evolution_reconnect_error account_id=%s err=%s",
+            account_id,
+            str(exc),
+        )
+        return False
+    finally:
+        if _owns:
+            _db.close()
+
+
 async def logout_instance(
     account_id: int, db: Session | None = None
 ) -> dict[str, Any]:
