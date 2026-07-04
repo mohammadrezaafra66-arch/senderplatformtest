@@ -6,6 +6,7 @@ from datetime import datetime, timezone, timedelta
 from core_engine.database import SessionLocal
 from core_engine.models import ChannelSession
 from core_engine.services.evolution_service import reconnect_instance
+from core_engine.services.alert_service import send_alert
 
 logger = logging.getLogger("whatsapp_auto_reconnect")
 
@@ -43,6 +44,7 @@ async def _process_account(cs_id: int) -> None:
     account_id = None
     attempt = 0
     delay = BACKOFF_SCHEDULE[0]
+    pending_alerts: list[tuple[str, int, str]] = []
     try:
         cs = db.query(ChannelSession).filter(ChannelSession.id == cs_id).first()
         if cs is None:
@@ -78,6 +80,8 @@ async def _process_account(cs_id: int) -> None:
         # تشخیص yellow_card از تعداد disconnect در پنجره اخیر
         recent_count = _record_disconnect_event(cs)
         cs.last_disconnect_at = _now()
+        # فقط روی گذار به yellow_card هشدار بده (نه هر چرخه) تا از spam جلوگیری شود
+        was_yellow = cs.authorization_state == "yellow_card"
         if recent_count >= YELLOW_CARD_THRESHOLD and cs.authorization_state != "blocked":
             cs.authorization_state = "yellow_card"
             logger.warning(
@@ -86,6 +90,8 @@ async def _process_account(cs_id: int) -> None:
                 recent_count,
                 YELLOW_CARD_WINDOW_MINUTES,
             )
+            if not was_yellow:
+                pending_alerts.append(("yellow_card", cs.account_id, str(recent_count)))
 
         # بررسی سقف تلاش
         if cs.reconnect_attempts >= MAX_RECONNECT_ATTEMPTS:
@@ -94,27 +100,33 @@ async def _process_account(cs_id: int) -> None:
                 cs.account_id,
                 cs.reconnect_attempts,
             )
+            pending_alerts.append(
+                ("reconnect_failed", cs.account_id, f"attempts={cs.reconnect_attempts}")
+            )
             db.commit()
-            return
+        else:
+            # محاسبه backoff بر اساس شماره تلاش
+            idx = min(cs.reconnect_attempts, len(BACKOFF_SCHEDULE) - 1)
+            delay = BACKOFF_SCHEDULE[idx]
 
-        # محاسبه backoff بر اساس شماره تلاش
-        idx = min(cs.reconnect_attempts, len(BACKOFF_SCHEDULE) - 1)
-        delay = BACKOFF_SCHEDULE[idx]
+            # آیا به اندازه کافی از آخرین قطعی گذشته؟ (backoff)
+            # ساده: فقط تلاش کن، delay بین چرخه‌ها توسط CHECK_INTERVAL کنترل می‌شود
+            cs.reconnect_attempts += 1
+            cs.updated_at = _now()
+            db.commit()
 
-        # آیا به اندازه کافی از آخرین قطعی گذشته؟ (backoff)
-        # ساده: فقط تلاش کن، delay بین چرخه‌ها توسط CHECK_INTERVAL کنترل می‌شود
-        cs.reconnect_attempts += 1
-        cs.updated_at = _now()
-        db.commit()
-
-        account_id = cs.account_id
-        attempt = cs.reconnect_attempts
+            account_id = cs.account_id
+            attempt = cs.reconnect_attempts
     except Exception as exc:
         db.rollback()
         logger.error("auto_reconnect_db_error cs_id=%s err=%s", cs_id, str(exc))
         return
     finally:
         db.close()
+
+    # ارسال هشدارها خارج از session DB (مطابق الگوی reconnect — I/O شبکه بعد از close)
+    for _event, _acc, _detail in pending_alerts:
+        await send_alert(_event, _acc, _detail)
 
     if account_id is None:
         return

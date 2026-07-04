@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from core_engine.database import SessionLocal
 from core_engine.models import ChannelSession
+from core_engine.services.alert_service import send_alert
 
 logger = logging.getLogger("evolution_webhook")
 
@@ -58,6 +59,7 @@ async def evolution_webhook_receiver(request: Request):
         )
 
         if account_id is not None:
+            pending_alerts: list[tuple[str, int, str]] = []
             db = SessionLocal()
             try:
                 cs = (
@@ -66,6 +68,9 @@ async def evolution_webhook_receiver(request: Request):
                     .first()
                 )
                 if cs is not None:
+                    # وضعیت قبلی را قبل از تغییر بخوان (برای تشخیص transition / idempotency)
+                    prev_auth = cs.authorization_state
+
                     cs.evolution_status = normalized
                     now = datetime.now(timezone.utc)
                     cs.updated_at = now
@@ -76,6 +81,9 @@ async def evolution_webhook_receiver(request: Request):
                         cs.authorization_state = "authorized"
                         cs.socket_state = "online"
                         cs.reconnect_attempts = 0
+                        # فقط روی گذار واقعی به authorized هشدار بده
+                        if prev_auth != "authorized" and status_reason != 401:
+                            pending_alerts.append(("recovered", account_id, ""))
                     elif normalized == "disconnected":
                         cs.disconnected_at = now
                         cs.socket_state = "offline"
@@ -89,6 +97,9 @@ async def evolution_webhook_receiver(request: Request):
                             "NEEDS_NEW_QR — auto-reconnect skipped",
                             account_id, instance_name,
                         )
+                        # فقط روی گذار به blocked هشدار بده
+                        if prev_auth != "blocked":
+                            pending_alerts.append(("blocked", account_id, ""))
 
                     db.commit()
                     logger.info(
@@ -100,11 +111,16 @@ async def evolution_webhook_receiver(request: Request):
                     )
             except Exception as exc:
                 db.rollback()
+                pending_alerts = []
                 logger.error(
                     "evolution_webhook_db_error account_id=%s err=%s",
                     account_id, str(exc),
                 )
             finally:
                 db.close()
+
+            # ارسال هشدارها خارج از session DB (بعد از commit)
+            for _event, _acc, _detail in pending_alerts:
+                await send_alert(_event, _acc, _detail)
 
     return JSONResponse(content={"received": True})
