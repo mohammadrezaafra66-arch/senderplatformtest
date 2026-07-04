@@ -28,6 +28,9 @@ _MESSAGE_TEMPLATES: dict[str, str] = {
         "❌ اکانت {account_id}: شکست reconnect پس از حداکثر تلاش. {detail}"
     ),
     "recovered": "✅ اکانت {account_id} بازگشت به authorized. {detail}",
+    "daily_cap_reached": (
+        "🛑 اکانت {account_id} به سقف روزانه رسید ({detail}). ارسال تا فردا متوقف."
+    ),
 }
 
 

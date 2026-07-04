@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import random
+from datetime import datetime, timezone
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from core_engine.database import SessionLocal
-from core_engine.models import AccountSendSettings
+from core_engine.models import Account, AccountSendSettings
+from core_engine.services.alert_service import send_alert
 from core_engine.services.delivery_audit import record_worker_whatsapp_delivery
 
 from workers.config import WorkerSettings, get_worker_settings
@@ -18,12 +20,17 @@ from workers.multi_account_worker import MultiAccountWorker
 from workers.payloads import WorkerPayload, WorkerResult
 from workers.pool_health import publish_worker_heartbeat, resolve_worker_hostname
 from workers.rate_limit import (
+    can_send_daily,
+    incr_daily_count,
     is_hourly_cap_reached,
     is_min_delay_active,
     record_successful_send,
     set_min_delay,
 )
-from workers.redis_keys import whatsapp_browser_lock_key
+from workers.redis_keys import daily_cap_alert_key, whatsapp_browser_lock_key
+
+# TTL فلگ ضدِ-spam هشدار سقف روزانه — همان پنجره شمارنده روزانه (۴۸ ساعت).
+_DAILY_CAP_ALERT_TTL_SECONDS = 172800
 
 
 def _get_account_delay(account_id: int) -> tuple[int, int]:
@@ -41,6 +48,26 @@ def _get_account_delay(account_id: int) -> tuple[int, int]:
     except Exception:
         pass
     return 45, 90  # پیشفرض امن
+
+
+def _load_account(account_id: int) -> Account | None:
+    """اکانت را با policy (eager) بارگذاری می‌کند تا warming + daily cap محاسبه شود.
+
+    policy را joinedload می‌کنیم تا پس از close نیازی به lazy-load نباشد.
+    """
+    try:
+        db: Session = SessionLocal()
+        try:
+            return (
+                db.query(Account)
+                .options(joinedload(Account.policy))
+                .filter(Account.id == account_id)
+                .first()
+            )
+        finally:
+            db.close()
+    except Exception:
+        return None
 
 
 class WhatsAppPoolWorker(MultiAccountWorker):
@@ -149,6 +176,21 @@ class WhatsAppPoolWorker(MultiAccountWorker):
                 retryable=True,
             )
 
+        # Phase 4 — سقف روزانه + warming ramp. رفتار hourly دست‌نخورده می‌ماند.
+        account = _load_account(account_id)
+        if account is not None:
+            ok, reason, count, cap = await can_send_daily(account, self.redis)
+            if not ok:
+                await self._alert_daily_cap_once(account_id, count, cap)
+                return WorkerResult(
+                    success=False,
+                    status="failed_retryable",
+                    error_code="whatsapp_daily_cap_reached",
+                    error_message=reason
+                    or "Daily WhatsApp send cap reached for this account.",
+                    retryable=True,
+                )
+
         distributed_lock: RedisDistributedLock | None = None
         if settings.WHATSAPP_DISTRIBUTED_LOCK_ENABLED:
             distributed_lock = RedisDistributedLock(
@@ -185,6 +227,7 @@ class WhatsAppPoolWorker(MultiAccountWorker):
 
         if result.success:
             await record_successful_send(self.redis, account_id)
+            await incr_daily_count(self.redis, account_id)
             min_d, max_d = _get_account_delay(account_id)
             actual_delay = random.uniform(min_d, max_d)
             await set_min_delay(
@@ -194,6 +237,29 @@ class WhatsAppPoolWorker(MultiAccountWorker):
             )
 
         return result
+
+    async def _alert_daily_cap_once(
+        self,
+        account_id: int,
+        count: int,
+        cap: int,
+    ) -> None:
+        """هشدار سقف روزانه — فقط بار اولِ رسیدن به سقف در روز (transition-guard).
+
+        فلگ Redis با SET NX اتمیک است؛ پس در چند replica هم فقط یک‌بار alert می‌رود.
+        """
+        try:
+            day = datetime.now(timezone.utc).strftime("%Y%m%d")
+            first = await self.redis.set(
+                daily_cap_alert_key(account_id, day),
+                "1",
+                nx=True,
+                ex=_DAILY_CAP_ALERT_TTL_SECONDS,
+            )
+            if first:
+                await send_alert("daily_cap_reached", account_id, f"{count}/{cap}")
+        except Exception:
+            self.logger.exception("daily_cap_alert_failed")
 
     async def handle_result(
         self,

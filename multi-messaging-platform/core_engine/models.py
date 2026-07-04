@@ -155,6 +155,12 @@ class Account(Base):
     )
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
+    # Phase 4 — warming ramp anchor. NULL => treat as starting today (day 0, safe).
+    warming_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     evolution_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True, default=dict)
 
     policy: Mapped["RatePolicy | None"] = relationship(
