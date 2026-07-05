@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import os
 import zlib
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
 
 def parse_account_id_list(raw: str) -> list[int]:
@@ -98,3 +102,44 @@ def resolve_assigned_account_ids(
             f"(pool_size={pool_size}, total_accounts={len(parsed)})."
         )
     return assigned
+
+
+def load_active_whatsapp_account_ids(
+    *,
+    pool_size: int,
+    pool_index: int,
+    session: "Session | None" = None,
+) -> list[int]:
+    """Read ACTIVE WhatsApp account ids from the DB, sharded for this replica.
+
+    Read-only. Unlike ``resolve_assigned_account_ids`` this does not read env or
+    apply any fallback — it returns exactly the accounts owned by this pool
+    replica, or an empty list when none are active (the caller decides how to
+    treat empty). Opens its own DB session unless one is injected (for tests).
+    """
+    from core_engine.database import SessionLocal
+    from core_engine.models import Account, AccountStatus, PlatformType
+
+    resolved_index = resolve_pool_index(pool_size=pool_size, explicit_index=pool_index)
+
+    owns_session = session is None
+    db = session or SessionLocal()
+    try:
+        rows = (
+            db.query(Account.id)
+            .filter(
+                Account.platform == PlatformType.WHATSAPP,
+                Account.status == AccountStatus.ACTIVE,
+            )
+            .all()
+        )
+    finally:
+        if owns_session:
+            db.close()
+
+    account_ids = [int(row[0]) for row in rows]
+    return shard_account_ids(
+        account_ids,
+        pool_size=pool_size,
+        pool_index=resolved_index,
+    )

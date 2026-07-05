@@ -13,6 +13,7 @@ from core_engine.models import Account, AccountSendSettings
 from core_engine.services.alert_service import send_alert
 from core_engine.services.delivery_audit import record_worker_whatsapp_delivery
 
+from workers.account_pool import load_active_whatsapp_account_ids
 from workers.config import WorkerSettings, get_worker_settings
 from workers.delivery import deliver_platform_message
 from workers.distributed_lock import RedisDistributedLock
@@ -113,14 +114,20 @@ class WhatsAppPoolWorker(MultiAccountWorker):
         self._pool_index = pool_index
         self._hostname = resolve_worker_hostname()
         self._heartbeat_task: asyncio.Task | None = None
+        self._account_refresh_task: asyncio.Task | None = None
 
     def _get_settings(self) -> WorkerSettings:
         return self._settings or get_worker_settings()
 
     async def connect(self) -> None:
         await super().connect()
-        if self._get_settings().WORKER_HEARTBEAT_INTERVAL_SECONDS > 0:
+        settings = self._get_settings()
+        if settings.WORKER_HEARTBEAT_INTERVAL_SECONDS > 0:
             self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+        if settings.WHATSAPP_ACCOUNT_REFRESH_INTERVAL_SECONDS > 0:
+            self._account_refresh_task = asyncio.create_task(
+                self._account_refresh_loop()
+            )
 
     async def disconnect(self) -> None:
         if self._heartbeat_task is not None:
@@ -130,6 +137,13 @@ class WhatsAppPoolWorker(MultiAccountWorker):
             except asyncio.CancelledError:
                 pass
             self._heartbeat_task = None
+        if self._account_refresh_task is not None:
+            self._account_refresh_task.cancel()
+            try:
+                await self._account_refresh_task
+            except asyncio.CancelledError:
+                pass
+            self._account_refresh_task = None
         await super().disconnect()
 
     async def _heartbeat_loop(self) -> None:
@@ -149,6 +163,48 @@ class WhatsAppPoolWorker(MultiAccountWorker):
             except Exception:
                 self.logger.exception("heartbeat_publish_failed")
             await asyncio.sleep(interval)
+
+    async def _account_refresh_loop(self) -> None:
+        """Periodically re-read the ACTIVE WhatsApp account list from the DB.
+
+        Mirrors ``_heartbeat_loop``: never raises, just logs and keeps ticking.
+        """
+        settings = self._get_settings()
+        interval = max(settings.WHATSAPP_ACCOUNT_REFRESH_INTERVAL_SECONDS, 1)
+        while True:
+            try:
+                self._refresh_account_ids()
+            except Exception:
+                self.logger.exception("account_refresh_failed")
+            await asyncio.sleep(interval)
+
+    def _refresh_account_ids(self) -> None:
+        """Replace the assigned account list from DB (sharded) when it changes.
+
+        The DB read is synchronous and does not await, so the swap of
+        ``account_ids`` / ``_allowed_account_ids`` is atomic relative to
+        ``run_once``. An empty result is ignored to avoid dropping all accounts.
+        """
+        new_ids = load_active_whatsapp_account_ids(
+            pool_size=self._pool_size,
+            pool_index=self._pool_index,
+        )
+        if not new_ids:
+            # Empty read (DB blip / no active accounts) — keep the current list.
+            return
+
+        new_ids = sorted({int(account_id) for account_id in new_ids})
+        if new_ids == self.account_ids:
+            return
+
+        self.account_ids = new_ids
+        self._allowed_account_ids = {str(account_id) for account_id in new_ids}
+        self._round_robin_index %= len(new_ids)
+        self.logger.info(
+            "account_list_refreshed count=%s accounts=%s",
+            len(new_ids),
+            ",".join(str(account_id) for account_id in new_ids),
+        )
 
     async def send_message(self, payload: WorkerPayload) -> WorkerResult:
         settings = self._get_settings()

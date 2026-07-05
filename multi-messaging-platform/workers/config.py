@@ -63,6 +63,10 @@ class WorkerSettings(BaseSettings):
     WORKER_HEARTBEAT_INTERVAL_SECONDS: int = 15
     WORKER_HEARTBEAT_TTL_SECONDS: int = 45
 
+    # Dynamic account discovery — poll DB for ACTIVE accounts every N seconds.
+    # 0 disables refresh (keep boot-time env list, current behaviour).
+    WHATSAPP_ACCOUNT_REFRESH_INTERVAL_SECONDS: int = 60
+
     EVOLUTION_API_BASE_URL: str = "http://mmp_evolution_api:8080"
     EVOLUTION_API_KEY: str = ""
     HEALTH_MONITOR_INTERVAL_SECONDS: int = 30
