@@ -1,3 +1,10 @@
+> ⚠️ **DEPRECATED — OUTDATED ARCHITECTURE**
+> این سند معماری قدیمِ WhatsApp Web / Playwright (`WHATSAPP_DELIVERY_MODE=web`) را توصیف می‌کند.
+> معماری زنده‌ی فعلی = **Evolution API** (`WHATSAPP_DELIVERY_MODE=evolution`).
+> This document describes the legacy Playwright/WhatsApp-Web delivery path, which has been REPLACED by Evolution API. Kept for historical reference only. Do NOT follow these steps for the current deployment.
+
+---
+
 # Deployment Guide — Multi-Messaging Platform
 
 Operational checklist for running Sender Platform with **live WhatsApp Web** delivery (Phase 8-WA-Web + Phase 9).
