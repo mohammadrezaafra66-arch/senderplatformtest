@@ -221,7 +221,11 @@ async def deliver_rubika_user_live(
     owns_session = db is None
     session = db or get_db_session()
     try:
-        contact_id = int(payload.contact_id)
+        # contact_id در send-test endpoint ممکن است string غیر-عددی مثل ops-test-xxx باشد
+        try:
+            contact_id = int(payload.contact_id)
+        except (TypeError, ValueError):
+            contact_id = None
         campaign_id_int: int | None
         try:
             campaign_id_int = int(payload.campaign_id)
@@ -229,7 +233,8 @@ async def deliver_rubika_user_live(
             campaign_id_int = None
 
         # ۱) dedup سراسری — فقط مخصوص user_account (ریسک بن اکانت شخصی)
-        if _check_and_mark_duplicate(session, contact_id=contact_id, campaign_id=campaign_id_int):
+        # اگر contact_id معتبر نیست (مثلاً send-test) dedup را رد می‌کنیم
+        if contact_id is not None and _check_and_mark_duplicate(session, contact_id=contact_id, campaign_id=campaign_id_int):
             return WorkerResult(
                 success=True,
                 status="skipped_duplicate",
@@ -263,7 +268,16 @@ async def deliver_rubika_user_live(
                 retryable=True,
             )
 
-        contact = session.query(Contact).filter(Contact.id == contact_id).first()
+        # اگر contact_id معتبر نیست (مثلاً send-test)، یک Contact مصنوعی با recipient بساز
+        if contact_id is None:
+            # send-test بدون contact واقعی — مستقیم از recipient استفاده می‌کنیم
+            contact = Contact(
+                phone_e164=payload.recipient,
+                phone=payload.recipient,
+                first_name="",
+            )
+        else:
+            contact = session.query(Contact).filter(Contact.id == contact_id).first()
         if contact is None:
             return WorkerResult(
                 success=False,
