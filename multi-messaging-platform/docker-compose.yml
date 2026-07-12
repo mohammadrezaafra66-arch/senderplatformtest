@@ -116,7 +116,6 @@ services:
       AUTHENTICATION_TYPE: apikey
       CACHE_LOCAL_ENABLED: 'true'
       CACHE_REDIS_ENABLED: 'false'
-      CONFIG_SESSION_PHONE_VERSION: 2.3000.1033773198
       DATABASE_CONNECTION_URI: postgresql://mmp_user:mmp_pass@postgres:5432/evolution_db
       DATABASE_ENABLED: 'true'
       DATABASE_PROVIDER: postgresql
