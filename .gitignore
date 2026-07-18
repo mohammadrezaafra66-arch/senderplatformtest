@@ -2,3 +2,9 @@ venv/
 .playwright-venv/
 
 multi-messaging-platform/test_fixtures/phase2/oversized.xlsx
+*.bak
+*.bak-phase*
+*.v2.1.1-backup
+.envy
+multi-messaging-platform/curl
+multi-messaging-platform/main

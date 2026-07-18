@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import asyncio
 import random
+from datetime import datetime, timezone
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from core_engine.database import SessionLocal
-from core_engine.models import AccountSendSettings
+from core_engine.models import Account, AccountSendSettings
+from core_engine.services.alert_service import send_alert
 from core_engine.services.delivery_audit import record_worker_whatsapp_delivery
 
+from workers.account_pool import load_active_whatsapp_account_ids
 from workers.config import WorkerSettings, get_worker_settings
 from workers.delivery import deliver_platform_message
 from workers.distributed_lock import RedisDistributedLock
@@ -18,12 +21,17 @@ from workers.multi_account_worker import MultiAccountWorker
 from workers.payloads import WorkerPayload, WorkerResult
 from workers.pool_health import publish_worker_heartbeat, resolve_worker_hostname
 from workers.rate_limit import (
+    can_send_daily,
+    incr_daily_count,
     is_hourly_cap_reached,
     is_min_delay_active,
     record_successful_send,
     set_min_delay,
 )
-from workers.redis_keys import whatsapp_browser_lock_key
+from workers.redis_keys import daily_cap_alert_key, whatsapp_browser_lock_key
+
+# TTL فلگ ضدِ-spam هشدار سقف روزانه — همان پنجره شمارنده روزانه (۴۸ ساعت).
+_DAILY_CAP_ALERT_TTL_SECONDS = 172800
 
 
 def _get_account_delay(account_id: int) -> tuple[int, int]:
@@ -41,6 +49,26 @@ def _get_account_delay(account_id: int) -> tuple[int, int]:
     except Exception:
         pass
     return 45, 90  # پیشفرض امن
+
+
+def _load_account(account_id: int) -> Account | None:
+    """اکانت را با policy (eager) بارگذاری می‌کند تا warming + daily cap محاسبه شود.
+
+    policy را joinedload می‌کنیم تا پس از close نیازی به lazy-load نباشد.
+    """
+    try:
+        db: Session = SessionLocal()
+        try:
+            return (
+                db.query(Account)
+                .options(joinedload(Account.policy))
+                .filter(Account.id == account_id)
+                .first()
+            )
+        finally:
+            db.close()
+    except Exception:
+        return None
 
 
 class WhatsAppPoolWorker(MultiAccountWorker):
@@ -86,14 +114,20 @@ class WhatsAppPoolWorker(MultiAccountWorker):
         self._pool_index = pool_index
         self._hostname = resolve_worker_hostname()
         self._heartbeat_task: asyncio.Task | None = None
+        self._account_refresh_task: asyncio.Task | None = None
 
     def _get_settings(self) -> WorkerSettings:
         return self._settings or get_worker_settings()
 
     async def connect(self) -> None:
         await super().connect()
-        if self._get_settings().WORKER_HEARTBEAT_INTERVAL_SECONDS > 0:
+        settings = self._get_settings()
+        if settings.WORKER_HEARTBEAT_INTERVAL_SECONDS > 0:
             self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+        if settings.WHATSAPP_ACCOUNT_REFRESH_INTERVAL_SECONDS > 0:
+            self._account_refresh_task = asyncio.create_task(
+                self._account_refresh_loop()
+            )
 
     async def disconnect(self) -> None:
         if self._heartbeat_task is not None:
@@ -103,6 +137,13 @@ class WhatsAppPoolWorker(MultiAccountWorker):
             except asyncio.CancelledError:
                 pass
             self._heartbeat_task = None
+        if self._account_refresh_task is not None:
+            self._account_refresh_task.cancel()
+            try:
+                await self._account_refresh_task
+            except asyncio.CancelledError:
+                pass
+            self._account_refresh_task = None
         await super().disconnect()
 
     async def _heartbeat_loop(self) -> None:
@@ -122,6 +163,48 @@ class WhatsAppPoolWorker(MultiAccountWorker):
             except Exception:
                 self.logger.exception("heartbeat_publish_failed")
             await asyncio.sleep(interval)
+
+    async def _account_refresh_loop(self) -> None:
+        """Periodically re-read the ACTIVE WhatsApp account list from the DB.
+
+        Mirrors ``_heartbeat_loop``: never raises, just logs and keeps ticking.
+        """
+        settings = self._get_settings()
+        interval = max(settings.WHATSAPP_ACCOUNT_REFRESH_INTERVAL_SECONDS, 1)
+        while True:
+            try:
+                self._refresh_account_ids()
+            except Exception:
+                self.logger.exception("account_refresh_failed")
+            await asyncio.sleep(interval)
+
+    def _refresh_account_ids(self) -> None:
+        """Replace the assigned account list from DB (sharded) when it changes.
+
+        The DB read is synchronous and does not await, so the swap of
+        ``account_ids`` / ``_allowed_account_ids`` is atomic relative to
+        ``run_once``. An empty result is ignored to avoid dropping all accounts.
+        """
+        new_ids = load_active_whatsapp_account_ids(
+            pool_size=self._pool_size,
+            pool_index=self._pool_index,
+        )
+        if not new_ids:
+            # Empty read (DB blip / no active accounts) — keep the current list.
+            return
+
+        new_ids = sorted({int(account_id) for account_id in new_ids})
+        if new_ids == self.account_ids:
+            return
+
+        self.account_ids = new_ids
+        self._allowed_account_ids = {str(account_id) for account_id in new_ids}
+        self._round_robin_index %= len(new_ids)
+        self.logger.info(
+            "account_list_refreshed count=%s accounts=%s",
+            len(new_ids),
+            ",".join(str(account_id) for account_id in new_ids),
+        )
 
     async def send_message(self, payload: WorkerPayload) -> WorkerResult:
         settings = self._get_settings()
@@ -148,6 +231,21 @@ class WhatsAppPoolWorker(MultiAccountWorker):
                 error_message="Hourly WhatsApp send cap reached for this account.",
                 retryable=True,
             )
+
+        # Phase 4 — سقف روزانه + warming ramp. رفتار hourly دست‌نخورده می‌ماند.
+        account = _load_account(account_id)
+        if account is not None:
+            ok, reason, count, cap = await can_send_daily(account, self.redis)
+            if not ok:
+                await self._alert_daily_cap_once(account_id, count, cap)
+                return WorkerResult(
+                    success=False,
+                    status="failed_retryable",
+                    error_code="whatsapp_daily_cap_reached",
+                    error_message=reason
+                    or "Daily WhatsApp send cap reached for this account.",
+                    retryable=True,
+                )
 
         distributed_lock: RedisDistributedLock | None = None
         if settings.WHATSAPP_DISTRIBUTED_LOCK_ENABLED:
@@ -185,6 +283,7 @@ class WhatsAppPoolWorker(MultiAccountWorker):
 
         if result.success:
             await record_successful_send(self.redis, account_id)
+            await incr_daily_count(self.redis, account_id)
             min_d, max_d = _get_account_delay(account_id)
             actual_delay = random.uniform(min_d, max_d)
             await set_min_delay(
@@ -194,6 +293,29 @@ class WhatsAppPoolWorker(MultiAccountWorker):
             )
 
         return result
+
+    async def _alert_daily_cap_once(
+        self,
+        account_id: int,
+        count: int,
+        cap: int,
+    ) -> None:
+        """هشدار سقف روزانه — فقط بار اولِ رسیدن به سقف در روز (transition-guard).
+
+        فلگ Redis با SET NX اتمیک است؛ پس در چند replica هم فقط یک‌بار alert می‌رود.
+        """
+        try:
+            day = datetime.now(timezone.utc).strftime("%Y%m%d")
+            first = await self.redis.set(
+                daily_cap_alert_key(account_id, day),
+                "1",
+                nx=True,
+                ex=_DAILY_CAP_ALERT_TTL_SECONDS,
+            )
+            if first:
+                await send_alert("daily_cap_reached", account_id, f"{count}/{cap}")
+        except Exception:
+            self.logger.exception("daily_cap_alert_failed")
 
     async def handle_result(
         self,

@@ -128,7 +128,7 @@ services:
       WEBHOOK_ENABLED: 'true'
       WEBHOOK_EVENTS: APPLICATION_STARTUP,QRCODE_UPDATED,MESSAGES_SET,MESSAGES_UPSERT,SEND_MESSAGE,CONNECTION_UPDATE
       WEBHOOK_URL: ${EVOLUTION_WEBHOOK_URL:-http://core_api:8000/webhooks/whatsapp/evolution}
-    image: atendai/evolution-api:v2.1.1
+    image: evoapicloud/evolution-api:v2.3.7
     ports:
     - 8080:8080
     restart: unless-stopped
@@ -306,6 +306,45 @@ services:
     restart: unless-stopped
     volumes:
     - ./storage/browser_profiles:/app/storage/browser_profiles
+  whatsapp_health_monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      - python
+      - -m
+      - workers.whatsapp_health_monitor
+    container_name: mmp_whatsapp_health_monitor
+    depends_on:
+      - postgres
+      - redis
+      - core_api
+    env_file:
+      - .env
+    environment:
+      EVOLUTION_API_BASE_URL: ${EVOLUTION_API_URL:-http://evolution_api:8080}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:?EVOLUTION_API_KEY must be set}
+      HEALTH_MONITOR_INTERVAL_SECONDS: ${HEALTH_MONITOR_INTERVAL_SECONDS:-30}
+    restart: unless-stopped
+  whatsapp_auto_reconnect:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      - python
+      - -m
+      - workers.whatsapp_auto_reconnect
+    container_name: mmp_whatsapp_auto_reconnect
+    depends_on:
+      - postgres
+      - redis
+      - core_api
+    env_file:
+      - .env
+    environment:
+      EVOLUTION_API_BASE_URL: ${EVOLUTION_API_URL:-http://evolution_api:8080}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:?EVOLUTION_API_KEY must be set}
+    restart: unless-stopped
 volumes:
   evolution_instances: null
   grafana_data: null

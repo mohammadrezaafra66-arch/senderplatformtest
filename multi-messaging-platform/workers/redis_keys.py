@@ -13,6 +13,14 @@ def hourly_rate_key(account_id: int | str, hour: str) -> str:
     return f"rate:{account_id}:{hour}"
 
 
+def daily_rate_key(account_id: int | str, day: str) -> str:
+    return f"rate:daily:{account_id}:{day}"
+
+
+def daily_cap_alert_key(account_id: int | str, day: str) -> str:
+    return f"rate:capalert:{account_id}:{day}"
+
+
 def hourly_config_key(account_id: int | str) -> str:
     return f"config:hours:{account_id}"
 

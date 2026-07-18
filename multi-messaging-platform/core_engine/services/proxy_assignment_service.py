@@ -1,88 +1,26 @@
 from __future__ import annotations
-
 from datetime import datetime
-
 from sqlalchemy.orm import Session
-
 from core_engine.models import ChannelSession, SessionType
 
 
-def assign_proxy_to_account(
-    db: Session,
-    account_id: int,
-    proxy_host: str,
-    proxy_port: int,
-    proxy_username: str | None = None,
-    proxy_password: str | None = None,
-    proxy_protocol: str = "http",
-    pool_id: str | None = None,
-    force: bool = False,
-) -> ChannelSession:
-    channel_session = (
-        db.query(ChannelSession)
-        .filter(
-            ChannelSession.account_id == account_id,
-            ChannelSession.session_type == SessionType.EVOLUTION_INSTANCE,
-        )
-        .first()
-    )
-    if not channel_session:
-        channel_session = ChannelSession(
-            account_id=account_id,
-            session_type=SessionType.EVOLUTION_INSTANCE,
-        )
-        db.add(channel_session)
+def assign_proxy_to_account(db,account_id,proxy_host,proxy_port,proxy_username=None,proxy_password=None,proxy_protocol="http",pool_id=None,force=False):
+    cs=db.query(ChannelSession).filter(ChannelSession.account_id==account_id,ChannelSession.session_type==SessionType.EVOLUTION_INSTANCE).first()
+    if not cs:
+        cs=ChannelSession(account_id=account_id,session_type=SessionType.EVOLUTION_INSTANCE)
+        db.add(cs)
+    if cs.proxy_host and cs.proxy_host!=proxy_host and not force:
+        raise ValueError(f"اکانت {account_id} از قبل proxy دارد.")
+    cs.proxy_host=proxy_host;cs.proxy_port=proxy_port;cs.proxy_protocol=proxy_protocol;cs.proxy_username=proxy_username
+    if proxy_password:cs.proxy_password_ciphertext=proxy_password
+    cs.proxy_pool_id=pool_id;cs.proxy_assigned_at=datetime.utcnow()
+    db.commit();return cs
 
-    if (
-        channel_session.proxy_host
-        and channel_session.proxy_host != proxy_host
-        and not force
-    ):
-        raise ValueError(
-            f"اکانت {account_id} از قبل proxy دارد. برای تغییر force=True ارسال کنید."
-        )
+def get_proxy_config_for_instance(db,account_id):
+    cs=db.query(ChannelSession).filter(ChannelSession.account_id==account_id,ChannelSession.session_type==SessionType.EVOLUTION_INSTANCE).first()
+    if not cs or not cs.proxy_host:return None
+    return {"host":cs.proxy_host,"port":str(cs.proxy_port or ""),"protocol":cs.proxy_protocol or "http","username":cs.proxy_username,"password":cs.proxy_password_ciphertext}
 
-    channel_session.proxy_host = proxy_host
-    channel_session.proxy_port = proxy_port
-    channel_session.proxy_protocol = proxy_protocol
-    channel_session.proxy_username = proxy_username
-    if proxy_password:
-        channel_session.proxy_password_ciphertext = proxy_password
-    channel_session.proxy_pool_id = pool_id
-    channel_session.proxy_assigned_at = datetime.utcnow()
-
-    db.commit()
-    return channel_session
-
-
-def get_proxy_config_for_instance(db: Session, account_id: int) -> dict | None:
-    channel_session = (
-        db.query(ChannelSession)
-        .filter(
-            ChannelSession.account_id == account_id,
-            ChannelSession.session_type == SessionType.EVOLUTION_INSTANCE,
-        )
-        .first()
-    )
-    if not channel_session or not channel_session.proxy_host:
-        return None
-
-    return {
-        "host": channel_session.proxy_host,
-        "port": str(channel_session.proxy_port or ""),
-        "protocol": channel_session.proxy_protocol or "http",
-        "username": channel_session.proxy_username,
-        "password": channel_session.proxy_password_ciphertext,
-    }
-
-
-def has_proxy_assigned(db: Session, account_id: int) -> bool:
-    channel_session = (
-        db.query(ChannelSession)
-        .filter(
-            ChannelSession.account_id == account_id,
-            ChannelSession.session_type == SessionType.EVOLUTION_INSTANCE,
-        )
-        .first()
-    )
-    return bool(channel_session and channel_session.proxy_host)
+def has_proxy_assigned(db,account_id):
+    cs=db.query(ChannelSession).filter(ChannelSession.account_id==account_id,ChannelSession.session_type==SessionType.EVOLUTION_INSTANCE).first()
+    return bool(cs and cs.proxy_host)
