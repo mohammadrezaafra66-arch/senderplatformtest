@@ -907,3 +907,42 @@ class EvolutionWebhookEvent(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow
     )
+
+
+class BaleAccountPool(Base):
+    """مثل TelegramAccountPool — ردیابی warm-up اکانت‌های شخصی بله."""
+    __tablename__ = "bale_account_pool"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"), nullable=False, unique=True)
+    warm_up_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    is_warmed_up: Mapped[bool] = mapped_column(Boolean, default=False)
+    daily_cap_today: Mapped[int] = mapped_column(Integer, default=10)
+    sent_today: Mapped[int] = mapped_column(Integer, default=0)
+    last_count_reset_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    is_healthy: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_error_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class BaleGlobalSentRegistry(Base):
+    """جلوگیری از ارسال تکراری به یک شماره."""
+    __tablename__ = "bale_global_sent_registry"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    phone_number: Mapped[str] = mapped_column(String(20), unique=True, index=True)
+    first_sent_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    send_count: Mapped[int] = mapped_column(Integer, default=1)
+    last_sent_campaign_id: Mapped[int | None] = mapped_column(ForeignKey("campaigns.id"), nullable=True)
+
+
+class BaleSenderSchedule(Base):
+    """بازه زمانی مجاز ارسال."""
+    __tablename__ = "bale_sender_schedules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    start_hour: Mapped[int] = mapped_column(Integer, default=9)
+    end_hour: Mapped[int] = mapped_column(Integer, default=21)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

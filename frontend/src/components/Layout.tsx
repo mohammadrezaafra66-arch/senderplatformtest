@@ -48,6 +48,7 @@ export function Layout({ title, children }: LayoutProps) {
       <NavLink href="/accounts" label={t("accounts")} onNavigate={() => setSidebarOpen(false)} />
       <NavLink href="/contacts" label={t("contacts")} onNavigate={() => setSidebarOpen(false)} />
       <NavLink href="/campaigns" label={t("campaigns")} onNavigate={() => setSidebarOpen(false)} />
+      <NavLink href="/telegram" label={t("telegram") || "تلگرام MTProto"} onNavigate={() => setSidebarOpen(false)} />
       <NavLink
         href="/reports/messages"
         label={t("messageLogs")}

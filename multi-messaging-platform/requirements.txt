@@ -24,3 +24,4 @@ pytest
 pytest-asyncio
 pytest-cov
 cryptography
+python-bale-bot>=2.5.0

@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 from workers.connectors.bale import deliver_bale_live
 from workers.connectors.rubika import deliver_rubika_live
 from workers.connectors.telegram import deliver_telegram_live
+from workers.connectors.telegram_mtproto import deliver_telegram_mtproto_live
 from workers.connectors.whatsapp import deliver_whatsapp_cloud_live
 from workers.connectors.whatsapp_web import deliver_whatsapp_web_live
 
@@ -73,9 +74,24 @@ async def deliver_platform_message(
         )
 
     if platform == "bale":
+        if settings.BALE_DELIVERY_MODE == "user_account":
+            if not settings.BALE_ENABLE_USER_ACCOUNT:
+                return WorkerResult(error_code="bale_user_account_disabled", success=False, status="failed_permanent", retryable=False)
+            from workers.connectors.bale_user import deliver_bale_user_live
+            return await deliver_bale_user_live(payload, settings)
         return await deliver_bale_live(payload, settings)
 
     if platform == "telegram":
+        if getattr(settings, "TELEGRAM_DELIVERY_MODE", "bot_api") == "mtproto_account":
+            if not getattr(settings, "TELEGRAM_ENABLE_MTPROTO", False):
+                return WorkerResult(
+                    success=False,
+                    status="failed_permanent",
+                    error_code="telegram_mtproto_disabled",
+                    error_message="TELEGRAM_ENABLE_MTPROTO is false.",
+                    retryable=False,
+                )
+            return await deliver_telegram_mtproto_live(payload, settings)
         return await deliver_telegram_live(payload, settings)
 
     if platform == "whatsapp":

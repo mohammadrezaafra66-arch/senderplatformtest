@@ -30,9 +30,27 @@ class WorkerSettings(BaseSettings):
 
     BALE_API_BASE_URL: str = "https://tapi.bale.ai"
     BALE_API_TIMEOUT_SECONDS: float = 30.0
+    BALE_DELIVERY_MODE: str = "bot_api"
+    BALE_API_ID: str = ""
+    BALE_API_HASH: str = ""
+    BALE_ENABLE_USER_ACCOUNT: bool = False
+    BALE_WARMUP_DAYS: int = 14
+    BALE_WARMUP_START_CAP: int = 10
+    BALE_WARMUP_FINAL_CAP: int = 80
+    BALE_MTPROTO_SESSION_DIR: str = "storage/bale_sessions"
 
     TELEGRAM_API_BASE_URL: str = "https://api.telegram.org"
     TELEGRAM_API_TIMEOUT_SECONDS: float = 30.0
+    TELEGRAM_DELIVERY_MODE: str = "bot_api"
+    TELEGRAM_API_ID: str = ""
+    TELEGRAM_API_HASH: str = ""
+    TELEGRAM_ENABLE_MTPROTO: bool = False
+    TELEGRAM_MIN_SEND_DELAY_SECONDS: int = 15
+    TELEGRAM_MAX_SEND_DELAY_SECONDS: int = 45
+    TELEGRAM_WARMUP_DAYS: int = 14
+    TELEGRAM_WARMUP_START_CAP: int = 10
+    TELEGRAM_WARMUP_FINAL_CAP: int = 80
+    TELEGRAM_MTPROTO_SESSION_DIR: str = "storage/telegram_mtproto_sessions"
 
     RUBIKA_API_BASE_URL: str = "https://botapi.rubika.ir/v3"
     RUBIKA_API_TIMEOUT_SECONDS: float = 30.0
