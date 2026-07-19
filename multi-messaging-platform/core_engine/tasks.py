@@ -26,6 +26,14 @@ celery_app.conf.beat_schedule = {
         "task": "consume_whatsapp_baileys_session_status",
         "schedule": schedule(run_every=10),
     },
+    "check-telegram-send-window-every-minute": {
+        "task": "check_telegram_send_window",
+        "schedule": schedule(run_every=60),
+    },
+    "refresh-telegram-warmup-caps-daily": {
+        "task": "refresh_telegram_warmup_caps",
+        "schedule": crontab(hour=0, minute=5),
+    },
 }
 
 
