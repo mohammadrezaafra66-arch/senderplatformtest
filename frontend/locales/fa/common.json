@@ -202,6 +202,17 @@
   "warmupExecute": "اجرا",
   "warmupSuccess": "کمپین گرم‌سازی با موفقیت برنامه‌ریزی شد. تعداد خطوط درگیر: {{count}}",
   "warmupRateLimited": "این عملیات فقط روزی یک‌بار مجاز است",
-  "warmupGenericError": "اجرای گرم‌سازی ناموفق بود. لطفاً دوباره تلاش کنید."
+  "warmupGenericError": "اجرای گرم‌سازی ناموفق بود. لطفاً دوباره تلاش کنید.",
+  "rubikaTabStatus": "استاتوس",
+  "rubikaContentScheduleCaption": "کپشن",
+  "rubikaContentScheduleMediaPath": "مسیر فایل رسانه",
+  "rubikaContentScheduleScheduledAt": "زمان انتشار",
+  "rubikaContentScheduleStatus": "وضعیت",
+  "rubikaContentScheduleError": "خطا",
+  "rubikaContentScheduleAdd": "افزودن زمان‌بندی",
+  "rubikaContentScheduleCreated": "زمان‌بندی محتوا ثبت شد.",
+  "rubikaContentScheduleEmpty": "هیچ محتوای زمان‌بندی‌شده‌ای ثبت نشده است.",
+  "rubikaContentSchedulePublished": "منتشر شد",
+  "rubikaContentSchedulePending": "در انتظار"
 }
 

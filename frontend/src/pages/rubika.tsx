@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { Layout } from "@/components/Layout";
 import { RubikaAssistantCard } from "@/components/RubikaAssistantCard";
+import { RubikaContentScheduleManager } from "@/components/RubikaContentScheduleManager";
 import { RubikaGroupManager } from "@/components/RubikaGroupManager";
 import { RubikaPoolPanel } from "@/components/RubikaPoolPanel";
 import { RubikaSendLogPanel } from "@/components/RubikaSendLogPanel";
@@ -11,7 +12,7 @@ import { Panel, PageContent } from "@/components/ui";
 import { useAuth } from "@/state/auth";
 import { canManageRubika } from "@/utils/permissions";
 
-type Tab = "pool" | "groups" | "send-log" | "assistant";
+type Tab = "pool" | "groups" | "send-log" | "assistant" | "status";
 
 export default function RubikaPage() {
   const { t } = useTranslation();
@@ -24,6 +25,7 @@ export default function RubikaPage() {
     { key: "groups", label: t("rubikaTabGroups") },
     { key: "send-log", label: t("rubikaTabSendLog") },
     { key: "assistant", label: t("rubikaTabAssistant") },
+    { key: "status", label: t("rubikaTabStatus") },
   ];
 
   return (
@@ -60,6 +62,7 @@ export default function RubikaPage() {
             {tab === "groups" ? <RubikaGroupManager canManage={canManage} /> : null}
             {tab === "send-log" ? <RubikaSendLogPanel /> : null}
             {tab === "assistant" ? <RubikaAssistantCard /> : null}
+            {tab === "status" ? <RubikaContentScheduleManager canManage={canManage} /> : null}
           </div>
         </Panel>
       </PageContent>
