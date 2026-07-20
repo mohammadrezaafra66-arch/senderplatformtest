@@ -228,6 +228,28 @@ services:
     profiles:
     - rubika_listener
     restart: unless-stopped
+  rubika_ai_loop:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+    - python
+    - -m
+    - workers.rubika_ai_response_loop
+    container_name: mmp_rubika_ai_loop
+    depends_on:
+    - postgres
+    - redis
+    env_file:
+    - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+      RUBIKA_DELIVERY_MODE: user_account
+      RUBIKA_USER_ACCOUNT_ENABLED: "true"
+    profiles:
+    - rubika_ai_loop
+    restart: unless-stopped
   rubika_status_bot:
     build:
       context: .
