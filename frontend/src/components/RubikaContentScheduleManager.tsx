@@ -73,7 +73,7 @@ export function RubikaContentScheduleManager({ canManage }: RubikaContentSchedul
           caption: newCaption.trim() || null,
           media_path: newMediaPath.trim() || null,
           content_type: "Picture",
-          scheduled_at: new Date(newScheduledAt).toISOString(),
+          scheduled_at: newScheduledAt.length === 16 ? newScheduledAt + ":00" : newScheduledAt,
         }),
       });
       setNewCaption("");
