@@ -16,9 +16,11 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from core_engine.api.schemas import (
@@ -50,6 +52,7 @@ from core_engine.models import (
     RoleType,
     RubikaAccountPool,
     RubikaAllowedGroup,
+    RubikaContentSchedule,
     RubikaGroupMessage,
     RubikaSenderSchedule,
 )
@@ -483,3 +486,98 @@ def update_rubika_schedule(
         phase=row.phase, start_hour=row.start_hour, end_hour=row.end_hour,
         max_per_hour=row.max_per_hour, is_active=row.is_active,
     )
+
+
+# ─────────────────────────────────────────────────────────────────
+# زمان‌بندی محتوای استاتوس (Rubino) — نیازمندی ۲۴ سند
+# ─────────────────────────────────────────────────────────────────
+
+
+class RubikaContentScheduleCreateRequest(BaseModel):
+    caption: str | None = None
+    media_path: str | None = None
+    content_type: str = "Picture"
+    scheduled_at: str  # ISO 8601 string
+
+
+def _content_schedule_to_dict(row: RubikaContentSchedule) -> dict:
+    return {
+        "id": row.id,
+        "caption": row.caption,
+        "media_path": row.media_path,
+        "content_type": row.content_type,
+        "scheduled_at": row.scheduled_at,
+        "published": row.published,
+        "published_at": row.published_at,
+        "error_message": row.error_message,
+        "created_at": row.created_at,
+    }
+
+
+@router.get("/content-schedule")
+def list_rubika_content_schedule(
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    rows = (
+        db.query(RubikaContentSchedule)
+        .order_by(RubikaContentSchedule.scheduled_at.asc())
+        .all()
+    )
+    items = [_content_schedule_to_dict(r) for r in rows]
+    return {"items": items, "total_count": len(items)}
+
+
+@router.post("/content-schedule", status_code=201)
+def create_rubika_content_schedule(
+    payload: RubikaContentScheduleCreateRequest,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
+):
+    try:
+        scheduled_at = datetime.fromisoformat(payload.scheduled_at)
+    except ValueError:
+        raise HTTPException(
+            status_code=400, detail="scheduled_at باید یک رشته ISO 8601 معتبر باشد."
+        )
+
+    row = RubikaContentSchedule(
+        caption=payload.caption,
+        media_path=payload.media_path,
+        content_type=payload.content_type,
+        scheduled_at=scheduled_at,
+    )
+    db.add(row)
+    db.flush()
+
+    record_audit(
+        db, current_user["username"], "rubika_content_schedule_create",
+        "rubika_content_schedule", str(row.id),
+        {"content_type": payload.content_type, "scheduled_at": payload.scheduled_at},
+    )
+    db.commit()
+    db.refresh(row)
+    return _content_schedule_to_dict(row)
+
+
+@router.delete("/content-schedule/{schedule_id}")
+def delete_rubika_content_schedule(
+    schedule_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
+):
+    deleted = (
+        db.query(RubikaContentSchedule)
+        .filter(RubikaContentSchedule.id == schedule_id)
+        .delete()
+    )
+    record_audit(
+        db, current_user["username"], "rubika_content_schedule_delete",
+        "rubika_content_schedule", str(schedule_id), {},
+    )
+    db.commit()
+    if not deleted:
+        raise HTTPException(status_code=404, detail="آیتم زمان‌بندی پیدا نشد.")
+    return {"success": True, "schedule_id": schedule_id}
