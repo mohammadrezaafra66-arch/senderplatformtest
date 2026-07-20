@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { RubikaUserAccountLoginPanel } from "@/components/RubikaUserAccountLoginPanel";
 import { Alert, Button, EmptyState, FormField, inputClassName, selectClassName, tableClassName, TableWrap } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import {
@@ -189,7 +190,8 @@ export function RubikaPoolPanel({ canManage }: RubikaPoolPanelProps) {
               </thead>
               <tbody>
                 {accounts.map((acc) => (
-                  <tr key={`${acc.account_id}-${acc.phase}`}>
+                  <Fragment key={`${acc.account_id}-${acc.phase}`}>
+                  <tr>
                     <td>
                       {acc.label ?? `#${acc.account_id}`}
                       <div style={{ fontSize: 12, opacity: 0.7, direction: "ltr", textAlign: "left" }}>
@@ -275,6 +277,18 @@ export function RubikaPoolPanel({ canManage }: RubikaPoolPanelProps) {
                       </td>
                     ) : null}
                   </tr>
+                  {acc.account_status === "requires_login" ? (
+                    <tr>
+                      <td colSpan={canManage ? 7 : 6}>
+                        <RubikaUserAccountLoginPanel
+                          accountId={acc.account_id}
+                          accountPhone={acc.phone_number}
+                          onRegistered={() => void load()}
+                        />
+                      </td>
+                    </tr>
+                  ) : null}
+                  </Fragment>
                 ))}
               </tbody>
             </table>
