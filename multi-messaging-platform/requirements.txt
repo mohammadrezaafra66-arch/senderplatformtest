@@ -25,4 +25,4 @@ pytest-asyncio
 pytest-cov
 cryptography
 rubpy>=7.3.5
-Pillow
+Pillow>=10.0.0
