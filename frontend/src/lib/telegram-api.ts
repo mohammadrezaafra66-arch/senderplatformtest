@@ -8,29 +8,29 @@ import type {
 const BASE = "/telegram-mtproto";
 
 export async function fetchAccountPool(): Promise<TelegramPoolAccount[]> {
-  const res = await apiFetch(`${BASE}/accounts/pool`);
-  return (await res.json()) as TelegramPoolAccount[];
+  const response = await apiFetch(`${BASE}/accounts/pool`);
+  return response.json() as Promise<TelegramPoolAccount[]>;
 }
 
 export async function fetchSchedule(): Promise<TelegramSchedule> {
-  const res = await apiFetch(`${BASE}/schedule`);
-  return (await res.json()) as TelegramSchedule;
+  const response = await apiFetch(`${BASE}/schedule`);
+  return response.json() as Promise<TelegramSchedule>;
 }
 
 export async function updateSchedule(
   body: TelegramSchedule
 ): Promise<{ status: string }> {
-  const res = await apiFetch(`${BASE}/schedule`, {
+  const response = await apiFetch(`${BASE}/schedule`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  return (await res.json()) as { status: string };
+  return response.json() as Promise<{ status: string }>;
 }
 
 export async function fetchLeads(limit = 100): Promise<TelegramLead[]> {
-  const res = await apiFetch(`${BASE}/leads?limit=${limit}`);
-  return (await res.json()) as TelegramLead[];
+  const response = await apiFetch(`${BASE}/leads?limit=${limit}`);
+  return response.json() as Promise<TelegramLead[]>;
 }
 
 // NOTE: session/start and session/verify are intentionally omitted.
