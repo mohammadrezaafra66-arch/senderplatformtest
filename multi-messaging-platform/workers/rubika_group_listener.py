@@ -213,7 +213,7 @@ class RubikaGroupListener:
         finally:
             db.close()
 
-    async def start(self) -> None:
+    async def _connect_and_run(self) -> None:
         from rubpy import handlers
 
         self.account_id = self._select_listener_account_id()
@@ -239,6 +239,48 @@ class RubikaGroupListener:
 
         logger.info("rubika_listener_ready account_id=%s — get_updates() را شروع می‌کند", self.account_id)
         await self.client.run()
+
+    async def start(self) -> None:
+        """اجرای listener با حلقه اتصال مجدد و backoff نمایی.
+
+        اگر اتصال قطع شود به‌صورت خودکار تا MAX_RETRIES بار دوباره تلاش می‌کند؛
+        فاصله بین هر تلاش 30 ثانیه × شماره تلاش است (backoff نمایی خطی).
+        SessionInvalidError دائمی است و retry نمی‌شود (سشن باید دوباره لاگین شود).
+        """
+        import asyncio
+
+        max_retries = 10
+        retry_count = 0
+
+        while True:
+            try:
+                await self._connect_and_run()
+                # run() تمام شد بدون خطا (خاموشی عادی) — از حلقه خارج شو.
+                logger.info("rubika_listener_stopped account_id=%s", self.account_id)
+                return
+            except SessionInvalidError:
+                # سشن نامعتبر است؛ retry بی‌فایده است — مطابق قانون امنیتی سند.
+                raise
+            except Exception as exc:  # noqa: BLE001 — هر قطعی اتصال باید منجر به تلاش مجدد شود
+                retry_count += 1
+                if retry_count > max_retries:
+                    logger.error(
+                        "rubika_listener_giveup account_id=%s پس از %s تلاش ناموفق",
+                        self.account_id,
+                        max_retries,
+                    )
+                    raise
+                delay = 30 * retry_count
+                logger.warning(
+                    "rubika_listener_connection_lost account_id=%s error=%s — "
+                    "تلاش مجدد %s/%s پس از %s ثانیه",
+                    self.account_id,
+                    exc,
+                    retry_count,
+                    max_retries,
+                    delay,
+                )
+                await asyncio.sleep(delay)
 
 
 async def _amain() -> None:
