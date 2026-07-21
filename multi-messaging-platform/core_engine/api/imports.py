@@ -195,13 +195,13 @@ def commit_contacts_import(
                     import_row.duplicate_of_contact_id = existing_contact.id
                     duplicate_rows_count += 1
                 else:
-                    bale_phone = normalized.get("phone_bale") or phone_e164 or ""
+                    bale_phone = normalized.get("chat_id") or normalized.get("phone_bale") or ""
                     contact = Contact(
                         first_name=normalized.get("first_name"),
                         last_name=normalized.get("last_name"),
                         phone=phone_e164 or "",
                         phone_e164=phone_e164,
-                        channel_handle=bale_phone or None,
+                        channel_handle=str(bale_phone).strip() or None,
                         telegram_hint=normalized.get("telegram_hint"),
                         locale=normalized.get("locale") or "fa-IR",
                         consent_status=ConsentStatus.ALLOWED.value,

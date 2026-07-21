@@ -57,6 +57,9 @@ COLUMN_ALIASES: dict[str, str] = {
     "phone_bale": "phone_bale",
     "rubika": "phone_rubika",
     "phone_rubika": "phone_rubika",
+    "chat_id": "chat_id",
+    "bale_chat_id": "chat_id",
+    "شناسه بله": "chat_id",
 }
 
 NORMALIZED_COLUMN_ALIASES = {
