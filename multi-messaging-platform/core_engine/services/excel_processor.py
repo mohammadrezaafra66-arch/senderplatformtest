@@ -17,6 +17,7 @@ STANDARD_COLUMN_KEYS = (
     "phone_telegram",
     "phone_bale",
     "phone_rubika",
+    "chat_id",
 )
 
 COLUMN_ALIASES: dict[str, str] = {
