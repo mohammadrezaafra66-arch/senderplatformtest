@@ -195,6 +195,7 @@ def commit_contacts_import(
                     import_row.duplicate_of_contact_id = existing_contact.id
                     duplicate_rows_count += 1
                 else:
+                    bale_phone = normalized.get("phone_bale") or phone_e164 or ""
                     contact = Contact(
                         first_name=normalized.get("first_name"),
                         last_name=normalized.get("last_name"),
@@ -202,9 +203,9 @@ def commit_contacts_import(
                         phone_e164=phone_e164,
                         telegram_hint=normalized.get("telegram_hint"),
                         locale=normalized.get("locale") or "fa-IR",
-                        consent_status=ConsentStatus.UNKNOWN.value,
+                        consent_status=ConsentStatus.ALLOWED.value,
                         blacklisted=False,
-                        extra_variables=normalized.get("extra_variables") or {},
+                        extra_variables={**(normalized.get("extra_variables") or {}), "channel_handle": bale_phone, "chat_id": bale_phone},
                         source_import_id=import_batch.id,
                         source_import_row_id=import_row.id,
                     )
