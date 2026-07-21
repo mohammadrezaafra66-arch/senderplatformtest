@@ -5,7 +5,7 @@ import os
 from typing import Any
 
 from celery import Celery
-from celery.schedules import schedule
+from celery.schedules import schedule, crontab
 
 logger = logging.getLogger(__name__)
 

@@ -84,27 +84,33 @@ def prepare_campaign_messages(
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found.")
 
-    snapshot_meta = get_latest_valid_product_snapshot(db)
-    if not snapshot_meta.get("found"):
+    snapshot_meta = get_latest_valid_product_snapshot(db) if campaign.include_products else {"found": True, "snapshot_id": 0}
+    if campaign.include_products and not snapshot_meta.get("found"):
         raise HTTPException(
             status_code=400,
             detail=snapshot_meta.get("reason") or "No valid product snapshot found",
         )
 
-    snapshot_id = int(snapshot_meta["snapshot_id"])
-    snapshot = (
-        db.query(ProductSnapshot)
-        .filter(ProductSnapshot.id == snapshot_id)
-        .first()
-    )
-    if snapshot is None:
-        raise HTTPException(status_code=400, detail="No valid product snapshot found")
-
-    product_context = build_product_context(db, include_products=True, max_products=3)
-    used_products = bool(product_context.get("enabled"))
-    snapshot_expires_at = _parse_snapshot_expires_at(
-        product_context.get("snapshot_expires_at") or snapshot.expires_at
-    )
+    if campaign.include_products:
+        snapshot_id = int(snapshot_meta["snapshot_id"])
+        snapshot = (
+            db.query(ProductSnapshot)
+            .filter(ProductSnapshot.id == snapshot_id)
+            .first()
+        )
+        if snapshot is None:
+            raise HTTPException(status_code=400, detail="No valid product snapshot found")
+        product_context = build_product_context(db, include_products=True, max_products=3)
+        used_products = bool(product_context.get("enabled"))
+        snapshot_expires_at = _parse_snapshot_expires_at(
+            product_context.get("snapshot_expires_at") or snapshot.expires_at
+        )
+    else:
+        snapshot_id = None
+        snapshot = None
+        product_context = {"enabled": False}
+        used_products = False
+        snapshot_expires_at = None
 
     contacts = (
         db.query(Contact)

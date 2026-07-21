@@ -238,7 +238,7 @@ def update_message_attempt_result(
                             account_id_int = _coerce_int(account_id)
                             new_message = Message(
                                 campaign_id=rendered.campaign_id,
-                                account_id=account_id_int or 2,
+                                account_id=account_id_int or 1,
                                 contact_id=rendered.contact_id,
                                 rendered_text=rendered.final_text,
                                 dedupe_key=f"rm_{message_id_int}_{campaign_id_int}_{contact_id_int}",
