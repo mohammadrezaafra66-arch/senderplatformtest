@@ -201,11 +201,12 @@ def commit_contacts_import(
                         last_name=normalized.get("last_name"),
                         phone=phone_e164 or "",
                         phone_e164=phone_e164,
+                        channel_handle=bale_phone or None,
                         telegram_hint=normalized.get("telegram_hint"),
                         locale=normalized.get("locale") or "fa-IR",
                         consent_status=ConsentStatus.ALLOWED.value,
                         blacklisted=False,
-                        extra_variables={**(normalized.get("extra_variables") or {}), "channel_handle": bale_phone, "chat_id": bale_phone},
+                        extra_variables=normalized.get("extra_variables") or {},
                         source_import_id=import_batch.id,
                         source_import_row_id=import_row.id,
                     )
