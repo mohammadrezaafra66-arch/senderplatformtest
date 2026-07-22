@@ -235,7 +235,7 @@ async def test_deliver_rubika_user_live_missing_session(pg_session_factory):
 
 
 @pytest.mark.asyncio
-async def test_deliver_rubika_user_live_success_and_then_duplicate(monkeypatch, pg_session_factory):
+async def test_deliver_rubika_user_live_success_and_then_resend(monkeypatch, pg_session_factory):
     session = pg_session_factory()
 
     # پاکسازی باقیمانده اجراهای ناقص قبلی (idempotent rerun)
@@ -338,24 +338,19 @@ async def test_deliver_rubika_user_live_success_and_then_duplicate(monkeypatch, 
     session.refresh(contact)
     assert contact.extra_variables.get("rubika_guid") == "uRESOLVEDCONTACT"
 
+    # dedup سراسری برداشته شده — نباید هیچ ردیفی در رجیستری نوشته شود
     dup = (
         session.query(RubikaGlobalSentRegistry)
         .filter(RubikaGlobalSentRegistry.contact_id == contact.id)
         .first()
     )
-    assert dup is not None
+    assert dup is None
 
-    # فراخوانی دوم — باید بدون لمس شبکه رد شود
-    async def fail_if_called(self, **kwargs):
-        raise AssertionError("نباید برای contact تکراری دوباره فراخوانی شود")
-
-    monkeypatch.setattr("rubpy.Client.add_address_book", fail_if_called)
-    monkeypatch.setattr("rubpy.Client.send_message", fail_if_called)
-
+    # فراخوانی دوم برای همان contact — باید دوباره ارسال شود، نه رد
     payload2 = payload.model_copy(update={"message_id": 2, "dedupe_key": "dedupe-user-2"})
     result2 = await deliver_rubika_user_live(payload2, settings, db=session)
     assert result2.success is True
-    assert result2.status == "skipped_duplicate"
+    assert result2.status == "delivered"
 
     # پاکسازی
     session.query(RubikaGlobalSentRegistry).filter(

@@ -176,45 +176,16 @@ async def _resolve_object_guid(
     return guid
 
 
-def _check_and_mark_duplicate(db: Session, *, contact_id: int, campaign_id: int | None) -> bool:
-    """True یعنی قبلاً به این contact از حالت user_account پیام رفته — رد کن.
-
-    اگر تکراری نبود، بلافاصله ردیف را ثبت می‌کند (قبل از ارسال واقعی) تا دو
-    worker هم‌زمان رقابتی روی یک contact، هر دو پیام نفرستند — رزرو خوش‌بینانه.
-    در صورت تداخل (IntegrityError) یعنی worker دیگری همین الان رزرو کرد → تکراری.
-    """
-    from sqlalchemy.exc import IntegrityError
-
-    from core_engine.models import RubikaGlobalSentRegistry
-
-    existing = (
-        db.query(RubikaGlobalSentRegistry)
-        .filter(RubikaGlobalSentRegistry.contact_id == contact_id)
-        .first()
-    )
-    if existing is not None:
-        return True
-
-    row = RubikaGlobalSentRegistry(
-        contact_id=contact_id,
-        send_count=1,
-        last_sent_campaign_id=campaign_id,
-    )
-    db.add(row)
-    try:
-        db.flush()
-    except IntegrityError:
-        db.rollback()
-        return True
-    return False
-
-
 async def deliver_rubika_user_live(
     payload: WorkerPayload,
     settings: WorkerSettings,
     db: Session | None = None,
 ) -> WorkerResult:
-    """ارسال از طریق اکانت شخصی روبیکا (rubpy) — استخر چند اکانتی + dedup + عکس."""
+    """ارسال از طریق اکانت شخصی روبیکا (rubpy) — استخر چند اکانتی + عکس.
+
+    dedup سراسری (rubika_global_sent_registry) عمداً اعمال نمی‌شود: یک contact
+    می‌تواند در چند کمپین مختلف پیام بگیرد. خود جدول دست‌نخورده باقی می‌ماند.
+    """
     from core_engine.services.redis_client import get_redis_client
     from workers.rate_limit import record_successful_send, set_min_delay
 
@@ -226,23 +197,8 @@ async def deliver_rubika_user_live(
             contact_id = int(payload.contact_id)
         except (TypeError, ValueError):
             contact_id = None
-        campaign_id_int: int | None
-        try:
-            campaign_id_int = int(payload.campaign_id)
-        except (TypeError, ValueError):
-            campaign_id_int = None
 
-        # ۱) dedup سراسری — فقط مخصوص user_account (ریسک بن اکانت شخصی)
-        # اگر contact_id معتبر نیست (مثلاً send-test) dedup را رد می‌کنیم
-        if contact_id is not None and _check_and_mark_duplicate(session, contact_id=contact_id, campaign_id=campaign_id_int):
-            return WorkerResult(
-                success=True,
-                status="skipped_duplicate",
-                error_code=None,
-                retryable=False,
-            )
-
-        # ۲) فاز فعال همین لحظه (به وقت ایران) — خارج از بازه یعنی صبر کن
+        # ۱) فاز فعال همین لحظه (به وقت ایران) — خارج از بازه یعنی صبر کن
         phase = resolve_current_phase(session)
         if phase is None:
             return WorkerResult(
@@ -253,7 +209,7 @@ async def deliver_rubika_user_live(
                 retryable=True,
             )
 
-        # ۳) اکانت سالم این فاز که در cooldown/سقف ساعتی نیست
+        # ۲) اکانت سالم این فاز که در cooldown/سقف ساعتی نیست
         redis = get_redis_client()
         pool = RubikaAccountPoolManager(session)
         account = await pool.get_available_account(
@@ -380,7 +336,7 @@ async def deliver_rubika_user_live(
         finally:
             await client.disconnect()
 
-        # ۴) موفق — rate limit، dedup را نهایی کن، delay تصادفی بعدی را ثبت کن
+        # ۳) موفق — rate limit و delay تصادفی بعدی را ثبت کن
         await record_successful_send(redis, account.id)
         pool.mark_account_used(account_id=account.id)
         random_delay = random.uniform(
