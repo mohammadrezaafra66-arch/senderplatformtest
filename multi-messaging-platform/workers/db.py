@@ -259,11 +259,24 @@ def update_message_attempt_result(
                     existing_message = session.get(Message, message_id_int)
                     if existing_message is None:
                         rendered = session.get(RenderedMessage, message_id_int)
-                        if rendered is not None:
-                            account_id_int = _coerce_int(account_id)
+                        account_id_int = _coerce_int(account_id)
+                        if rendered is not None and not account_id_int:
+                            # Message.account_id is NOT NULL with an FK to
+                            # accounts.id, so there is no safe placeholder: a
+                            # made-up id either mis-attributes the message or
+                            # trips the FK. Skip the row instead — the caller
+                            # is expected to pass the account that sent it.
+                            logger.warning(
+                                "skipping Message row for rendered_message=%s "
+                                "campaign=%s contact=%s: no account_id supplied",
+                                message_id_int,
+                                campaign_id_int,
+                                contact_id_int,
+                            )
+                        elif rendered is not None:
                             new_message = Message(
                                 campaign_id=rendered.campaign_id,
-                                account_id=account_id_int or 2,
+                                account_id=account_id_int,
                                 contact_id=rendered.contact_id,
                                 rendered_text=rendered.final_text,
                                 dedupe_key=f"rm_{message_id_int}_{campaign_id_int}_{contact_id_int}",
