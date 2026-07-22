@@ -91,8 +91,14 @@ def normalize_consent_status(value: str | None) -> str:
 
 
 def is_consent_allowed(value: str) -> bool:
-    """Return True only when consent is explicitly allowed."""
-    return normalize_consent_status(value) == CONSENT_ALLOWED
+    """Return True unless consent is explicitly blocked.
+
+    ``unknown`` is the value the importer writes for every contact, so treating
+    it as not-sendable stalled every imported campaign. Allowing it here matches
+    the runtime gate in ``consent_service.get_consent_block_reason``, which only
+    blocks on an explicit opt-out event or a blacklist flag.
+    """
+    return normalize_consent_status(value) != CONSENT_BLOCKED
 
 
 def validate_campaign_channel(channel: str) -> str:

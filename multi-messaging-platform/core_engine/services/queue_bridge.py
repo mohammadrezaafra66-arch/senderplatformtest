@@ -28,8 +28,13 @@ from core_engine.models import (
 from core_engine.services.consent_service import get_consent_block_reason
 from core_engine.services.redis_client import get_redis_client
 from workers.redis_keys import queue_key
+from workers.rubika_account_pool import RubikaAccountPoolManager
 
 logger = logging.getLogger(__name__)
+
+# Rubika senders are drawn from rubika_account_pool, not from "any active
+# rubika account" — an account can be active yet not enrolled for sending.
+RUBIKA_QUEUE_PHASE = "day"
 
 
 def _is_baileys_mode() -> bool:
@@ -114,15 +119,20 @@ async def push_staged_items_to_worker_queue(
                 db.commit()
                 continue
 
-            accounts = (
-                db.query(Account)
-                .filter(
-                    Account.platform == platform_enum,
-                    Account.status == AccountStatus.ACTIVE,
+            if platform_enum == PlatformType.RUBIKA:
+                accounts = RubikaAccountPoolManager(db).list_pool_accounts(
+                    RUBIKA_QUEUE_PHASE
                 )
-                .order_by(Account.id.asc())
-                .all()
-            )
+            else:
+                accounts = (
+                    db.query(Account)
+                    .filter(
+                        Account.platform == platform_enum,
+                        Account.status == AccountStatus.ACTIVE,
+                    )
+                    .order_by(Account.id.asc())
+                    .all()
+                )
 
             if not accounts:
                 item.status = StagedQueueItemStatus.READY.value

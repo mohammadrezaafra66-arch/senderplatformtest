@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from core_engine.config import get_settings
 from core_engine.models import (
     Campaign,
+    CampaignRecipient,
     CampaignStatus,
     Contact,
     ProductSnapshot,
@@ -115,9 +116,12 @@ def prepare_campaign_messages(
         or (snapshot.expires_at if snapshot is not None else None)
     )
 
+    # Contacts are attached to a campaign through campaign_recipients (see the
+    # POST /campaigns handler); Contact.campaign_id is left NULL by the importer.
     contacts = (
         db.query(Contact)
-        .filter(Contact.campaign_id == campaign_id)
+        .join(CampaignRecipient, CampaignRecipient.contact_id == Contact.id)
+        .filter(CampaignRecipient.campaign_id == campaign_id)
         .order_by(Contact.id.asc())
         .all()
     )
