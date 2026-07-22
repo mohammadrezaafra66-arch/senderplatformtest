@@ -84,26 +84,35 @@ def prepare_campaign_messages(
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found.")
 
-    snapshot_meta = get_latest_valid_product_snapshot(db)
-    if not snapshot_meta.get("found"):
-        raise HTTPException(
-            status_code=400,
-            detail=snapshot_meta.get("reason") or "No valid product snapshot found",
+    snapshot_id: int | None = None
+    snapshot: ProductSnapshot | None = None
+
+    if campaign.include_products:
+        snapshot_meta = get_latest_valid_product_snapshot(db)
+        if not snapshot_meta.get("found"):
+            raise HTTPException(
+                status_code=400,
+                detail=snapshot_meta.get("reason") or "No valid product snapshot found",
+            )
+
+        snapshot_id = int(snapshot_meta["snapshot_id"])
+        snapshot = (
+            db.query(ProductSnapshot)
+            .filter(ProductSnapshot.id == snapshot_id)
+            .first()
         )
+        if snapshot is None:
+            raise HTTPException(status_code=400, detail="No valid product snapshot found")
 
-    snapshot_id = int(snapshot_meta["snapshot_id"])
-    snapshot = (
-        db.query(ProductSnapshot)
-        .filter(ProductSnapshot.id == snapshot_id)
-        .first()
+    product_context = build_product_context(
+        db,
+        include_products=campaign.include_products,
+        max_products=3,
     )
-    if snapshot is None:
-        raise HTTPException(status_code=400, detail="No valid product snapshot found")
-
-    product_context = build_product_context(db, include_products=True, max_products=3)
     used_products = bool(product_context.get("enabled"))
     snapshot_expires_at = _parse_snapshot_expires_at(
-        product_context.get("snapshot_expires_at") or snapshot.expires_at
+        product_context.get("snapshot_expires_at")
+        or (snapshot.expires_at if snapshot is not None else None)
     )
 
     contacts = (
@@ -247,7 +256,7 @@ def prepare_campaign_messages(
         already_staged_count=already_staged_count,
         limit_applied=effective_limit if limit_was_applied else None,
         product_snapshot_id=snapshot_id,
-        product_snapshot_valid=True,
+        product_snapshot_valid=snapshot_id is not None,
         force_mock_output=request.force_mock_output,
         real_gpt_called=False,
         real_queue_push_enabled=settings.REAL_QUEUE_PUSH_ENABLED,
