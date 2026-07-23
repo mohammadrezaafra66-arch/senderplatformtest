@@ -24,3 +24,5 @@ pytest
 pytest-asyncio
 pytest-cov
 cryptography
+
+telethon>=1.36.0

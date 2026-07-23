@@ -63,6 +63,17 @@ class WorkerSettings(BaseSettings):
     WORKER_HEARTBEAT_INTERVAL_SECONDS: int = 15
     WORKER_HEARTBEAT_TTL_SECONDS: int = 45
 
+    # Telegram MTProto (Telethon)
+    TELEGRAM_DELIVERY_MODE: str = "bot_api"
+    TELEGRAM_API_ID: str = ""
+    TELEGRAM_API_HASH: str = ""
+    TELEGRAM_MTPROTO_SESSION_DIR: str = "storage/telegram_mtproto_sessions"
+    TELEGRAM_ENABLE_MTPROTO: bool = False
+    TELEGRAM_MIN_SEND_DELAY_SECONDS: int = 15
+    TELEGRAM_MAX_SEND_DELAY_SECONDS: int = 45
+    TELEGRAM_WARMUP_DAYS: int = 14
+    TELEGRAM_WARMUP_START_CAP: int = 10
+    TELEGRAM_WARMUP_FINAL_CAP: int = 80
     # Dynamic account discovery — poll DB for ACTIVE accounts every N seconds.
     # 0 disables refresh (keep boot-time env list, current behaviour).
     WHATSAPP_ACCOUNT_REFRESH_INTERVAL_SECONDS: int = 60

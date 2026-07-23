@@ -20,7 +20,6 @@ from core_engine.services.whatsapp_web_session import build_whatsapp_web_status
 
 _API_TOKEN_PLATFORMS = frozenset({
     PlatformType.BALE,
-    PlatformType.TELEGRAM,
     PlatformType.RUBIKA,
 })
 
@@ -30,6 +29,11 @@ class SessionReadiness:
     ready: bool
     message: str
     error: str | None = None
+
+
+def resolve_telegram_delivery_mode() -> str:
+    mode = get_settings().TELEGRAM_DELIVERY_MODE.strip().lower()
+    return mode if mode in {"bot_api", "mtproto_account"} else "bot_api"
 
 
 def resolve_whatsapp_delivery_mode() -> str:
@@ -48,6 +52,11 @@ def required_session_type(
         if mode == "cloud_api":
             return SessionType.API_TOKEN
         return SessionType.BROWSER_PROFILE
+    if platform == PlatformType.TELEGRAM:
+        mode = resolve_telegram_delivery_mode()
+        if mode == "mtproto_account":
+            return SessionType.MTPROTO_SESSION
+        return SessionType.API_TOKEN
     if platform in _API_TOKEN_PLATFORMS:
         return SessionType.API_TOKEN
     raise ValueError(f"Unsupported platform for session wiring: {platform.value}")

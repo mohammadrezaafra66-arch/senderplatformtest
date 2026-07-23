@@ -109,6 +109,8 @@ app.include_router(send_settings_router)
 app.include_router(whatsapp_router)
 app.include_router(evolution_whatsapp_router)
 app.include_router(evolution_webhook_router)
+from core_engine.api.telegram_mtproto import router as telegram_mtproto_router
+app.include_router(telegram_mtproto_router)
 
 
 @app.on_event("startup")

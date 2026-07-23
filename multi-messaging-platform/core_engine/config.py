@@ -85,6 +85,11 @@ class Settings(BaseSettings):
     # to take effect in long-running workers unless Redis kill switch is also used.
     WHATSAPP_SENDING_DISABLED: bool = False
 
+    # Telegram MTProto safety gates
+    TELEGRAM_MTPROTO_ENABLED: bool = False
+    TELEGRAM_SEND_WINDOW_START_HOUR: int = 9
+    TELEGRAM_SEND_WINDOW_END_HOUR: int = 21
+
     @field_validator("SESSION_SECRET")
     @classmethod
     def validate_session_secret(cls, value: str) -> str:

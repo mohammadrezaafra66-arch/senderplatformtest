@@ -76,6 +76,19 @@ async def deliver_platform_message(
         return await deliver_bale_live(payload, settings)
 
     if platform == "telegram":
+        mode = settings.TELEGRAM_DELIVERY_MODE.strip().lower()
+        if mode == "mtproto_account":
+            if not settings.TELEGRAM_ENABLE_MTPROTO:
+                from workers.payloads import WorkerResult
+                return WorkerResult(
+                    success=False,
+                    status="failed_permanent",
+                    error_code="telegram_mtproto_disabled",
+                    error_message="TELEGRAM_ENABLE_MTPROTO is false.",
+                    retryable=False,
+                )
+            from workers.connectors.telegram_mtproto import deliver_telegram_mtproto_live
+            return await deliver_telegram_mtproto_live(payload, settings)
         return await deliver_telegram_live(payload, settings)
 
     if platform == "whatsapp":
