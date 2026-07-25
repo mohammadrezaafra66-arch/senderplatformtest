@@ -236,19 +236,32 @@ def update_message_attempt_result(
                         rendered = session.get(RenderedMessage, message_id_int)
                         if rendered is not None:
                             account_id_int = _coerce_int(account_id)
-                            new_message = Message(
-                                campaign_id=rendered.campaign_id,
-                                account_id=account_id_int or 1,
-                                contact_id=rendered.contact_id,
-                                rendered_text=rendered.final_text,
-                                dedupe_key=f"rm_{message_id_int}_{campaign_id_int}_{contact_id_int}",
-                                product_snapshot_id=rendered.product_snapshot_id,
-                                created_at=datetime.utcnow(),
-                                updated_at=datetime.utcnow(),
-                            )
-                            session.add(new_message)
-                            session.flush()
-                            existing_message = new_message
+                            if account_id_int is None:
+                                log_worker_event(
+                                    event="message_row_creation_skipped",
+                                    platform=platform,
+                                    account_id=account_id,
+                                    message_id=message_id,
+                                    campaign_id=campaign_id,
+                                    status=status,
+                                    error_code="account_id_missing",
+                                    error_message="Cannot create Message without a valid account_id.",
+                                    payload={"contact_id": contact_id},
+                                )
+                            else:
+                                new_message = Message(
+                                    campaign_id=rendered.campaign_id,
+                                    account_id=account_id_int,
+                                    contact_id=rendered.contact_id,
+                                    rendered_text=rendered.final_text,
+                                    dedupe_key=f"rm_{message_id_int}_{campaign_id_int}_{contact_id_int}",
+                                    product_snapshot_id=rendered.product_snapshot_id,
+                                    created_at=datetime.utcnow(),
+                                    updated_at=datetime.utcnow(),
+                                )
+                                session.add(new_message)
+                                session.flush()
+                                existing_message = new_message
                     if existing_message is not None:
                         recipient.final_message_id = existing_message.id
 
@@ -290,12 +303,17 @@ def update_message_attempt_result(
     except Exception as exc:
         session.rollback()
         log_worker_event(
-            event="message_attempt_result_failed",
+            event="message_attempt_result_save_failed",
             message_id=message_id,
             campaign_id=campaign_id,
             status=status,
-            error_code="db_persist_failed",
+            error_code=error_code,
             error_message=str(exc),
+            payload={
+                "attempt_no": attempt_no,
+                "platform_message_id": platform_message_id,
+                "contact_id": contact_id,
+            },
         )
         raise
     finally:
