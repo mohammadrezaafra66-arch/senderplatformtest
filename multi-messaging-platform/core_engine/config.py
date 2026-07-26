@@ -22,6 +22,7 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        validate_default=True,
     )
 
     DATABASE_URL: str = "postgresql://mmp_user:mmp_pass@localhost:5432/mmp_db"

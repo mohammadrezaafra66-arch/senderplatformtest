@@ -1,7 +1,7 @@
 import pytest
 from cryptography.fernet import Fernet
 
-from core_engine.config import get_settings
+from core_engine.config import Settings, get_settings
 from core_engine.models import SessionType
 from core_engine.services.crypto import (
     SessionDecryptionError,
@@ -69,9 +69,12 @@ def test_encrypted_session_file_is_not_plaintext(tmp_path):
 
 def test_settings_require_session_secret(monkeypatch):
     monkeypatch.delenv("SESSION_SECRET", raising=False)
+    monkeypatch.setattr(Settings, "model_config", {**Settings.model_config, "env_file": None})
     get_settings.cache_clear()
+
     with pytest.raises(ValueError, match="SESSION_SECRET"):
         get_settings()
+
     get_settings.cache_clear()
 
 
