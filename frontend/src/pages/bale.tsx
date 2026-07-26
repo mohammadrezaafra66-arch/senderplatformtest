@@ -5,7 +5,7 @@ const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 async function apiFetch(path: string, opts: RequestInit = {}) {
-  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const token = typeof window !== "undefined" ? window.sessionStorage.getItem("mmp.access_token") : null;
   const res = await fetch(`${API}${path}`, {
     ...opts,
     credentials: "include",
@@ -43,7 +43,8 @@ function AccountsTab() {
       apiFetch("/accounts"),
       apiFetch("/bale/user/pool"),
     ]);
-    const allAccounts: Account[] = Array.isArray(accRes.data) ? accRes.data.filter((a: Account) => a.platform === "bale") : [];
+    const rawAccounts = Array.isArray(accRes.data) ? accRes.data : (accRes.data?.items || []);
+    const allAccounts: Account[] = rawAccounts.filter((a: Account) => a.platform === "bale");
     setAccounts(allAccounts);
     setPool(Array.isArray(poolRes.data) ? poolRes.data : []);
 
