@@ -37,6 +37,14 @@ class WorkerSettings(BaseSettings):
     RUBIKA_API_BASE_URL: str = "https://botapi.rubika.ir/v3"
     RUBIKA_API_TIMEOUT_SECONDS: float = 30.0
 
+    # روبیکا v2 — حالت ارسال: bot_api (موجود، دست‌نخورده) یا user_account (rubpy).
+    # پنجره‌های روز/شب از rubika_sender_schedules در دیتابیس خوانده می‌شوند، نه از اینجا.
+    RUBIKA_DELIVERY_MODE: str = "bot_api"
+    RUBIKA_USER_ACCOUNT_ENABLED: bool = False
+    RUBIKA_MIN_SEND_DELAY_SECONDS: int = 5
+    RUBIKA_MAX_SEND_DELAY_SECONDS: int = 15
+    RUBIKA_HOURLY_SEND_CAP: int = 50
+
     WHATSAPP_API_BASE_URL: str = "https://graph.facebook.com/v21.0"
     WHATSAPP_API_TIMEOUT_SECONDS: float = 30.0
 
@@ -78,6 +86,16 @@ class WorkerSettings(BaseSettings):
         if mode not in {"web", "cloud_api", "evolution"}:
             raise ValueError(
                 "WHATSAPP_DELIVERY_MODE must be 'web', 'cloud_api' or 'evolution'."
+            )
+        return mode
+
+    @field_validator("RUBIKA_DELIVERY_MODE", mode="before")
+    @classmethod
+    def normalize_rubika_delivery_mode(cls, value: object) -> str:
+        mode = str(value or "bot_api").strip().lower()
+        if mode not in {"bot_api", "user_account"}:
+            raise ValueError(
+                "RUBIKA_DELIVERY_MODE must be 'bot_api' or 'user_account'."
             )
         return mode
 
