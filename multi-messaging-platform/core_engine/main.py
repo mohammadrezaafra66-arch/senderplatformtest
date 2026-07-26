@@ -86,6 +86,7 @@ app.add_middleware(
         "http://127.0.0.1:3000",
         "http://localhost:3010",
         "http://127.0.0.1:3010",
+        "https://scaling-couscous-5rjgjx4vqgvcvvjr-3010.app.github.dev",
     ],
     allow_credentials=True,
     allow_methods=["*"],
