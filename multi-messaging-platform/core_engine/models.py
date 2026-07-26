@@ -100,6 +100,7 @@ class SessionType(str, enum.Enum):
     BROWSER_PROFILE = "browser_profile"
     STRING_SESSION = "string_session"
     EVOLUTION_INSTANCE = "evolution_instance"  # جدید — برای Evolution API
+    BALE_SESSION = "bale_session"  # جدید — سشن aiobale برای حالت user_account
 
 
 class ImportStatus(str, enum.Enum):
