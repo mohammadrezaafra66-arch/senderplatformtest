@@ -133,8 +133,21 @@ async def test_send_bale_text_message_rate_limited(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_deliver_bale_live_missing_session():
-    result = await deliver_bale_live(_sample_payload(), _live_settings())
+async def test_deliver_bale_live_missing_session(monkeypatch):
+    def fake_load_bale_bot_token(account_id):
+        raise SessionInvalidError("Bale session not found")
+
+    monkeypatch.setattr(
+        bale_connector,
+        "load_bale_bot_token",
+        fake_load_bale_bot_token,
+    )
+
+    result = await deliver_bale_live(
+        _sample_payload(),
+        _live_settings(),
+    )
+
     assert result.success is False
     assert result.error_code == "bale_session_missing"
 

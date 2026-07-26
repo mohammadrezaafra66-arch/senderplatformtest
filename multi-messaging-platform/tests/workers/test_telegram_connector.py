@@ -137,8 +137,21 @@ async def test_send_telegram_text_message_rate_limited(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_deliver_telegram_live_missing_session():
-    result = await deliver_telegram_live(_sample_payload(), _live_settings())
+async def test_deliver_telegram_live_missing_session(monkeypatch):
+    def fake_load_telegram_bot_token(account_id):
+        raise SessionInvalidError("Telegram session not found")
+
+    monkeypatch.setattr(
+        telegram_connector,
+        "load_telegram_bot_token",
+        fake_load_telegram_bot_token,
+    )
+
+    result = await deliver_telegram_live(
+        _sample_payload(),
+        _live_settings(),
+    )
+
     assert result.success is False
     assert result.error_code == "telegram_session_missing"
 
