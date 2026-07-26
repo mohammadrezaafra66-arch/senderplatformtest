@@ -1,11 +1,11 @@
-"""وظایف پس‌زمینه Celery."""
+"""Celery task definitions for background workers."""
 
 import logging
 import os
 from typing import Any
 
 from celery import Celery
-from celery.schedules import schedule, crontab
+from celery.schedules import crontab, schedule
 
 logger = logging.getLogger(__name__)
 
@@ -105,4 +105,3 @@ def consume_whatsapp_baileys_session_status_task():
     except Exception as exc:
         logger.exception("consume_whatsapp_baileys_session_status_task failed: %s", exc)
         return {"error": str(exc)}
-

@@ -17,6 +17,7 @@ STANDARD_COLUMN_KEYS = (
     "phone_telegram",
     "phone_bale",
     "phone_rubika",
+    "chat_id",
 )
 
 COLUMN_ALIASES: dict[str, str] = {
@@ -57,6 +58,9 @@ COLUMN_ALIASES: dict[str, str] = {
     "phone_bale": "phone_bale",
     "rubika": "phone_rubika",
     "phone_rubika": "phone_rubika",
+    "chat_id": "chat_id",
+    "bale_chat_id": "chat_id",
+    "شناسه بله": "chat_id",
 }
 
 NORMALIZED_COLUMN_ALIASES = {
@@ -266,6 +270,8 @@ class ExcelProcessor:
             if column not in column_mapping.values() and value not in (None, "")
         }
 
+        chat_id_raw = mapped_values.get("chat_id")
+        chat_id = str(chat_id_raw).strip() if chat_id_raw not in (None, "") else None
         normalized_data: dict[str, Any] = {
             "first_name": first_name,
             "last_name": last_name,
@@ -273,6 +279,7 @@ class ExcelProcessor:
             "telegram_hint": telegram_hint,
             "locale": "fa-IR",
             "extra_variables": extra_variables,
+            "chat_id": chat_id,
         }
 
         row_result: dict[str, Any] = {

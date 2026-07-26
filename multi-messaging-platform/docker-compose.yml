@@ -128,7 +128,7 @@ services:
       WEBHOOK_ENABLED: 'true'
       WEBHOOK_EVENTS: APPLICATION_STARTUP,QRCODE_UPDATED,MESSAGES_SET,MESSAGES_UPSERT,SEND_MESSAGE,CONNECTION_UPDATE
       WEBHOOK_URL: ${EVOLUTION_WEBHOOK_URL:-http://core_api:8000/webhooks/whatsapp/evolution}
-    image: atendai/evolution-api:v2.1.1
+    image: evoapicloud/evolution-api:v2.3.7
     ports:
     - 8080:8080
     restart: unless-stopped
@@ -205,74 +205,6 @@ services:
       WORKER_ACCOUNT_ID: ${WORKER_ACCOUNT_ID:-1}
       WORKER_PLATFORM: rubika
       WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-5}
-    restart: unless-stopped
-  rubika_listener:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command:
-    - python
-    - -m
-    - workers.rubika_group_listener
-    container_name: mmp_rubika_listener
-    depends_on:
-    - postgres
-    - redis
-    env_file:
-    - .env
-    environment:
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
-      RUBIKA_DELIVERY_MODE: user_account
-      RUBIKA_USER_ACCOUNT_ENABLED: "true"
-    profiles:
-    - rubika_listener
-    restart: unless-stopped
-  rubika_ai_loop:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command:
-    - python
-    - -m
-    - workers.rubika_ai_response_loop
-    container_name: mmp_rubika_ai_loop
-    depends_on:
-    - postgres
-    - redis
-    env_file:
-    - .env
-    environment:
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
-      RUBIKA_DELIVERY_MODE: user_account
-      RUBIKA_USER_ACCOUNT_ENABLED: "true"
-    profiles:
-    - rubika_ai_loop
-    restart: unless-stopped
-  rubika_status_bot:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command:
-    - python
-    - -m
-    - workers.rubika_status_bot
-    container_name: mmp_rubika_status_bot
-    depends_on:
-    - postgres
-    - redis
-    env_file:
-    - .env
-    environment:
-      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
-      RUBIKA_DELIVERY_MODE: user_account
-      RUBIKA_USER_ACCOUNT_ENABLED: "true"
-      RUBIKA_STATUS_HOURLY_LIKE_CAP: ${RUBIKA_STATUS_HOURLY_LIKE_CAP:-30}
-      RUBIKA_STATUS_DAILY_COMMENT_CAP: ${RUBIKA_STATUS_DAILY_COMMENT_CAP:-10}
-    profiles:
-    - rubika_status
     restart: unless-stopped
   telegram_worker:
     build:
@@ -374,6 +306,45 @@ services:
     restart: unless-stopped
     volumes:
     - ./storage/browser_profiles:/app/storage/browser_profiles
+  whatsapp_health_monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      - python
+      - -m
+      - workers.whatsapp_health_monitor
+    container_name: mmp_whatsapp_health_monitor
+    depends_on:
+      - postgres
+      - redis
+      - core_api
+    env_file:
+      - .env
+    environment:
+      EVOLUTION_API_BASE_URL: ${EVOLUTION_API_URL:-http://evolution_api:8080}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:?EVOLUTION_API_KEY must be set}
+      HEALTH_MONITOR_INTERVAL_SECONDS: ${HEALTH_MONITOR_INTERVAL_SECONDS:-30}
+    restart: unless-stopped
+  whatsapp_auto_reconnect:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      - python
+      - -m
+      - workers.whatsapp_auto_reconnect
+    container_name: mmp_whatsapp_auto_reconnect
+    depends_on:
+      - postgres
+      - redis
+      - core_api
+    env_file:
+      - .env
+    environment:
+      EVOLUTION_API_BASE_URL: ${EVOLUTION_API_URL:-http://evolution_api:8080}
+      EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:?EVOLUTION_API_KEY must be set}
+    restart: unless-stopped
 volumes:
   evolution_instances: null
   grafana_data: null

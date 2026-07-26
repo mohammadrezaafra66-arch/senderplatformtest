@@ -10,7 +10,7 @@
 | Service | URL |
 |---------|-----|
 | Backend API | http://localhost:8001 |
-| Frontend (Vite dev) | http://localhost:5173 |
+| Frontend (Next.js dev) | http://localhost:3010 |
 | Metrics | http://localhost:8001/metrics |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3002 |
@@ -141,9 +141,11 @@ python scripts/test_dashboard_ws.py  → EXIT 0
 
 ### 5. Frontend
 
+> **Correction (post–Phase 5):** The Vite/React dashboard (`App.tsx`, port 5173) verified in the table below has since been **removed** and no longer exists. The single active frontend is now `frontend/` (Next.js 16, port **3010**). The table below is a historical record of that removed dashboard.
+
 | Check | Result |
 |-------|--------|
-| http://localhost:5173 responds | ✅ 200 |
+| http://localhost:5173 responds (removed Vite dashboard) | ✅ 200 |
 | `npm run build` | ✅ PASS |
 | StatGrid (summary cards) | ✅ wired in `App.tsx` |
 | QueueTable | ✅ wired |
@@ -231,10 +233,11 @@ All five rules loaded successfully.
 ```powershell
 cd multi-messaging-platform
 docker compose up -d --build
-cd frontend && npm install && npm run dev
+# The frontend lives at the repo root (Next.js), not inside multi-messaging-platform
+cd ../frontend && npm install && npm run dev
 ```
 
-- Dashboard UI: http://localhost:5173  
+- Frontend UI (Next.js): http://localhost:3010  
 - Grafana: http://localhost:3002 (admin/admin)  
 - Prometheus: http://localhost:9090
 

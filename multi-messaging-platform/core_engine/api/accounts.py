@@ -1,9 +1,13 @@
 """API مدیریت اکانت‌های پیام‌رسان."""
 
+import logging
 from typing import Annotated
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
+from core_engine.config import get_settings
 
 from core_engine.api.schemas import (
     AccountCreateRequest,
@@ -21,10 +25,6 @@ from core_engine.api.schemas import (
     AccountTestConnectionResponse,
     AccountUpdateRequest,
     DeployReadinessResponse,
-    RubikaUserLoginStartRequest,
-    RubikaUserLoginStartResponse,
-    RubikaUserLoginVerifyRequest,
-    RubikaUserLoginVerifyResponse,
     WhatsAppWebRegisterRequest,
     WhatsAppWebRegisterResponse,
     WhatsAppWebPoolStatusResponse,
@@ -54,9 +54,33 @@ from core_engine.services.whatsapp_web_session import (
     resolve_whatsapp_profile_dir,
     store_whatsapp_web_session,
 )
+from core_engine.services.evolution_service import _instance_name
 from core_engine.services.worker_pool_status import list_whatsapp_pool_workers
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/accounts", tags=["accounts"])
+
+
+def _create_evolution_instance(instance_name: str) -> None:
+    settings = get_settings()
+    evolution_url = settings.EVOLUTION_API_URL.rstrip("/")
+    evolution_key = settings.EVOLUTION_API_KEY
+    try:
+        with httpx.Client(timeout=30) as client:
+            resp = client.post(
+                f"{evolution_url}/instance/create",
+                headers={"apikey": evolution_key, "Content-Type": "application/json"},
+                json={"instanceName": instance_name, "integration": "WHATSAPP-BAILEYS"},
+            )
+            if resp.status_code not in (200, 201):
+                logger.warning(
+                    "Evolution instance create failed: %s %s",
+                    resp.status_code,
+                    resp.text,
+                )
+    except Exception as exc:
+        logger.warning("Evolution instance create error: %s", exc)
 
 
 def _account_to_response(account: Account) -> AccountResponse:
@@ -150,6 +174,12 @@ def create_account(
         )
         db.commit()
         db.refresh(account)
+
+        if (
+            account.platform == PlatformType.WHATSAPP
+            and resolve_whatsapp_delivery_mode() == "evolution"
+        ):
+            _create_evolution_instance(_instance_name(account.id))
 
         return AccountCreateResponse(
             status="created",
@@ -449,103 +479,6 @@ def register_account_session(
         session_type=session_type.value,
         message="Encrypted session registered successfully.",
     )
-
-
-@router.post(
-    "/{account_id}/rubika/session/register",
-    response_model=RubikaUserLoginStartResponse,
-)
-async def register_rubika_user_session(
-    account_id: int,
-    payload: RubikaUserLoginStartRequest,
-    db: Annotated[Session, Depends(get_db)] = None,
-    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
-):
-    """مرحله ۱ ورود تعاملی روبیکا (user_account) — ارسال کد یا تکمیل pass_key.
-
-    دو روش فراخوانی: phone_number برای شروع تازه، یا registration_token+pass_key
-    برای تکمیل مرحله pass_key (وقتی پاسخ قبلی stage=pass_key_required بود).
-    """
-    from core_engine.services.rubika_user_session import (
-        RubikaLoginError,
-        start_rubika_user_login,
-    )
-
-    account = db.query(Account).filter(Account.id == account_id).first()
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found.")
-    if account.platform != PlatformType.RUBIKA:
-        raise HTTPException(
-            status_code=400, detail="این endpoint فقط برای اکانت‌های روبیکا است."
-        )
-
-    try:
-        result = await start_rubika_user_login(
-            account_id=account_id,
-            phone_number=payload.phone_number,
-            pass_key=payload.pass_key,
-            registration_token=payload.registration_token,
-        )
-    except RubikaLoginError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    record_audit(
-        db, current_user["username"], "register_rubika_user_session", "account",
-        str(account.id), {"stage": result["stage"]},
-    )
-    db.commit()
-
-    return RubikaUserLoginStartResponse(**result)
-
-
-@router.post(
-    "/{account_id}/rubika/session/verify",
-    response_model=RubikaUserLoginVerifyResponse,
-)
-async def verify_rubika_user_session(
-    account_id: int,
-    payload: RubikaUserLoginVerifyRequest,
-    db: Annotated[Session, Depends(get_db)] = None,
-    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
-):
-    """مرحله ۲ — تأیید کد پیامکی و ذخیره session رمزنگاری‌شده اکانت شخصی روبیکا."""
-    from core_engine.services.rubika_user_session import (
-        RubikaLoginError,
-        verify_rubika_user_login,
-    )
-
-    account = db.query(Account).filter(Account.id == account_id).first()
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found.")
-    if account.platform != PlatformType.RUBIKA:
-        raise HTTPException(
-            status_code=400, detail="این endpoint فقط برای اکانت‌های روبیکا است."
-        )
-
-    try:
-        result = await verify_rubika_user_login(
-            db,
-            registration_token=payload.registration_token,
-            phone_code=payload.phone_code,
-        )
-    except RubikaLoginError as exc:
-        db.rollback()
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    if result["account_id"] != account_id:
-        db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="این registration_token برای اکانت دیگری ساخته شده است.",
-        )
-
-    record_audit(
-        db, current_user["username"], "verify_rubika_user_session", "account",
-        str(account.id), {"guid": result["guid"]},
-    )
-    db.commit()
-
-    return RubikaUserLoginVerifyResponse(**result)
 
 
 @router.get(
