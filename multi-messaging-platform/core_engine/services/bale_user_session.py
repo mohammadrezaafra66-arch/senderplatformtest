@@ -1,10 +1,4 @@
-"""ورود به بله با شماره موبایل — OTP دو مرحله‌ای با aiobale.
-
-دو مسئولیت:
-۱. envelope — قالب JSON ذخیره‌شده در ChannelSession با session_type=BALE_SESSION
-۲. جریان دو مرحله‌ای: start_bale_user_login و verify_bale_user_login
-   وضعیت موقت بین دو مرحله در Redis نگه داشته می‌شود (TTL=600)
-"""
+"""ورود به بله با شماره موبایل — OTP دو مرحله‌ای با aiobale."""
 
 from __future__ import annotations
 
@@ -24,10 +18,6 @@ logger = logging.getLogger("core_engine.services.bale_user_session")
 _REGISTRATION_TTL_SECONDS = 600
 _REDIS_KEY_PREFIX = "bale:user_login:"
 
-# app_id و app_key ثابت aiobale (از source کتابخانه)
-_BALE_APP_ID = 30
-_BALE_APP_KEY = "liberaPhone"
-
 
 class BaleLoginError(Exception):
     """خطای قابل‌نمایش به کاربر در جریان ورود."""
@@ -40,7 +30,6 @@ def _redis_key(registration_token: str) -> str:
 def build_session_envelope(
     *, phone_number: str, token: str, user_id: int, session_file_bytes: bytes
 ) -> str:
-    """ساخت پاکت JSON که در ChannelSession ذخیره می‌شود."""
     return json.dumps(
         {
             "phone_number": phone_number,
@@ -53,7 +42,6 @@ def build_session_envelope(
 
 
 def parse_session_envelope(plaintext: bytes) -> dict[str, Any]:
-    """خواندن پاکت JSON از ChannelSession."""
     try:
         data = json.loads(plaintext.decode("utf-8"))
     except Exception as exc:
@@ -68,11 +56,7 @@ async def start_bale_user_login(
     account_id: int,
     phone_number: str,
 ) -> dict[str, Any]:
-    """مرحله اول: ارسال کد OTP به شماره موبایل.
-
-    Returns:
-        {"status": "code_sent", "registration_token": "...", "phone_number": "..."}
-    """
+    """مرحله اول: ارسال کد OTP."""
     import hashlib
     import uuid
     from aiobale import Client
@@ -80,31 +64,31 @@ async def start_bale_user_login(
 
     redis = get_redis_client()
 
-    phone_clean = phone_number.strip().lstrip("+")
+    phone_clean = phone_number.strip().lstrip("+").replace("-", "").replace(" ", "")
     if not phone_clean.isdigit():
         raise BaleLoginError("شماره موبایل باید فقط عدد باشد.")
 
     device_hash = hashlib.md5(f"bale-{account_id}-{phone_clean}".encode()).hexdigest()
-    device_title = f"SenderPlatform-{account_id}"
-
+    device_hash = f"{device_hash[:8]}-{device_hash[8:12]}-{device_hash[12:16]}-{device_hash[16:20]}-{device_hash[20:]}"
+    device_title = f"Chrome_138.0.0.0, Windows"
     session_name = f"/tmp/bale_setup_{account_id}_{uuid.uuid4().hex[:8]}"
+
     client = Client(session_file=session_name)
 
     try:
         response = await client.start_phone_auth(
             phone_number=int(phone_clean),
-            app_id=_BALE_APP_ID,
-            app_key=_BALE_APP_KEY,
+            code_type=SendCodeType.DEFAULT,
             device_hash=device_hash,
             device_title=device_title,
-            send_code_type=SendCodeType.DEFAULT,
         )
     except Exception as exc:
         raise BaleLoginError(f"خطا در ارسال کد بله: {exc}") from exc
-    finally:
-        await client.stop()
 
-    transaction_hash = response.transaction_hash if hasattr(response, "transaction_hash") else str(response)
+    if hasattr(response, 'value'):
+        raise BaleLoginError(f"خطا از سرور بله: {response}")
+
+    transaction_hash = getattr(response, 'transaction_hash', None) or str(response)
 
     registration_token = secrets.token_urlsafe(24)
     redis_data = json.dumps({
@@ -131,11 +115,7 @@ async def verify_bale_user_login(
     code: str,
     account_id: int,
 ) -> dict[str, Any]:
-    """مرحله دوم: تأیید کد OTP و ذخیره session.
-
-    Returns:
-        {"status": "logged_in", "user_id": ..., "phone_number": "..."}
-    """
+    """مرحله دوم: تأیید کد OTP و ذخیره session."""
     from aiobale import Client
 
     redis = get_redis_client()
@@ -159,7 +139,6 @@ async def verify_bale_user_login(
             code=code.strip(),
         )
     except Exception as exc:
-        await client.stop()
         err = str(exc).lower()
         if "invalid" in err or "wrong" in err or "code" in err:
             raise BaleLoginError("کد وارد شده اشتباه است.") from exc
@@ -168,26 +147,23 @@ async def verify_bale_user_login(
     try:
         me = await client.get_me()
         user_id = me.id
-        token = client.token
+        token = client.token or ""
     except Exception as exc:
-        await client.stop()
         raise BaleLoginError(f"خطا در دریافت اطلاعات کاربر: {exc}") from exc
 
-    # خواندن session file برای ذخیره در DB
     import pathlib
     session_path = pathlib.Path(session_name).with_suffix(".bale")
+    if not session_path.exists():
+        session_path = pathlib.Path(session_name + ".bale")
+    
     try:
         session_bytes = session_path.read_bytes()
     except FileNotFoundError:
-        session_path = pathlib.Path(session_name + ".bale")
-        session_bytes = session_path.read_bytes()
+        session_bytes = b""
 
-    await client.stop()
-
-    # ساخت envelope و ذخیره در DB
     envelope = build_session_envelope(
         phone_number=phone_clean,
-        token=token or "",
+        token=token,
         user_id=user_id,
         session_file_bytes=session_bytes,
     )
@@ -199,7 +175,6 @@ async def verify_bale_user_login(
         plaintext=envelope.encode("utf-8"),
     )
 
-    # اضافه کردن به pool اگر نیست
     existing_pool = (
         db.query(BaleAccountPool)
         .filter(BaleAccountPool.account_id == account_id)
@@ -209,17 +184,13 @@ async def verify_bale_user_login(
         pool_entry = BaleAccountPool(account_id=account_id)
         db.add(pool_entry)
 
-    # فعال کردن اکانت
     account = db.query(Account).filter(Account.id == account_id).first()
     if account and account.status == AccountStatus.RESTING:
         account.status = AccountStatus.ACTIVE
 
     db.commit()
-
-    # پاک کردن Redis
     await redis.delete(_redis_key(registration_token))
 
-    # پاک کردن فایل موقت
     try:
         session_path.unlink(missing_ok=True)
         pathlib.Path(session_name).unlink(missing_ok=True)
