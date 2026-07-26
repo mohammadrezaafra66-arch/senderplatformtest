@@ -2,9 +2,19 @@ import json
 
 import pytest
 from cryptography.fernet import Fernet
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
 from core_engine.config import get_settings
-from core_engine.models import Account, AccountStatus, PlatformType, SessionType
+from core_engine.database import Base
+from core_engine.models import (
+    Account,
+    AccountStatus,
+    ChannelSession,
+    PlatformType,
+    SessionType,
+)
 from core_engine.services.session_storage import store_channel_session
 from workers.config import WorkerSettings
 from workers.connectors import rubika as rubika_connector
@@ -21,6 +31,8 @@ from workers.payloads import WorkerPayload, WorkerResult
 
 
 def _live_settings() -> WorkerSettings:
+    # Pin the delivery mode: the bot_api path under test must not depend on
+    # whatever RUBIKA_DELIVERY_MODE a developer's local .env happens to carry.
     return WorkerSettings(
         DRY_RUN=False,
         SHADOW_MODE=False,
@@ -28,6 +40,8 @@ def _live_settings() -> WorkerSettings:
         CHANNEL_CONNECTORS_ENABLED=True,
         RUBIKA_API_BASE_URL="https://botapi.rubika.ir/v3",
         RUBIKA_API_TIMEOUT_SECONDS=5,
+        RUBIKA_DELIVERY_MODE="bot_api",
+        RUBIKA_USER_ACCOUNT_ENABLED=False,
     )
 
 
@@ -139,31 +153,44 @@ async def test_send_rubika_text_message_success(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_deliver_rubika_live_missing_session():
-    result = await deliver_rubika_live(_sample_payload(), _live_settings())
+async def test_deliver_rubika_live_missing_session(monkeypatch):
+    def fake_load_rubika_bot_token(account_id):
+        raise SessionInvalidError("Rubika session not found")
+
+    monkeypatch.setattr(
+        rubika_connector,
+        "load_rubika_bot_token",
+        fake_load_rubika_bot_token,
+    )
+
+    result = await deliver_rubika_live(
+        _sample_payload(),
+        _live_settings(),
+    )
+
     assert result.success is False
     assert result.error_code == "rubika_session_missing"
 
 
 @pytest.mark.asyncio
-async def test_deliver_rubika_live_success(monkeypatch, pg_session_factory):
-    session = pg_session_factory()
-    account = Account(
-        platform=PlatformType.RUBIKA,
-        phone_number="rubika-bot-1",
-        label="Rubika Bot",
-        status=AccountStatus.ACTIVE,
-    )
-    session.add(account)
-    session.flush()
+async def test_deliver_rubika_live_success(
+    monkeypatch,
+    rubika_sqlite_session_factory,
+):
+    """Exercise the real stored-token path while mocking only outbound HTTP."""
+    SessionLocal, account_id = rubika_sqlite_session_factory
 
-    store_channel_session(
-        session,
-        account_id=account.id,
-        session_type=SessionType.API_TOKEN,
-        plaintext="RUBIKA_TEST_TOKEN",
-    )
-    session.commit()
+    token_session = SessionLocal()
+    try:
+        store_channel_session(
+            token_session,
+            account_id=account_id,
+            session_type=SessionType.API_TOKEN,
+            plaintext="RUBIKA_TEST_TOKEN",
+        )
+        token_session.commit()
+    finally:
+        token_session.close()
 
     class FakeResponse:
         status_code = 200
@@ -172,20 +199,42 @@ async def test_deliver_rubika_live_success(monkeypatch, pg_session_factory):
         def json():
             return {"message_id": "777"}
 
-    async def fake_request(*args, **kwargs):
+    seen = {}
+
+    async def fake_request(
+        method,
+        url,
+        *,
+        json_body=None,
+        timeout_seconds=None,
+    ):
+        seen["method"] = method
+        seen["url"] = url
+        seen["json_body"] = json_body
+        seen["timeout_seconds"] = timeout_seconds
         return FakeResponse()
 
-    monkeypatch.setattr(rubika_connector, "request_rubika_api", fake_request)
+    monkeypatch.setattr(
+        rubika_connector,
+        "request_rubika_api",
+        fake_request,
+    )
 
     payload = _sample_payload(
-        account_id=account.id,
+        account_id=account_id,
         recipient="chat-target-1",
         recipient_type="channel_handle",
     )
     result = await deliver_rubika_live(payload, _live_settings())
+
     assert result.success is True
     assert result.platform_message_id == "rubika-777"
-    session.close()
+    assert seen["method"] == "POST"
+    assert "RUBIKA_TEST_TOKEN" in seen["url"]
+    assert seen["json_body"] == {
+        "chat_id": "chat-target-1",
+        "text": "سلام از روبیکا",
+    }
 
 
 @pytest.mark.asyncio
@@ -212,3 +261,55 @@ def worker_session_secret(monkeypatch):
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
+
+
+@pytest.fixture
+def rubika_sqlite_session_factory(worker_session_secret, monkeypatch):
+    """Shared in-memory SQLite database holding one Rubika account.
+
+    ``deliver_rubika_live`` loads the stored token through a fresh database
+    session. ``StaticPool`` keeps all SQLite sessions on the same in-memory
+    connection, allowing the real storage and decryption path to be tested
+    without Postgres.
+    """
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    SessionLocal = sessionmaker(
+        bind=engine,
+        autoflush=False,
+        autocommit=False,
+        expire_on_commit=False,
+    )
+
+    Base.metadata.create_all(
+        engine,
+        tables=[
+            Account.__table__,
+            ChannelSession.__table__,
+        ],
+    )
+
+    setup_session = SessionLocal()
+    try:
+        account = Account(
+            platform=PlatformType.RUBIKA,
+            phone_number="rubika-bot-1",
+            label="Rubika Bot",
+            status=AccountStatus.ACTIVE,
+        )
+        setup_session.add(account)
+        setup_session.commit()
+        setup_session.refresh(account)
+        account_id = account.id
+    finally:
+        setup_session.close()
+
+    monkeypatch.setattr(rubika_connector, "get_db_session", SessionLocal)
+
+    try:
+        yield SessionLocal, account_id
+    finally:
+        engine.dispose()
