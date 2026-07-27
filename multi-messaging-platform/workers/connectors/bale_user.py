@@ -187,20 +187,13 @@ async def deliver_bale_user_live(
             from aiobale.types import Peer, Chat, MessageContent, TextMessage
             from aiobale.enums import PeerType
 
-            peer = Peer(type=PeerType.PRIVATE, id=user_id, access_hash=access_hash)
-            chat = Chat(type=PeerType.PRIVATE, id=user_id, access_hash=access_hash)
-            content = MessageContent(text=TextMessage(text=payload.message_text))
-            msg_id = random.randint(100000, 999999999)
-
+            from aiobale.enums import ChatType
             result = await client.send_message(
-                peer=peer,
-                message_id=msg_id,
-                content=content,
-                chat=chat,
+                text=payload.message_text,
+                chat_id=user_id,
+                chat_type=ChatType.PRIVATE,
             )
-
-            message_id = str(getattr(result, "message_id", "") or msg_id)
-
+            message_id = str(getattr(result, 'message_id', '') or user_id)
         except Exception as exc:
             err = str(exc).lower()
             if any(k in err for k in ("auth", "unauthorized", "invalid token", "session")):
