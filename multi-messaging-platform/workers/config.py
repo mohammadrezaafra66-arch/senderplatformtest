@@ -34,15 +34,18 @@ class WorkerSettings(BaseSettings):
     BALE_API_ID: str = ""
     BALE_API_HASH: str = ""
     BALE_ENABLE_USER_ACCOUNT: bool = False
-    BALE_WARMUP_DAYS: int = 14
-    BALE_WARMUP_START_CAP: int = 10
-    BALE_WARMUP_FINAL_CAP: int = 80
+    BALE_WARMUP_ENABLED: bool = True
+    BALE_WARMUP_DAYS: int = 7
+    BALE_WARMUP_START_CAP: int = 5
+    BALE_WARMUP_FINAL_CAP: int = 200
     BALE_MTPROTO_SESSION_DIR: str = "storage/bale_sessions"
-    BALE_MIN_SEND_DELAY_SECONDS: int = 5
-    BALE_MAX_SEND_DELAY_SECONDS: int = 15
-    BALE_HOURLY_SEND_CAP: int = 50
-    BALE_DAY_START_HOUR: int = 8
-    BALE_DAY_END_HOUR: int = 22
+    BALE_MIN_SEND_DELAY_SECONDS: int = 8
+    BALE_MAX_SEND_DELAY_SECONDS: int = 25
+    BALE_DAILY_SEND_CAP: int = 200
+    BALE_HOURLY_SEND_CAP: int = 30
+    BALE_NEW_CONTACT_DAILY_CAP: int = 20
+    BALE_SEND_WINDOW_START_HOUR: int = 8
+    BALE_SEND_WINDOW_END_HOUR: int = 22
 
     TELEGRAM_API_BASE_URL: str = "https://api.telegram.org"
     TELEGRAM_API_TIMEOUT_SECONDS: float = 30.0

@@ -73,35 +73,68 @@ class BaleAccountPoolManager:
 
     async def get_available_account(
         self,
-        redis: "Redis",
-        hourly_cap: int,
-    ) -> Account | None:
-        from workers.rate_limit import is_min_delay_active as is_in_cooldown, hourly_send_count as get_hourly_count
+        redis,
+        hourly_cap: int = 30,
+    ) -> "Account | None":
+        from datetime import datetime, date
+        from workers.rate_limit import is_min_delay_active, hourly_send_count
+        from workers.config import get_worker_settings
 
-        accounts = self.list_active_accounts()
-        if not accounts:
+        settings = get_worker_settings()
+        now = datetime.now()
+        current_hour = now.hour
+
+        # بررسی پنجره زمانی مجاز
+        start_hour = settings.BALE_SEND_WINDOW_START_HOUR
+        end_hour = settings.BALE_SEND_WINDOW_END_HOUR
+        if not (start_hour <= current_hour < end_hour):
             return None
-        random.shuffle(accounts)
-        for account in accounts:
-            pool_entry = self.get_pool_entry(account.id)
-            if pool_entry is None:
-                continue
-            today = date.today()
-            last_reset = pool_entry.last_count_reset_date
-            if isinstance(last_reset, datetime):
-                last_reset = last_reset.date()
-            if last_reset < today:
+
+        pool_entries = (
+            self.db.query(BaleAccountPool, Account)
+            .join(Account, Account.id == BaleAccountPool.account_id)
+            .filter(
+                BaleAccountPool.is_healthy == True,
+                Account.status == AccountStatus.ACTIVE,
+            )
+            .order_by(BaleAccountPool.sent_today.asc())
+            .all()
+        )
+
+        today = date.today()
+        for pool_entry, account in pool_entries:
+            # ریست شمارنده روزانه اگر روز عوض شده
+            if pool_entry.last_count_reset_date and pool_entry.last_count_reset_date.date() < today:
                 pool_entry.sent_today = 0
-                pool_entry.last_count_reset_date = datetime.utcnow()
-                self.db.flush()
-            if pool_entry.sent_today >= pool_entry.daily_cap_today:
+                pool_entry.last_count_reset_date = datetime.now()
+                self.db.commit()
+
+            # بررسی warm-up
+            effective_daily_cap = settings.BALE_DAILY_SEND_CAP
+            if settings.BALE_WARMUP_ENABLED and pool_entry.warm_up_started_at:
+                days_active = (datetime.now() - pool_entry.warm_up_started_at).days
+                if days_active < settings.BALE_WARMUP_DAYS:
+                    effective_daily_cap = settings.BALE_WARMUP_START_CAP
+                else:
+                    if not pool_entry.is_warmed_up:
+                        pool_entry.is_warmed_up = True
+                        self.db.commit()
+
+            # بررسی سقف روزانه
+            if pool_entry.sent_today >= effective_daily_cap:
                 continue
-            if await is_in_cooldown(redis, account.id):
-                continue
-            hourly_count = await get_hourly_count(redis, account.id)
+
+            # بررسی سقف ساعتی
+            hourly_count = await hourly_send_count(redis, account.id)
             if hourly_count >= hourly_cap:
                 continue
+
+            # بررسی cooldown بین پیام‌ها
+            if await is_min_delay_active(redis, account.id):
+                continue
+
             return account
+
         return None
 
     def mark_account_used(self, *, account_id: int) -> None:

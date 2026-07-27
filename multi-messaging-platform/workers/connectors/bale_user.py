@@ -25,6 +25,15 @@ if TYPE_CHECKING:
 logger = logging.getLogger("workers.connectors.bale_user")
 
 
+def pool_entry_health_ok(db, account_id: int) -> bool:
+    """بررسی سلامت اکانت قبل از ارسال."""
+    from core_engine.models import BaleAccountPool
+    entry = db.query(BaleAccountPool).filter(BaleAccountPool.account_id == account_id).first()
+    if not entry:
+        return False
+    return entry.is_healthy
+
+
 async def _load_session_path(account_id: int, db: Session) -> str:
     """لود session file از DB و ذخیره موقت."""
     try:
@@ -81,13 +90,17 @@ async def deliver_bale_user_live(
     session_path = None
 
     try:
-        # ۱) بررسی بازه زمانی
-        if not resolve_current_bale_window(session):
+        # ۱) بررسی بازه زمانی مجاز
+        from datetime import datetime as _dt
+        _now = _dt.now()
+        _start = settings.BALE_SEND_WINDOW_START_HOUR
+        _end = settings.BALE_SEND_WINDOW_END_HOUR
+        if not (_start <= _now.hour < _end):
             return WorkerResult(
                 success=False,
                 status="failed_retryable",
                 error_code="bale_user_outside_send_window",
-                error_message="خارج از بازه زمانی مجاز ارسال بله.",
+                error_message=f"خارج از بازه زمانی مجاز ارسال بله. ساعت فعلی: {_now.hour}، بازه مجاز: {_start}:00 تا {_end}:00",
                 retryable=True,
             )
 
@@ -104,6 +117,17 @@ async def deliver_bale_user_live(
                 status="failed_retryable",
                 error_code="bale_user_no_account_available",
                 error_message="هیچ اکانت سالمی در pool بله آماده نیست.",
+                retryable=True,
+            )
+
+        # بررسی سلامت اکانت قبل از ارسال (health gate)
+        if not pool_entry_health_ok(session, account.id):
+            pool.mark_account_failed(account_id=account.id, error_message="Health check failed before send")
+            return WorkerResult(
+                success=False,
+                status="failed_retryable",
+                error_code="bale_user_health_check_failed",
+                error_message="اکانت بله سالم نیست.",
                 retryable=True,
             )
 
@@ -220,6 +244,15 @@ async def deliver_bale_user_live(
         )
         await set_min_delay(redis, account.id, int(random_delay))
         session.commit()
+
+        # تأخیر تصادفی بین ارسال‌ها (ضدبلاک)
+        import random as _random
+        _delay = _random.uniform(
+            settings.BALE_MIN_SEND_DELAY_SECONDS,
+            settings.BALE_MAX_SEND_DELAY_SECONDS,
+        )
+        import asyncio as _asyncio
+        await _asyncio.sleep(_delay)
 
         return WorkerResult(
             success=True,
