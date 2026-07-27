@@ -66,24 +66,15 @@ async def _resolve_peer(client, phone: str):
         raise PermanentWorkerError(f"Invalid phone number format: {phone}")
 
     contacts = await client.import_contacts(
-        phones=[
-            ContactData(
-                phone_number=int(phone_clean),
-                name=StringValue(value=phone_clean),
-            )
-        ]
+        contacts=[(int(phone_clean), phone_clean)]
     )
 
     # پیدا کردن user_id از نتیجه
-    if hasattr(contacts, "users") and contacts.users:
-        for user in contacts.users:
-            if hasattr(user, "id") and user.id:
-                return user.id, getattr(user, "access_hash", None)
-
-    if hasattr(contacts, "contacts") and contacts.contacts:
-        for contact in contacts.contacts:
-            if hasattr(contact, "user_id") and contact.user_id:
-                return contact.user_id, None
+    # پیدا کردن user_id از نتیجه (List[InfoPeer])
+    if contacts and len(contacts) > 0:
+        peer = contacts[0]
+        if hasattr(peer, "id") and peer.id:
+            return peer.id, None
 
     raise PermanentWorkerError(
         f"Phone ending {phone_clean[-4:]} is not registered on Bale."
