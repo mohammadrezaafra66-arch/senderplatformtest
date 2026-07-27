@@ -76,7 +76,7 @@ class BaleAccountPoolManager:
         redis: "Redis",
         hourly_cap: int,
     ) -> Account | None:
-        from workers.rate_limit import is_in_cooldown, get_hourly_count
+        from workers.rate_limit import is_min_delay_active as is_in_cooldown, hourly_send_count as get_hourly_count
 
         accounts = self.list_active_accounts()
         if not accounts:
