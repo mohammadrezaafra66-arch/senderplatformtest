@@ -122,8 +122,8 @@ def get_pool(db: Session = Depends(get_db)):
     for pool_entry, account in rows:
         result.append(PoolEntryResponse(
             account_id=account.id,
-            account_name=account.name,
-            phone=account.phone,
+            account_name=account.label,
+            phone=account.phone_number,
             is_healthy=pool_entry.is_healthy,
             sent_today=pool_entry.sent_today,
             daily_cap_today=pool_entry.daily_cap_today,

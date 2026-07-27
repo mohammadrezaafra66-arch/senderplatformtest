@@ -67,6 +67,9 @@ async def start_bale_user_login(
     phone_clean = phone_number.strip().lstrip("+").replace("-", "").replace(" ", "")
     if not phone_clean.isdigit():
         raise BaleLoginError("شماره موبایل باید فقط عدد باشد.")
+    # تبدیل 09... به 989...
+    if phone_clean.startswith("0"):
+        phone_clean = "98" + phone_clean[1:]
 
     device_hash = hashlib.md5(f"bale-{account_id}-{phone_clean}".encode()).hexdigest()
     device_hash = f"{device_hash[:8]}-{device_hash[8:12]}-{device_hash[12:16]}-{device_hash[16:20]}-{device_hash[20:]}"
@@ -75,18 +78,26 @@ async def start_bale_user_login(
 
     client = Client(session_file=session_name)
 
+    from aiobale.enums import AuthErrors as _AuthErrors
     try:
         response = await client.start_phone_auth(
             phone_number=int(phone_clean),
-            code_type=SendCodeType.DEFAULT,
+            code_type=SendCodeType.SMS,
             device_hash=device_hash,
             device_title=device_title,
         )
     except Exception as exc:
         raise BaleLoginError(f"خطا در ارسال کد بله: {exc}") from exc
 
-    if hasattr(response, 'value'):
-        raise BaleLoginError(f"خطا از سرور بله: {response}")
+    if isinstance(response, _AuthErrors):
+        error_messages = {
+            _AuthErrors.NUMBER_BANNED: "این شماره در بله مسدود شده است.",
+            _AuthErrors.AUTH_LIMIT: "محدودیت ورود — کمی صبر کنید.",
+            _AuthErrors.RATE_LIMIT: "درخواست زیاد — کمی صبر کنید.",
+            _AuthErrors.INVALID: "شماره موبایل نامعتبر است.",
+            _AuthErrors.UNKNOWN: "خطای ناشناخته از سرور بله.",
+        }
+        raise BaleLoginError(error_messages.get(response, f"خطا از سرور بله: {response.name}"))
 
     transaction_hash = getattr(response, 'transaction_hash', None) or str(response)
 
