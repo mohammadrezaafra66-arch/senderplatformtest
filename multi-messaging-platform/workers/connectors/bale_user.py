@@ -1,7 +1,4 @@
-"""Bale User Account connector — ارسال مستقیم به شماره موبایل با aiobale.
-
-مشابه workers/connectors/rubika_user.py — همان الگو، همان منطق.
-"""
+"""Bale User Account connector — ارسال مستقیم به شماره موبایل با aiobale."""
 
 from __future__ import annotations
 
@@ -28,10 +25,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger("workers.connectors.bale_user")
 
 
-async def _load_bale_client(account_id: int, db: Session):
-    """ساخت aiobale Client از session ذخیره‌شده در DB."""
-    from aiobale import Client
-
+async def _load_session_path(account_id: int, db: Session) -> str:
+    """لود session file از DB و ذخیره موقت."""
     try:
         plaintext = load_account_session_plaintext(
             db,
@@ -44,23 +39,14 @@ async def _load_bale_client(account_id: int, db: Session):
     envelope = parse_session_envelope(plaintext)
     session_bytes = bytes.fromhex(envelope["session_file_bytes"])
 
-    # نوشتن session file موقت
     tmp = tempfile.NamedTemporaryFile(suffix=".bale", delete=False)
     tmp.write(session_bytes)
     tmp.close()
-    session_path = tmp.name
-
-    client = Client(session_file=session_path)
-    return client, session_path
+    return tmp.name
 
 
 async def _resolve_peer(client, phone: str):
-    """پیدا کردن peer_id کاربر بله از روی شماره موبایل.
-
-    از ImportContacts استفاده می‌کنیم — مثل Telethon MTProto.
-    """
-    from aiobale.types import ContactData, StringValue
-
+    """پیدا کردن peer_id از شماره موبایل."""
     phone_clean = phone.strip().lstrip("+")
     if not phone_clean.isdigit():
         raise PermanentWorkerError(f"Invalid phone number format: {phone}")
@@ -69,8 +55,6 @@ async def _resolve_peer(client, phone: str):
         contacts=[(int(phone_clean), phone_clean)]
     )
 
-    # پیدا کردن user_id از نتیجه
-    # پیدا کردن user_id از نتیجه (List[InfoPeer])
     if contacts and len(contacts) > 0:
         peer = contacts[0]
         if hasattr(peer, "id") and peer.id:
@@ -86,7 +70,9 @@ async def deliver_bale_user_live(
     settings: WorkerSettings,
     db: Session | None = None,
 ) -> WorkerResult:
-    """ارسال از طریق اکانت شخصی بله (aiobale) — استخر چند اکانتی."""
+    """ارسال از طریق اکانت شخصی بله (aiobale)."""
+    from aiobale import Client
+    from aiobale.enums import ChatType
     from core_engine.services.redis_client import get_redis_client
     from workers.rate_limit import record_successful_send, set_min_delay
 
@@ -152,9 +138,9 @@ async def deliver_bale_user_live(
                 retryable=False,
             )
 
-        # ۴) لود client
+        # ۴) لود session path
         try:
-            client, session_path = await _load_bale_client(account.id, session)
+            session_path = await _load_session_path(account.id, session)
         except SessionInvalidError as exc:
             pool.mark_account_failed(account_id=account.id, error_message=str(exc))
             return WorkerResult(
@@ -165,43 +151,36 @@ async def deliver_bale_user_live(
                 retryable=False,
             )
 
+        # ۵) ارسال با async with
         try:
-            # ۵) پیدا کردن peer از شماره
-            try:
-                user_id, access_hash = await _resolve_peer(client, phone)
-            except PermanentWorkerError as exc:
-                return WorkerResult(
-                    success=False,
-                    status="failed_permanent",
-                    error_code="bale_user_phone_not_found",
-                    error_message=str(exc),
-                    retryable=False,
+            async with Client(session_file=session_path) as client:
+                try:
+                    user_id, access_hash = await _resolve_peer(client, phone)
+                except PermanentWorkerError as exc:
+                    return WorkerResult(
+                        success=False,
+                        status="failed_permanent",
+                        error_code="bale_user_phone_not_found",
+                        error_message=str(exc),
+                        retryable=False,
+                    )
+
+                logger.info(
+                    "bale_user_send_attempt account_id=%s contact_id=%s user_id=%s",
+                    account.id, contact_id, user_id,
                 )
 
-            logger.info(
-                "bale_user_send_attempt account_id=%s contact_id=%s user_id=%s",
-                account.id, contact_id, user_id,
-            )
+                result = await client.send_message(
+                    text=payload.message_text,
+                    chat_id=user_id,
+                    chat_type=ChatType.PRIVATE,
+                )
+                message_id = str(getattr(result, 'message_id', '') or user_id)
 
-            # ۶) ارسال پیام
-            from aiobale.types import Peer, Chat, MessageContent, TextMessage
-            from aiobale.enums import PeerType
-
-            from aiobale.enums import ChatType
-            result = await client.send_message(
-                text=payload.message_text,
-                chat_id=user_id,
-                chat_type=ChatType.PRIVATE,
-            )
-            message_id = str(getattr(result, 'message_id', '') or user_id)
         except Exception as exc:
             err = str(exc).lower()
             if any(k in err for k in ("auth", "unauthorized", "invalid token", "session")):
-                pool.mark_account_failed(
-                    account_id=account.id,
-                    error_message=str(exc),
-                    permanent=False,
-                )
+                pool.mark_account_failed(account_id=account.id, error_message=str(exc), permanent=False)
                 return WorkerResult(
                     success=False,
                     status="failed_permanent",
@@ -210,10 +189,7 @@ async def deliver_bale_user_live(
                     retryable=False,
                 )
             if any(k in err for k in ("flood", "rate", "too many")):
-                pool.mark_account_failed(
-                    account_id=account.id,
-                    error_message=str(exc),
-                )
+                pool.mark_account_failed(account_id=account.id, error_message=str(exc))
                 return WorkerResult(
                     success=False,
                     status="failed_retryable",
@@ -229,18 +205,13 @@ async def deliver_bale_user_live(
                 retryable=True,
             )
         finally:
-            try:
-                await client.stop()
-            except Exception:
-                pass
-            # پاک کردن session file موقت
             if session_path:
                 try:
                     pathlib.Path(session_path).unlink(missing_ok=True)
                 except Exception:
                     pass
 
-        # ۷) ثبت موفقیت
+        # ۶) ثبت موفقیت
         await record_successful_send(redis, account.id)
         pool.mark_account_used(account_id=account.id)
         random_delay = random.uniform(
