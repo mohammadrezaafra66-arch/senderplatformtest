@@ -5,6 +5,9 @@ __pycache__/
 .env
 .env.*
 !.env.example
+
+# Local Redis password consumed as a Compose secret.
+secrets/redis_password.txt
 *.log
 storage/excel_uploads/*
 storage/sessions/*

@@ -1,8 +1,6 @@
 bind 0.0.0.0
 protected-mode yes
 port 6379
-requirepass SenderPlatform2026SecureRedis!
-masterauth SenderPlatform2026SecureRedis!
 rename-command REPLICAOF ""
 rename-command SLAVEOF ""
 rename-command MODULE ""
