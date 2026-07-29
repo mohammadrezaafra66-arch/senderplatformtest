@@ -6,7 +6,9 @@ dry-run sentence regardless of what the operator typed.
 
 import pytest
 from fastapi import HTTPException
+from fastapi.testclient import TestClient
 
+from core_engine.main import app
 from core_engine.models import (
     Campaign,
     CampaignRecipient,
@@ -17,13 +19,21 @@ from core_engine.models import (
     StagedQueueItem,
 )
 from core_engine.schemas.phase4 import PrepareMessagesRequest
+from core_engine.services import campaign_control
 from core_engine.services.phase4_prepare import (
     build_phase4_mock_final_text,
     prepare_campaign_messages,
     render_campaign_template,
 )
 
+client = TestClient(app)
+
 DRY_RUN_MARKER = "این پیام فقط تست dry-run است"
+# Verbatim from the field report, minus the contact name.
+REPORTED_SENTENCE_FRAGMENT = (
+    "عزیز، چند محصول موجود با قیمت روز آماده بررسی است. "
+    "این پیام فقط تست dry-run است و ارسال واقعی انجام نشده."
+)
 
 TEMPLATE_A = "سلام {{first_name}}، قیمت جدید تلویزیون آماده است."
 TEMPLATE_B = "{{first_name}} عزیز، موجودی یخچال به‌روزرسانی شد."
@@ -443,3 +453,133 @@ def test_mock_text_still_contains_the_marker(campaign_env):
         phone="+989120000111",
     )
     assert DRY_RUN_MARKER in build_phase4_mock_final_text(contact, campaign)
+
+
+# --- The request default itself ------------------------------------------
+#
+# Rendering the campaign's own text was fixed on the service side, but the
+# request schema still defaulted to mock output, so a caller that omitted the
+# flag kept getting the placeholder. These pin the default down.
+
+
+def test_prepare_request_defaults_to_template_mode():
+    """A request that says nothing must mean "use the campaign's text"."""
+    assert PrepareMessagesRequest().force_mock_output is False
+    assert PrepareMessagesRequest(limit=5).force_mock_output is False
+
+
+def test_prepare_without_the_flag_renders_the_campaign_text(campaign_env):
+    """Constructing the request with no flag goes down the template path."""
+    session, factory = campaign_env
+    campaign, _ = factory(
+        title="default-flag",
+        template_text=TEMPLATE_A,
+        first_name="مهرداد",
+        phone="+989120000112",
+    )
+
+    prepare_campaign_messages(session, campaign.id, PrepareMessagesRequest())
+
+    staged = (
+        session.query(StagedQueueItem)
+        .filter(StagedQueueItem.campaign_id == campaign.id)
+        .one()
+    )
+    assert staged.final_text == "سلام مهرداد، قیمت جدید تلویزیون آماده است."
+    assert DRY_RUN_MARKER not in staged.final_text
+
+
+def test_endpoint_with_empty_body_renders_the_campaign_text(campaign_env):
+    """POST {} over HTTP — the shape the panel and curl actually send."""
+    session, factory = campaign_env
+    campaign, _ = factory(
+        title="empty-body",
+        template_text=TEMPLATE_A,
+        first_name="مهرداد",
+        phone="+989120000113",
+    )
+
+    response = client.post(
+        f"/debug/campaigns/{campaign.id}/prepare-messages", json={}
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["force_mock_output"] is False
+    texts = [item["final_text"] for item in body["items"]]
+    assert texts == ["سلام مهرداد، قیمت جدید تلویزیون آماده است."]
+    assert all(DRY_RUN_MARKER not in text for text in texts)
+
+
+def test_endpoint_with_empty_body_never_emits_the_reported_sentence(campaign_env):
+    """The exact sentence from the field report must not come back."""
+    session, factory = campaign_env
+    campaign, _ = factory(
+        title="reported-sentence",
+        template_text=TEMPLATE_A,
+        first_name="مهرداد",
+        phone="+989120000114",
+    )
+
+    response = client.post(
+        f"/debug/campaigns/{campaign.id}/prepare-messages", json={}
+    )
+
+    assert response.status_code == 200
+    assert REPORTED_SENTENCE_FRAGMENT not in response.text
+    staged = (
+        session.query(StagedQueueItem)
+        .filter(StagedQueueItem.campaign_id == campaign.id)
+        .one()
+    )
+    assert REPORTED_SENTENCE_FRAGMENT not in staged.final_text
+
+
+def test_endpoint_with_explicit_flag_still_produces_mock(campaign_env):
+    """Mock output stays reachable — it just has to be asked for."""
+    session, factory = campaign_env
+    campaign, _ = factory(
+        title="explicit-mock",
+        template_text=TEMPLATE_A,
+        first_name="مهرداد",
+        phone="+989120000115",
+    )
+
+    response = client.post(
+        f"/debug/campaigns/{campaign.id}/prepare-messages",
+        json={"force_mock_output": True},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["force_mock_output"] is True
+    assert all(DRY_RUN_MARKER in item["final_text"] for item in body["items"])
+
+
+def test_auto_prepare_never_asks_for_mock_output(campaign_env, monkeypatch):
+    """Starting a campaign must not depend on the schema default at all."""
+    session, factory = campaign_env
+    campaign, _ = factory(
+        title="auto-prepare",
+        template_text=TEMPLATE_A,
+        first_name="مهرداد",
+        phone="+989120000116",
+    )
+
+    seen: list[PrepareMessagesRequest] = []
+
+    def _spy(db, campaign_id, request):
+        seen.append(request)
+        return prepare_campaign_messages(db, campaign_id, request)
+
+    monkeypatch.setattr(campaign_control, "prepare_campaign_messages", _spy)
+    campaign_control._auto_prepare(session, campaign.id)
+
+    assert len(seen) == 1
+    assert seen[0].force_mock_output is False
+    staged = (
+        session.query(StagedQueueItem)
+        .filter(StagedQueueItem.campaign_id == campaign.id)
+        .one()
+    )
+    assert DRY_RUN_MARKER not in staged.final_text

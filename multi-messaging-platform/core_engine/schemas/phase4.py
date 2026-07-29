@@ -123,7 +123,10 @@ class ContactImportResultResponse(BaseModel):
 
 
 class PrepareMessagesRequest(BaseModel):
-    force_mock_output: bool = True
+    # Defaults to the campaign's own template. Mock output is a deliberate
+    # dry-run aid, so it has to be asked for explicitly — a request that omits
+    # the flag must never replace what the operator wrote with placeholder text.
+    force_mock_output: bool = False
     limit: int | None = None
 
     @field_validator("limit")
