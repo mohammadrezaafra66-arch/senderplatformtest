@@ -911,20 +911,33 @@ class EvolutionWebhookEvent(Base):
 
 
 class BaleAccountPool(Base):
-    """مثل TelegramAccountPool — ردیابی warm-up اکانت‌های شخصی بله."""
+    """استخر چند اکانتی بله — همان معماری روبیکا.
+
+    سلامت اکانت: Account.status منبع حقیقت است (ACTIVE/RESTING/BANNED).
+    سقف ساعتی و min-delay: workers/rate_limit.py (Redis).
+    """
     __tablename__ = "bale_account_pool"
+    __table_args__ = (
+        UniqueConstraint("account_id", "phase", name="uq_bale_pool_account_phase"),
+        Index("ix_bale_pool_phase_priority", "phase", "priority"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"), nullable=False, unique=True)
-    warm_up_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    is_warmed_up: Mapped[bool] = mapped_column(Boolean, default=False)
-    daily_cap_today: Mapped[int] = mapped_column(Integer, default=10)
-    sent_today: Mapped[int] = mapped_column(Integer, default=0)
-    last_count_reset_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    is_healthy: Mapped[bool] = mapped_column(Boolean, default=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id"), nullable=False, index=True
+    )
+    phase: Mapped[str] = mapped_column(String(16), nullable=False, default="day")
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     last_error_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    last_error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_error_message: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    account: Mapped["Account"] = relationship("Account")
 
 
 class BaleGlobalSentRegistry(Base):
@@ -939,11 +952,18 @@ class BaleGlobalSentRegistry(Base):
 
 
 class BaleSenderSchedule(Base):
-    """بازه زمانی مجاز ارسال."""
+    """پنجره‌های زمانی فاز روز/شب بله — سراسری، نه per-account."""
     __tablename__ = "bale_sender_schedules"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    start_hour: Mapped[int] = mapped_column(Integer, default=9)
-    end_hour: Mapped[int] = mapped_column(Integer, default=21)
-    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    phase: Mapped[str] = mapped_column(String(16), nullable=False, unique=True, default="day")
+    start_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=8)
+    end_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=22)
+    max_per_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )

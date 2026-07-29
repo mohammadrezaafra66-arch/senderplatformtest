@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from core_engine.models import Contact, SessionType
 from core_engine.services.bale_user_session import parse_session_envelope
-from workers.bale_account_pool import BaleAccountPoolManager, resolve_current_bale_window
+from workers.bale_account_pool import BaleAccountPoolManager, resolve_current_phase
 from workers.config import WorkerSettings
 from workers.db import get_db_session
 from workers.errors import PermanentWorkerError, SessionInvalidError
@@ -108,6 +108,7 @@ async def deliver_bale_user_live(
         redis = get_redis_client()
         pool = BaleAccountPoolManager(session)
         account = await pool.get_available_account(
+            phase=phase,
             redis=redis,
             hourly_cap=settings.BALE_HOURLY_SEND_CAP,
         )
@@ -116,7 +117,7 @@ async def deliver_bale_user_live(
                 success=False,
                 status="failed_retryable",
                 error_code="bale_user_no_account_available",
-                error_message="هیچ اکانت سالمی در pool بله آماده نیست.",
+                error_message=f"هیچ اکانت سالمی در فاز '{phase}' آماده نیست (cooldown یا سقف ساعتی).",
                 retryable=True,
             )
 
