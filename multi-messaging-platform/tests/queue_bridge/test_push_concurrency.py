@@ -17,6 +17,7 @@ from core_engine.models import (
     Contact,
     OptEvent,
     PlatformType,
+    RenderedMessage,
     StagedQueueItem,
     StagedQueueItemStatus,
 )
@@ -117,9 +118,25 @@ def _seed_ready_items(session, campaign_id: int, n: int = 10):
         session.add(contact)
         session.flush()
 
+        # Mirror the real prepare path: a staged item always points at the
+        # RenderedMessage it came from, and the bridge relies on that link.
+        rendered = RenderedMessage(
+            campaign_id=campaign_id,
+            contact_id=contact.id,
+            channel="bale",
+            final_text=f"hello {i}",
+            render_mode="template",
+            used_kb=False,
+            used_products=False,
+            ready_for_queue=True,
+        )
+        session.add(rendered)
+        session.flush()
+
         item = StagedQueueItem(
             campaign_id=campaign_id,
             contact_id=contact.id,
+            rendered_message_id=rendered.id,
             channel="bale",
             status=StagedQueueItemStatus.READY.value,
             final_text=f"hello {i}",

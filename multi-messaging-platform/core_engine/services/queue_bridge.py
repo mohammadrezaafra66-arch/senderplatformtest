@@ -52,23 +52,46 @@ async def push_staged_items_to_worker_queue(
             "pushed": 0,
             "skipped_consent": 0,
             "skipped_no_account": 0,
+            "skipped_invalid": 0,
             "failed": 0,
         }
 
     pushed = 0
     skipped_consent = 0
     skipped_no_account = 0
+    skipped_invalid = 0
     failed = 0
 
     rr_cursor: dict[str, int] = {}
 
     # (a) Claim items using row-level locking and SKIP LOCKED.
+    # Items staged outside the normal prepare path have no rendered_message_id.
+    # They carry no verifiable rendered text, so they are never claimed — their
+    # status is left untouched rather than being silently sent or failed.
+    incomplete_items = (
+        db.query(StagedQueueItem)
+        .join(Campaign, StagedQueueItem.campaign_id == Campaign.id)
+        .filter(
+            StagedQueueItem.status == StagedQueueItemStatus.READY.value,
+            Campaign.status == CampaignStatus.RUNNING.value,
+            StagedQueueItem.rendered_message_id.is_(None),
+        )
+        .count()
+    )
+    if incomplete_items:
+        logger.warning(
+            "queue bridge is ignoring %s staged item(s) with no rendered_message_id; "
+            "re-prepare the campaign to rebuild them",
+            incomplete_items,
+        )
+
     claimed_items = (
         db.query(StagedQueueItem)
         .join(Campaign, StagedQueueItem.campaign_id == Campaign.id)
         .filter(
             StagedQueueItem.status == StagedQueueItemStatus.READY.value,
             Campaign.status == CampaignStatus.RUNNING.value,
+            StagedQueueItem.rendered_message_id.isnot(None),
         )
         .order_by(StagedQueueItem.id.asc())
         .limit(batch_size)
@@ -81,6 +104,7 @@ async def push_staged_items_to_worker_queue(
             "pushed": 0,
             "skipped_consent": 0,
             "skipped_no_account": 0,
+            "skipped_invalid": 0,
             "failed": 0,
         }
 
@@ -95,6 +119,21 @@ async def push_staged_items_to_worker_queue(
     # (b) Process claimed items after releasing locks.
     for item in claimed_items:
         try:
+            # Never fall back to placeholder or stale text: an item without a
+            # usable rendered payload is parked as SKIPPED with an explicit
+            # reason so it stays visible instead of going out wrong.
+            payload_text = str((item.queue_payload or {}).get("final_text") or "").strip()
+            if not item.queue_payload or not payload_text:
+                item.status = StagedQueueItemStatus.SKIPPED.value
+                item.skip_reason = "invalid_payload:missing_rendered_text"
+                skipped_invalid += 1
+                logger.warning(
+                    "queue bridge skipped staged_item=%s: no rendered text in payload",
+                    item.id,
+                )
+                db.commit()
+                continue
+
             block_reason = get_consent_block_reason(
                 db,
                 contact_id=item.contact_id,
@@ -174,6 +213,7 @@ async def push_staged_items_to_worker_queue(
         "pushed": pushed,
         "skipped_consent": skipped_consent,
         "skipped_no_account": skipped_no_account,
+        "skipped_invalid": skipped_invalid,
         "failed": failed,
     }
 
