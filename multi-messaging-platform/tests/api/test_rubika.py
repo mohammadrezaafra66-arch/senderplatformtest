@@ -41,6 +41,34 @@ def rubika_account(pg_session_factory, admin_auth):
     session.close()
 
 
+@pytest.fixture
+def non_rubika_account(pg_session_factory, admin_auth):
+    session = pg_session_factory()
+    account = Account(
+        platform=PlatformType.TELEGRAM,
+        phone_number="989123450002",
+        label="Telegram API Test",
+        status=AccountStatus.ACTIVE,
+    )
+    session.add(account)
+    session.commit()
+    account_id = account.id
+    session.close()
+
+    yield account_id
+
+    session = pg_session_factory()
+    session.query(RubikaAccountPool).filter(
+        RubikaAccountPool.account_id == account_id
+    ).delete()
+    session.query(AuditLog).filter(
+        AuditLog.resource_type == "account", AuditLog.resource_id == str(account_id)
+    ).delete()
+    session.query(Account).filter(Account.id == account_id).delete()
+    session.commit()
+    session.close()
+
+
 def test_list_rubika_accounts_empty_ok(client, admin_auth):
     response = client.get("/rubika/accounts", headers=AUTH_HEADERS)
     assert response.status_code == 200
@@ -85,6 +113,81 @@ def test_pool_sending_and_non_sending_phases_are_mutually_exclusive(
         json={"phase": "listener", "priority": 1},
     )
     assert response.status_code == 400
+
+
+def test_pool_accepts_status_phase(client, admin_auth, rubika_account):
+    """phase='status' یک مقدار معتبر است و در فهرست استخر ظاهر می‌شود."""
+    response = client.post(
+        f"/rubika/accounts/{rubika_account}/pool",
+        headers=AUTH_HEADERS,
+        json={"phase": "status", "priority": 3},
+    )
+    assert response.status_code == 200
+    assert response.json()["phase"] == "status"
+
+    response = client.get("/rubika/accounts", headers=AUTH_HEADERS)
+    assert response.status_code == 200
+    matching = [
+        item
+        for item in response.json()["items"]
+        if item["account_id"] == rubika_account and item["phase"] == "status"
+    ]
+    assert len(matching) == 1
+    assert matching[0]["priority"] == 3
+
+
+def test_pool_status_phase_excludes_sending_account(client, admin_auth, rubika_account):
+    """اکانتی که در day است نمی‌تواند هم‌زمان status شود، و برعکس."""
+    response = client.post(
+        f"/rubika/accounts/{rubika_account}/pool",
+        headers=AUTH_HEADERS,
+        json={"phase": "day", "priority": 1},
+    )
+    assert response.status_code == 200
+
+    response = client.post(
+        f"/rubika/accounts/{rubika_account}/pool",
+        headers=AUTH_HEADERS,
+        json={"phase": "status", "priority": 1},
+    )
+    assert response.status_code == 400
+
+    client.delete(
+        f"/rubika/accounts/{rubika_account}/pool/day", headers=AUTH_HEADERS
+    )
+    response = client.post(
+        f"/rubika/accounts/{rubika_account}/pool",
+        headers=AUTH_HEADERS,
+        json={"phase": "status", "priority": 1},
+    )
+    assert response.status_code == 200
+
+    response = client.post(
+        f"/rubika/accounts/{rubika_account}/pool",
+        headers=AUTH_HEADERS,
+        json={"phase": "night", "priority": 1},
+    )
+    assert response.status_code == 400
+
+
+def test_pool_rejects_non_rubika_platform(client, admin_auth, non_rubika_account):
+    """اکانت غیر روبیکا نباید وارد استخر روبیکا شود."""
+    response = client.post(
+        f"/rubika/accounts/{non_rubika_account}/pool",
+        headers=AUTH_HEADERS,
+        json={"phase": "status", "priority": 1},
+    )
+    assert response.status_code == 400
+
+
+def test_pool_rejects_unknown_phase(client, admin_auth, rubika_account):
+    """فقط day/night/listener/status مجازند."""
+    response = client.post(
+        f"/rubika/accounts/{rubika_account}/pool",
+        headers=AUTH_HEADERS,
+        json={"phase": "statuses", "priority": 1},
+    )
+    assert response.status_code == 422
 
 
 def test_pool_remove_membership(client, admin_auth, rubika_account):

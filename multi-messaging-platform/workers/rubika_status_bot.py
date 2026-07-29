@@ -31,6 +31,7 @@ import asyncio
 import logging
 import os
 import random
+import signal
 from datetime import datetime
 from pathlib import Path
 
@@ -45,11 +46,24 @@ from workers.rubika_account_pool import RubikaAccountPoolManager
 
 logger = logging.getLogger("workers.rubika_status_bot")
 
+def _positive_int_env(name: str, default: int) -> int:
+    """عدد صحیح مثبت از env — مقدار نامعتبر یا ≤۰ به default برمی‌گردد."""
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
 _HOURLY_LIKE_CAP = int(os.getenv("RUBIKA_STATUS_HOURLY_LIKE_CAP", "30"))
 _DAILY_COMMENT_CAP = int(os.getenv("RUBIKA_STATUS_DAILY_COMMENT_CAP", "10"))
 _LIKE_DELAY_MIN = int(os.getenv("RUBIKA_STATUS_LIKE_DELAY_MIN_SECONDS", "5"))
 _LIKE_DELAY_MAX = int(os.getenv("RUBIKA_STATUS_LIKE_DELAY_MAX_SECONDS", "30"))
-_POLL_INTERVAL = 120  # هر ۲ دقیقه loop اجرا می‌شود
+_POLL_INTERVAL = 120  # هر ۲ دقیقه loop عملیاتی bot اجرا می‌شود
+
+# فاصله تلاش مجدد برای *یافتن* اکانت status — مفهومی جدا از _POLL_INTERVAL که
+# مربوط به خود عملیات لایک/نظر/انتشار است.
+_ACCOUNT_RETRY_SECONDS = _positive_int_env("RUBIKA_STATUS_ACCOUNT_RETRY_SECONDS", 60)
 
 _COMMENT_SYSTEM = """تو یک دستیار تعاملی فارسی‌زبان هستی که استاتوس‌های روبیکا را می‌بینی.
 یک نظر کوتاه (حداکثر ۱۵ کلمه)، طبیعی و مثبت فارسی بنویس که با محتوا تناسب داشته باشد.
@@ -125,19 +139,62 @@ class RubikaStatusBot:
         self.client = None
         self.account_id: int | None = None
         self._rubino_profile_id: str | None = None
+        self._shutdown = asyncio.Event()
 
-    def _select_status_account_id(self) -> int:
+    def request_shutdown(self) -> None:
+        """توقف مرتب — انتظارِ در جریان را فوراً بیدار می‌کند."""
+        self._shutdown.set()
+
+    def _select_status_account_id(self) -> int | None:
+        """اولین اکانت سالم phase='status'، یا None اگر هیچ‌کدام موجود نباشد.
+
+        نبود اکانت یک وضعیت عملیاتی قابل انتظار است و None برمی‌گرداند. خطای واقعی
+        دیتابیس عمداً propagate می‌شود تا با «اکانت نیست» اشتباه گرفته نشود.
+        """
         db = get_db_session()
         try:
-            pool = RubikaAccountPoolManager(db)
-            candidates = pool.list_pool_accounts("status")
-            if not candidates:
-                raise RuntimeError(
-                    "هیچ اکانت سالمی با phase='status' در rubika_account_pool نیست."
-                )
-            return candidates[0].id
+            candidates = RubikaAccountPoolManager(db).list_pool_accounts("status")
+            return candidates[0].id if candidates else None
         finally:
             db.close()
+
+    async def _sleep_or_shutdown(self, seconds: float) -> bool:
+        """صبر تا مهلت یا تا درخواست shutdown. True یعنی shutdown خواسته شد."""
+        try:
+            await asyncio.wait_for(self._shutdown.wait(), timeout=seconds)
+            return True
+        except asyncio.TimeoutError:
+            return False
+
+    async def wait_for_status_account(self) -> int | None:
+        """منتظر می‌ماند تا اکانت phase='status' پیدا شود. None یعنی shutdown."""
+        while not self._shutdown.is_set():
+            try:
+                account_id = self._select_status_account_id()
+            except Exception:
+                logger.exception(
+                    "rubika_status: reading the account pool failed; "
+                    "retrying in %s seconds",
+                    _ACCOUNT_RETRY_SECONDS,
+                )
+                if await self._sleep_or_shutdown(_ACCOUNT_RETRY_SECONDS):
+                    return None
+                continue
+
+            if account_id is not None:
+                logger.info(
+                    "Rubika status account selected account_id=%s", account_id
+                )
+                return account_id
+
+            logger.warning(
+                "No active Rubika account with phase='status' is available; "
+                "retrying in %s seconds",
+                _ACCOUNT_RETRY_SECONDS,
+            )
+            if await self._sleep_or_shutdown(_ACCOUNT_RETRY_SECONDS):
+                return None
+        return None
 
     async def _ensure_rubino_profile_id(self) -> str:
         """profile_id اکانت را از Rubino API می‌گیرد (lazy, cached)."""
@@ -299,38 +356,48 @@ class RubikaStatusBot:
 
         return {"published": published}
 
-    async def start(self) -> None:
+    def _mark_account_failed(self, exc: Exception) -> None:
+        db = get_db_session()
+        try:
+            RubikaAccountPoolManager(db).mark_account_failed(
+                account_id=self.account_id,
+                error_message=str(exc),
+                permanent=False,
+            )
+            db.commit()
+        finally:
+            db.close()
+
+    async def _run_session(self) -> None:
+        """یک نشست کامل برای اکانت انتخاب‌شده: ساخت client، loop، سپس cleanup.
+
+        اکانت باید از قبل توسط wait_for_status_account انتخاب شده باشد — این‌جا
+        عمداً دوباره کوئری نمی‌شود تا استخر بین دو کوئری تغییر نکند.
+        """
         from core_engine.services.redis_client import get_redis_client
 
-        self.account_id = self._select_status_account_id()
+        if self.account_id is None:
+            raise RuntimeError(
+                "_run_session called without a selected status account"
+            )
+
         logger.info("rubika_status_bot_starting account_id=%s", self.account_id)
 
-        try:
-            self.client = await load_rubika_user_client(self.account_id)
-        except SessionInvalidError as exc:
-            db = get_db_session()
-            try:
-                RubikaAccountPoolManager(db).mark_account_failed(
-                    account_id=self.account_id,
-                    error_message=str(exc),
-                    permanent=False,
-                )
-                db.commit()
-            finally:
-                db.close()
-            raise
-
-        await self.client.connect()
-        redis = get_redis_client()
-
-        logger.info(
-            "rubika_status_bot_ready account_id=%s — loop هر %ds",
-            self.account_id,
-            _POLL_INTERVAL,
-        )
+        # profile_id مربوط به همان اکانت است — برای نشست تازه دوباره گرفته می‌شود.
+        self._rubino_profile_id = None
+        self.client = await load_rubika_user_client(self.account_id)
 
         try:
-            while True:
+            await self.client.connect()
+            redis = get_redis_client()
+
+            logger.info(
+                "rubika_status_bot_ready account_id=%s — loop هر %ds",
+                self.account_id,
+                _POLL_INTERVAL,
+            )
+
+            while not self._shutdown.is_set():
                 try:
                     like_result = await self._run_like_and_comment_cycle(redis)
                     publish_result = await self._run_publish_cycle()
@@ -340,17 +407,60 @@ class RubikaStatusBot:
                         like_result.get("comments"),
                         publish_result.get("published"),
                     )
+                except asyncio.CancelledError:
+                    raise
                 except Exception:
                     logger.exception("rubika_status: cycle error — ادامه می‌دهد")
 
-                await asyncio.sleep(_POLL_INTERVAL)
+                if await self._sleep_or_shutdown(_POLL_INTERVAL):
+                    break
         finally:
-            await self.client.disconnect()
+            client, self.client = self.client, None
+            if client is not None:
+                await client.disconnect()
+
+    async def start(self) -> None:
+        """چرخه عمر: انتظار اکانت → نشست → cleanup → بازگشت به انتظار."""
+        while not self._shutdown.is_set():
+            account_id = await self.wait_for_status_account()
+            if account_id is None:
+                break
+            self.account_id = account_id
+
+            try:
+                await self._run_session()
+            except asyncio.CancelledError:
+                raise
+            except SessionInvalidError as exc:
+                self._mark_account_failed(exc)
+                logger.warning(
+                    "rubika_status: session for account_id=%s is invalid; "
+                    "waiting for another status account",
+                    self.account_id,
+                )
+            except Exception:
+                logger.exception(
+                    "rubika_status: session crashed; retrying in %s seconds",
+                    _ACCOUNT_RETRY_SECONDS,
+                )
+                if await self._sleep_or_shutdown(_ACCOUNT_RETRY_SECONDS):
+                    break
+
+        logger.info("rubika_status_bot_stopped")
 
 
 async def _amain() -> None:
     logging.basicConfig(level=logging.INFO)
     bot = RubikaStatusBot()
+
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        try:
+            loop.add_signal_handler(sig, bot.request_shutdown)
+        except NotImplementedError:
+            # ویندوز از add_signal_handler پشتیبانی نمی‌کند؛ کانتینر لینوکسی می‌کند.
+            pass
+
     await bot.start()
 
 
