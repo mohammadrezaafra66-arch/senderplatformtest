@@ -1,0 +1,10 @@
+bind 0.0.0.0
+protected-mode yes
+port 6379
+rename-command REPLICAOF ""
+rename-command SLAVEOF ""
+rename-command MODULE ""
+rename-command DEBUG ""
+rename-command CONFIG ""
+save 60 1
+loglevel warning

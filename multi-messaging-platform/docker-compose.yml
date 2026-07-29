@@ -170,14 +170,19 @@ services:
     - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     - ./monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
   redis:
-    command: redis-server /usr/local/etc/redis/redis.conf
     container_name: mmp_redis
     image: redis:7
+    entrypoint:
+    - /bin/sh
+    - /usr/local/bin/start-redis.sh
     ports:
     - 127.0.0.1:6379:6379
     restart: unless-stopped
+    secrets:
+    - redis_password
     volumes:
-    - ./redis.conf:/usr/local/etc/redis/redis.conf:ro
+    - ./redis.conf.template:/usr/local/etc/redis/redis.conf.template:ro
+    - ./scripts/start-redis.sh:/usr/local/bin/start-redis.sh:ro
   rubika_worker:
     build:
       context: .
@@ -349,3 +354,6 @@ volumes:
   evolution_instances: null
   grafana_data: null
   postgres_data: null
+secrets:
+  redis_password:
+    file: ./secrets/redis_password.txt
