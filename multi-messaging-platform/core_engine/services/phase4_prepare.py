@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 
 from fastapi import HTTPException
@@ -11,6 +12,7 @@ from sqlalchemy.orm import Session
 from core_engine.config import get_settings
 from core_engine.models import (
     Campaign,
+    CampaignRecipient,
     CampaignStatus,
     Contact,
     ProductSnapshot,
@@ -39,6 +41,47 @@ def build_phase4_mock_final_text(contact: Contact, campaign: Campaign) -> str:
         f"{display_name} عزیز، {goal_hint} آماده بررسی است. "
         "این پیام فقط تست dry-run است و ارسال واقعی انجام نشده."
     )
+
+
+_TEMPLATE_VARIABLE = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
+
+
+def build_campaign_template_variables(contact: Contact) -> dict[str, str]:
+    """متغیرهای مجاز قالب برای یک مخاطب."""
+    full_name = (
+        contact.full_name
+        or build_full_name(contact.first_name, contact.last_name)
+        or ""
+    )
+    return {
+        "first_name": (contact.first_name or "").strip(),
+        "last_name": (contact.last_name or "").strip(),
+        "full_name": full_name.strip(),
+    }
+
+
+def render_campaign_template(contact: Contact, campaign: Campaign) -> str:
+    """متن واقعی کمپین را با جایگزینی متغیرهای مخاطب رندر می‌کند.
+
+    متغیر ناشناخته دست‌نخورده باقی می‌ماند تا خطای تایپی کاربر بی‌صدا حذف نشود.
+    """
+    template = (campaign.template_text or "").strip()
+    if not template:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Campaign has no template_text; set the message text before "
+                "preparing, or call prepare with force_mock_output=true."
+            ),
+        )
+
+    variables = build_campaign_template_variables(contact)
+
+    def _replace(match: re.Match[str]) -> str:
+        name = match.group(1)
+        return variables.get(name, match.group(0))
+
+    return _TEMPLATE_VARIABLE.sub(_replace, template).strip()
 
 
 def _parse_snapshot_expires_at(value: str | datetime | None) -> datetime | None:
@@ -74,12 +117,6 @@ def prepare_campaign_messages(
     campaign_id: int,
     request: PrepareMessagesRequest,
 ) -> PrepareMessagesResultResponse:
-    if not request.force_mock_output:
-        raise HTTPException(
-            status_code=400,
-            detail="Real GPT rendering is disabled in Phase 4 Step 5",
-        )
-
     campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found.")
@@ -112,9 +149,12 @@ def prepare_campaign_messages(
         used_products = False
         snapshot_expires_at = None
 
+    # Contacts are attached to a campaign through campaign_recipients (see the
+    # POST /campaigns handler); Contact.campaign_id is left NULL by the importer.
     contacts = (
         db.query(Contact)
-        .filter(Contact.campaign_id == campaign_id)
+        .join(CampaignRecipient, CampaignRecipient.contact_id == Contact.id)
+        .filter(CampaignRecipient.campaign_id == campaign_id)
         .order_by(Contact.id.asc())
         .all()
     )
@@ -153,10 +193,40 @@ def prepare_campaign_messages(
     already_staged_count = 0
     newly_staged_count = 0
 
+    render_mode = "mock" if request.force_mock_output else "template"
+
+    def _render(contact: Contact) -> str:
+        if request.force_mock_output:
+            return build_phase4_mock_final_text(contact, campaign)
+        return render_campaign_template(contact, campaign)
+
     for contact in allowed_contacts_list:
         existing_item = existing_staged.get(contact.id)
         if existing_item is not None:
             if existing_item.status == "ready":
+                # A ready item was never handed to a worker, so refresh it when
+                # the campaign text has changed since it was staged. Items that
+                # already moved on (queued/sent) are never touched.
+                current_text = _render(contact)
+                if existing_item.final_text != current_text:
+                    existing_item.final_text = current_text
+                    existing_item.queue_payload = build_staged_queue_payload(
+                        campaign_id=campaign_id,
+                        contact_id=contact.id,
+                        rendered_message_id=existing_item.rendered_message_id,
+                        channel=campaign.channel,
+                        phone=contact.phone,
+                        channel_handle=contact.channel_handle,
+                        final_text=current_text,
+                    )
+                    if existing_item.rendered_message_id is not None:
+                        stale_rendered = db.get(
+                            RenderedMessage, existing_item.rendered_message_id
+                        )
+                        if stale_rendered is not None:
+                            stale_rendered.final_text = current_text
+                            stale_rendered.render_mode = render_mode
+                            stale_rendered.queue_payload = existing_item.queue_payload
                 already_staged_count += 1
                 returned_items.append(existing_item)
             continue
@@ -164,14 +234,14 @@ def prepare_campaign_messages(
         if newly_staged_count >= new_ready_slots:
             continue
 
-        final_text = build_phase4_mock_final_text(contact, campaign)
+        final_text = _render(contact)
 
         rendered_message = RenderedMessage(
             campaign_id=campaign_id,
             contact_id=contact.id,
             channel=campaign.channel,
             final_text=final_text,
-            render_mode="mock",
+            render_mode=render_mode,
             used_kb=False,
             used_products=used_products,
             product_snapshot_id=snapshot_id,

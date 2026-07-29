@@ -64,19 +64,20 @@ async def set_campaign_pause(campaign_id: int) -> None:
 def _auto_prepare(db: Session, campaign_id: int) -> None:
     """Render and stage any contacts that don't have a staged item yet.
 
-    ``prepare_campaign_messages`` skips contacts that already have a staged
-    item, so a restart never re-renders what is already staged.
+    Renders the campaign's own ``template_text`` — starting a campaign must
+    never substitute the placeholder dry-run text for what the operator wrote.
+    Ready-but-unsent items are refreshed if the text changed since staging.
 
     It raises ``HTTPException`` for the ordinary not-ready-yet cases (no
-    contacts attached to the campaign, no valid product snapshot when the
-    campaign wants products). Starting is still valid then — the campaign just
-    has nothing new to stage — so those are swallowed.
+    contacts attached to the campaign, no message text set, no valid product
+    snapshot when the campaign wants products). Starting is still valid then —
+    the campaign just has nothing new to stage — so those are swallowed.
     """
     try:
         result = prepare_campaign_messages(
             db,
             campaign_id,
-            PrepareMessagesRequest(force_mock_output=True),
+            PrepareMessagesRequest(force_mock_output=False),
         )
     except HTTPException as exc:
         db.rollback()
