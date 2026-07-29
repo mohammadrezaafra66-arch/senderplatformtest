@@ -41,6 +41,7 @@ def required_session_type(
     platform: PlatformType,
     *,
     whatsapp_delivery_mode: str | None = None,
+    rubika_delivery_mode: str | None = None,
 ) -> SessionType:
     """Return the session type workers expect for a platform."""
     if platform == PlatformType.WHATSAPP:
@@ -49,7 +50,9 @@ def required_session_type(
             return SessionType.API_TOKEN
         return SessionType.BROWSER_PROFILE
     if platform == PlatformType.RUBIKA:
-        rubika_mode = get_settings().RUBIKA_DELIVERY_MODE.strip().lower()
+        rubika_mode = (
+            rubika_delivery_mode or get_settings().RUBIKA_DELIVERY_MODE
+        ).strip().lower()
         if rubika_mode == "user_account":
             return SessionType.RUBIKA_SESSION
         return SessionType.API_TOKEN

@@ -53,7 +53,17 @@ def bale_account(pg_session_factory):
 def test_required_session_type_bot_platforms():
     assert required_session_type(PlatformType.BALE) == SessionType.API_TOKEN
     assert required_session_type(PlatformType.TELEGRAM) == SessionType.API_TOKEN
-    assert required_session_type(PlatformType.RUBIKA) == SessionType.API_TOKEN
+    assert (
+        required_session_type(PlatformType.RUBIKA, rubika_delivery_mode="bot_api")
+        == SessionType.API_TOKEN
+    )
+
+
+def test_required_session_type_rubika_user_account():
+    assert (
+        required_session_type(PlatformType.RUBIKA, rubika_delivery_mode="user_account")
+        == SessionType.RUBIKA_SESSION
+    )
 
 
 def test_required_session_type_whatsapp_web():
