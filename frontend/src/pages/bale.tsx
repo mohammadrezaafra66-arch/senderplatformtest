@@ -181,7 +181,7 @@ function AccountsTab() {
                 {/* Header */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 16 }}>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{acc.label || `اکانت ${acc.id}`}</div>
+                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{acc.name || `اکانت ${acc.id}`}</div>
                     <div style={{ fontSize: 13, color: "var(--text-muted)", direction: "ltr" }}>{acc.account_identifier}</div>
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
