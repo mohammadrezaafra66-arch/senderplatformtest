@@ -390,7 +390,7 @@ function LogsTab() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "delivered" | "failed">("all");
-  const intervalRef = useRef<NodeJS.Timeout>();
+  const intervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const fetchLogs = useCallback(async () => {
     const r = await apiFetch("/campaigns?limit=5");
