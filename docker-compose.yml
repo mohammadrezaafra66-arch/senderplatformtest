@@ -73,3 +73,5 @@ services:
 
 volumes:
   postgres_data:
+
+# این خط رو به frontend service اضافه کن

@@ -6,24 +6,35 @@ echo ========================================
 echo.
 
 REM پیدا کردن IP داخلی سیستم
-for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /i "IPv4"') do (
+for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /i "IPv4" ^| findstr /v "127.0.0.1"') do (
     set LOCAL_IP=%%a
     goto :found
 )
 :found
 set LOCAL_IP=%LOCAL_IP: =%
 echo IP سیستم شما: %LOCAL_IP%
+echo آدرس پنل: http://%LOCAL_IP%:8900
 echo.
 
-REM آپدیت NEXT_PUBLIC_API_URL در docker-compose
-powershell -Command "(Get-Content docker-compose.yml) -replace 'REPLACE_WITH_SERVER_IP', 'http://%LOCAL_IP%:8900' | Set-Content docker-compose.yml"
+REM حذف container های قبلی
+docker rm -f mmp-postgres mmp-redis mmp-backend mmp-celery mmp-frontend mmp-migrate 2>nul
 
+REM build با IP داخلی
+echo در حال build...
+docker-compose build --build-arg NEXT_PUBLIC_API_URL=http://%LOCAL_IP%:8900 --no-cache
+
+REM اجرای DB
+echo در حال اجرای دیتابیس...
+docker-compose up -d postgres redis
+timeout /t 8 /nobreak >nul
+
+REM migration
+echo در حال اجرای migration...
+docker-compose run --rm migrate
+
+REM اجرای بقیه سرویس‌ها
 echo در حال اجرای سرویس‌ها...
-docker-compose down --remove-orphans
-docker-compose build --no-cache
-docker-compose up -d migrate
-timeout /t 10 /nobreak
-docker-compose up -d
+docker-compose up -d backend celery frontend
 
 echo.
 echo ========================================
