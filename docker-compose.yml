@@ -11,15 +11,11 @@ services:
       POSTGRES_DB: mmp_db
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
 
   redis:
     image: redis:7-alpine
     container_name: mmp-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
 
   backend:
     build:
@@ -32,8 +28,6 @@ services:
       - redis
     env_file:
       - ./multi-messaging-platform/.env.production
-    ports:
-      - "8900:8900"
     volumes:
       - ./multi-messaging-platform/storage:/app/storage
       - ./logs:/app/logs
@@ -50,7 +44,7 @@ services:
       - redis
     env_file:
       - ./multi-messaging-platform/.env.production
-    command: python3 -m celery -A workers.celery_app worker --loglevel=info
+    command: python3 -m celery -A workers.tasks.celery_app worker --loglevel=info
     volumes:
       - ./multi-messaging-platform/storage:/app/storage
 
@@ -63,7 +57,7 @@ services:
       - postgres
     env_file:
       - ./multi-messaging-platform/.env.production
-    command: alembic upgrade head
+    command: sh -c "alembic merge heads -m merge 2>/dev/null; alembic upgrade heads"
     restart: "no"
 
   frontend:
@@ -74,8 +68,6 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
-    environment:
-      - NEXT_PUBLIC_API_URL=REPLACE_WITH_SERVER_IP
     ports:
       - "8900:3010"
 
