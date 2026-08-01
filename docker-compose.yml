@@ -33,10 +33,11 @@ services:
     env_file:
       - ./multi-messaging-platform/.env.production
     ports:
-      - "8001:8001"
+      - "8900:8900"
     volumes:
       - ./multi-messaging-platform/storage:/app/storage
       - ./logs:/app/logs
+    command: uvicorn core_engine.main:app --host 0.0.0.0 --port 8900
 
   celery:
     build:
@@ -53,6 +54,18 @@ services:
     volumes:
       - ./multi-messaging-platform/storage:/app/storage
 
+  migrate:
+    build:
+      context: ./multi-messaging-platform
+      dockerfile: Dockerfile
+    container_name: mmp-migrate
+    depends_on:
+      - postgres
+    env_file:
+      - ./multi-messaging-platform/.env.production
+    command: alembic upgrade head
+    restart: "no"
+
   frontend:
     build:
       context: ./frontend
@@ -62,9 +75,9 @@ services:
     depends_on:
       - backend
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8001
+      - NEXT_PUBLIC_API_URL=REPLACE_WITH_SERVER_IP
     ports:
-      - "3010:3010"
+      - "8900:3010"
 
 volumes:
   postgres_data:

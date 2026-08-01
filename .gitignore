@@ -8,3 +8,4 @@ multi-messaging-platform/test_fixtures/phase2/oversized.xlsx
 .envy
 multi-messaging-platform/curl
 multi-messaging-platform/main
+multi-messaging-platform/.env.production
