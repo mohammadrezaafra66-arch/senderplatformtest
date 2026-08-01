@@ -36,3 +36,16 @@ COPY core_engine ./core_engine
 COPY workers ./workers
 COPY scripts ./scripts
 COPY tests ./tests
+
+# Fix aiobale proxy issue with aiohttp 3.9+
+RUN python3 -c "\
+import importlib.util; \
+spec = importlib.util.find_spec('aiobale.client.session.aiohttp'); \
+path = spec.origin; \
+src = open(path).read(); \
+src = src.replace('aiohttp.ClientSession(\n                timeout=session_timeout, proxy=self.proxy\n            )', 'aiohttp.ClientSession(\n                timeout=session_timeout\n            )'); \
+src = src.replace('aiohttp.ClientSession(timeout=session_timeout, proxy=self.proxy)', 'aiohttp.ClientSession(timeout=session_timeout)'); \
+src = src.replace('aiohttp.ClientSession(proxy=self.proxy)', 'aiohttp.ClientSession()'); \
+open(path, 'w').write(src); \
+print('patched:', path) \
+"

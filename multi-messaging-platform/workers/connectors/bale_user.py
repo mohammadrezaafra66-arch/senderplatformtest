@@ -31,7 +31,12 @@ def pool_entry_health_ok(db, account_id: int) -> bool:
     entry = db.query(BaleAccountPool).filter(BaleAccountPool.account_id == account_id).first()
     if not entry:
         return False
-    return entry.is_healthy
+    # اگر last_error_at خیلی اخیر باشه، unhealthy فرض کن
+    if entry.last_error_at:
+        from datetime import datetime, timedelta
+        if datetime.utcnow() - entry.last_error_at < timedelta(minutes=5):
+            return False
+    return True
 
 
 async def _load_session_path(account_id: int, db: Session) -> str:
@@ -107,6 +112,7 @@ async def deliver_bale_user_live(
         # ۲) انتخاب اکانت
         redis = get_redis_client()
         pool = BaleAccountPoolManager(session)
+        phase = resolve_current_phase(session)
         account = await pool.get_available_account(
             phase=phase,
             redis=redis,

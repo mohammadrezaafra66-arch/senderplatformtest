@@ -32,6 +32,8 @@ services:
       - ./multi-messaging-platform/storage:/app/storage
       - ./logs:/app/logs
     command: uvicorn core_engine.main:app --host 0.0.0.0 --port 8900
+    ports:
+      - "8900:8900"
 
   celery:
     build:
@@ -48,6 +50,38 @@ services:
     volumes:
       - ./multi-messaging-platform/storage:/app/storage
 
+
+  celery-beat:
+    build:
+      context: ./multi-messaging-platform
+      dockerfile: Dockerfile
+    container_name: mmp-celery-beat
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+    env_file:
+      - ./multi-messaging-platform/.env.production
+    command: python3 -m celery -A workers.tasks.celery_app beat --loglevel=info
+    volumes:
+      - ./multi-messaging-platform/storage:/app/storage
+
+  bale-worker:
+    build:
+      context: ./multi-messaging-platform
+      dockerfile: Dockerfile
+    container_name: mmp-bale-worker
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+    env_file:
+      - ./multi-messaging-platform/.env.production
+    environment:
+      - WORKER_ACCOUNT_ID=1
+    command: python3 /app/scripts/run_bale_worker.py
+    volumes:
+      - ./multi-messaging-platform/storage:/app/storage
   migrate:
     build:
       context: ./multi-messaging-platform
@@ -69,9 +103,10 @@ services:
     depends_on:
       - backend
     ports:
-      - "8900:3010"
+      - "8901:3010"
+    environment:
+      - MMP_API_PROXY_TARGET=http://mmp-backend:8900
+      - NEXT_PUBLIC_API_URL=/backend
 
 volumes:
   postgres_data:
-
-# این خط رو به frontend service اضافه کن

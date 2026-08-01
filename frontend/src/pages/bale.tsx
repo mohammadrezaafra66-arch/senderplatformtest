@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Layout } from "@/components/Layout";
 
-const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+const API = process.env.NEXT_PUBLIC_API_URL || "/backend";
 
 async function apiFetch(path: string, opts: RequestInit = {}) {
   const token = typeof window !== "undefined" ? window.sessionStorage.getItem("mmp.access_token") : null;

@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const apiProxyTarget = process.env.MMP_API_PROXY_TARGET ?? "http://localhost:8001";
+const apiProxyTarget = process.env.MMP_API_PROXY_TARGET ?? "http://mmp-backend:8900";
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,

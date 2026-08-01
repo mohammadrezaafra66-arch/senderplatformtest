@@ -23,6 +23,8 @@ from core_engine.database import Base
 
 
 class PlatformType(str, enum.Enum):
+    def __str__(self):
+        return self.value
     WHATSAPP = "whatsapp"
     TELEGRAM = "telegram"
     RUBIKA = "rubika"
@@ -30,6 +32,8 @@ class PlatformType(str, enum.Enum):
 
 
 class AccountStatus(str, enum.Enum):
+    def __str__(self):
+        return self.value
     ACTIVE = "active"
     RESTING = "resting"
     BANNED = "banned"
@@ -37,12 +41,16 @@ class AccountStatus(str, enum.Enum):
 
 
 class ConsentStatus(str, enum.Enum):
+    def __str__(self):
+        return self.value
     UNKNOWN = "unknown"
     ALLOWED = "allowed"
     BLOCKED = "blocked"
 
 
 class CampaignStatus(str, enum.Enum):
+    def __str__(self):
+        return self.value
     DRAFT = "draft"
     PREPARED = "prepared"
     PAUSED = "paused"
@@ -55,6 +63,8 @@ class CampaignStatus(str, enum.Enum):
 
 
 class StagedQueueItemStatus(str, enum.Enum):
+    def __str__(self):
+        return self.value
     STAGED = "staged"
     BLOCKED = "blocked"
     SKIPPED = "skipped"
@@ -64,12 +74,16 @@ class StagedQueueItemStatus(str, enum.Enum):
 
 
 class RenderStatus(str, enum.Enum):
+    def __str__(self):
+        return self.value
     PENDING = "pending"
     RENDERED = "rendered"
     FAILED = "failed"
 
 
 class SendStatus(str, enum.Enum):
+    def __str__(self):
+        return self.value
     PENDING = "pending"
     QUEUED = "queued"
     PROCESSING = "processing"
@@ -86,6 +100,8 @@ class SendStatus(str, enum.Enum):
 
 
 class MessageAttemptStatus(str, enum.Enum):
+    def __str__(self):
+        return self.value
     STARTED = "started"
     SUCCESS = "success"
     FAILED_RETRYABLE = "failed_retryable"
@@ -95,6 +111,8 @@ class MessageAttemptStatus(str, enum.Enum):
 
 
 class SessionType(str, enum.Enum):
+    def __str__(self):
+        return self.value
     API_TOKEN = "api_token"
     MTPROTO_SESSION = "mtproto_session"
     BROWSER_PROFILE = "browser_profile"
@@ -104,6 +122,8 @@ class SessionType(str, enum.Enum):
 
 
 class ImportStatus(str, enum.Enum):
+    def __str__(self):
+        return self.value
     PENDING = "pending"
     PREVIEWED = "previewed"
     VALIDATED = "validated"
@@ -112,6 +132,8 @@ class ImportStatus(str, enum.Enum):
 
 
 class ImportRowStatus(str, enum.Enum):
+    def __str__(self):
+        return self.value
     PENDING = "pending"
     VALID = "valid"
     INVALID = "invalid"
@@ -120,6 +142,8 @@ class ImportRowStatus(str, enum.Enum):
 
 
 class RoleType(str, enum.Enum):
+    def __str__(self):
+        return self.value
     ADMIN = "admin"
     OPERATOR = "operator"
     VIEWER = "viewer"
@@ -212,7 +236,7 @@ class ChannelSession(Base):
         nullable=False,
         index=True,
     )
-    session_type: Mapped[SessionType] = mapped_column(Enum(SessionType), nullable=False)
+    session_type: Mapped[SessionType] = mapped_column(Enum(SessionType, values_callable=lambda x: [e.value for e in x]), nullable=False)
     ciphertext: Mapped[str | None] = mapped_column(Text, nullable=True)
     file_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     key_version: Mapped[int | None] = mapped_column(Integer, nullable=True)

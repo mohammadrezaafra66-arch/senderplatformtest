@@ -1,3 +1,20 @@
+"""Patch aiobale proxy issue at startup."""
+import importlib.util as _ilu
+_spec = _ilu.find_spec("aiobale.client.session.aiohttp")
+if _spec and _spec.origin:
+    _src = open(_spec.origin).read()
+    for _old, _new in [
+        ("aiohttp.ClientSession(\n                timeout=session_timeout, proxy=self.proxy\n            )",
+         "aiohttp.ClientSession(\n                timeout=session_timeout\n            )"),
+        ("aiohttp.ClientSession(timeout=session_timeout, proxy=self.proxy)",
+         "aiohttp.ClientSession(timeout=session_timeout)"),
+        ("aiohttp.ClientSession(proxy=self.proxy)",
+         "aiohttp.ClientSession()"),
+    ]:
+        _src = _src.replace(_old, _new)
+    open(_spec.origin, 'w').write(_src)
+
+
 """نقطه ورود FastAPI."""
 
 from typing import Annotated
