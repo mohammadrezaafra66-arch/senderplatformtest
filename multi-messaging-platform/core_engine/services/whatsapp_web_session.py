@@ -18,7 +18,7 @@ from core_engine.services.session_storage import (
 )
 
 WHATSAPP_WEB_METADATA_VERSION = 1
-
+IS_WINDOWS_RUNTIME = os.name == "nt"
 
 @dataclass(frozen=True, slots=True)
 class WhatsAppWebSessionMetadata:
@@ -70,14 +70,23 @@ def resolve_whatsapp_runtime_profile_dir(
     """Return the first usable browser profile directory for the current runtime."""
     host_profile = default_windows_host_profile_dir(account_id)
     candidates: list[Path] = []
+
     # On Windows the live Chrome profile lives under LOCALAPPDATA; the Docker
     # copy under storage/ is often stale after whatsapp_web_link_local.ps1.
-    if os.name == "nt" and host_profile.parts:
+    if IS_WINDOWS_RUNTIME and host_profile.parts:
         candidates.append(host_profile)
+
     if stored_profile_dir:
         candidates.append(Path(stored_profile_dir))
-    candidates.append(resolve_whatsapp_profile_dir(account_id, profile_root=profile_root))
-    if os.name != "nt" and host_profile.parts:
+
+    candidates.append(
+        resolve_whatsapp_profile_dir(
+            account_id,
+            profile_root=profile_root,
+        )
+    )
+
+    if not IS_WINDOWS_RUNTIME and host_profile.parts:
         candidates.append(host_profile)
 
     seen: set[str] = set()
@@ -85,16 +94,20 @@ def resolve_whatsapp_runtime_profile_dir(
         normalized = str(candidate)
         if normalized in seen:
             continue
+
         seen.add(normalized)
+
         if profile_dir_has_browser_data(candidate):
             resolved = candidate.resolve()
-            return str(resolved) if os.name == "nt" else resolved.as_posix()
+            return str(resolved) if IS_WINDOWS_RUNTIME else resolved.as_posix()
 
-    fallback = candidates[0] if candidates else resolve_whatsapp_profile_dir(account_id)
+    fallback = (
+        candidates[0]
+        if candidates
+        else resolve_whatsapp_profile_dir(account_id)
+    )
     resolved = fallback.resolve()
-    return str(resolved) if os.name == "nt" else resolved.as_posix()
-
-
+    return str(resolved) if IS_WINDOWS_RUNTIME else resolved.as_posix()
 def _metadata_to_json(metadata: WhatsAppWebSessionMetadata) -> str:
     payload = {
         "version": metadata.version,
