@@ -8,14 +8,27 @@ export type CampaignStats = {
   eta_seconds: number | null;
 };
 
+export type CampaignSenderAccount = {
+  account_id: number;
+  label: string | null;
+  account_identifier: string | null;
+  platform: PlatformOption;
+  status: string;
+  priority: number;
+  weight: number;
+  enabled: boolean;
+};
+
 export type CampaignListItem = {
   id: number;
   name: string;
   title: string;
-  platform: string;
+  platform: PlatformOption;
   status: string;
   created_at: string;
   total_recipients: number;
+  account_ids?: number[];
+  sender_accounts?: CampaignSenderAccount[];
 };
 
 export type CampaignDetail = {
@@ -23,7 +36,7 @@ export type CampaignDetail = {
   name: string;
   title: string;
   channel: string;
-  platform: string;
+  platform: PlatformOption;
   status: string;
   template_text: string | null;
   use_gpt: boolean;
@@ -31,6 +44,8 @@ export type CampaignDetail = {
   created_at: string;
   updated_at: string;
   stats: CampaignStats;
+  account_ids?: number[];
+  sender_accounts?: CampaignSenderAccount[];
 };
 
 export type CampaignRecipientItem = {
@@ -43,7 +58,18 @@ export type CampaignRecipientItem = {
   render_status: string;
   send_status: string;
   failure_reason: string | null;
+  final_message_id?: number | null;
+  account_id?: number | null;
+  sender_account?: MessageSenderAccount | null;
   updated_at: string;
+};
+
+export type MessageSenderAccount = {
+  account_id: number;
+  label: string | null;
+  account_identifier: string | null;
+  platform: PlatformOption;
+  status: string;
 };
 
 export type PlatformOption = "bale" | "telegram" | "whatsapp" | "rubika";
@@ -55,4 +81,11 @@ export type CreateCampaignFromImportPayload = {
   template_text: string;
   use_gpt: boolean;
   include_products: boolean;
+  account_ids: number[];
+};
+
+export type CampaignAccountsResult = {
+  campaign_id: number;
+  account_ids: number[];
+  sender_accounts: CampaignSenderAccount[];
 };

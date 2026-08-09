@@ -10,10 +10,13 @@ from fastapi.testclient import TestClient
 
 from core_engine.main import app
 from core_engine.models import (
+    Account,
+    AccountStatus,
     Campaign,
     CampaignRecipient,
     CampaignStatus,
     Contact,
+    Message,
     PlatformType,
     RenderedMessage,
     StagedQueueItem,
@@ -75,6 +78,13 @@ def campaign_env(pg_session_factory):
     session = pg_session_factory()
     created_campaigns: list[int] = []
     created_contacts: list[int] = []
+    sender = Account(
+        platform=PlatformType.RUBIKA,
+        status=AccountStatus.ACTIVE,
+        label="template-test-sender",
+    )
+    session.add(sender)
+    session.commit()
 
     def _factory(*, title, template_text, first_name, phone):
         campaign = _make_campaign(session, title=title, template_text=template_text)
@@ -98,6 +108,9 @@ def campaign_env(pg_session_factory):
         session.query(CampaignRecipient).filter(
             CampaignRecipient.campaign_id == campaign_id
         ).delete(synchronize_session=False)
+        session.query(Message).filter(Message.campaign_id == campaign_id).delete(
+            synchronize_session=False
+        )
         session.query(Campaign).filter(Campaign.id == campaign_id).delete(
             synchronize_session=False
         )
@@ -105,6 +118,9 @@ def campaign_env(pg_session_factory):
         session.query(Contact).filter(Contact.id == contact_id).delete(
             synchronize_session=False
         )
+    session.query(Account).filter(Account.id == sender.id).delete(
+        synchronize_session=False
+    )
     session.commit()
     session.close()
 

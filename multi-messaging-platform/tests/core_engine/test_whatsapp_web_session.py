@@ -61,7 +61,10 @@ def test_resolve_whatsapp_runtime_profile_dir_prefers_host_over_docker_copy(
     (host_profile / "Default").mkdir(parents=True)
     (docker_profile / "Default").mkdir(parents=True)
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
-    monkeypatch.setattr("core_engine.services.whatsapp_web_session.os.name", "nt")
+    monkeypatch.setattr(
+    "core_engine.services.whatsapp_web_session.IS_WINDOWS_RUNTIME",
+    True,
+)
 
     resolved = resolve_whatsapp_runtime_profile_dir(
         7,

@@ -20,6 +20,7 @@ import { useAuth } from "@/state/auth";
 import type { CampaignListItem } from "@/types/campaign";
 import { campaignStatusLabel } from "@/utils/campaign-status";
 import { canCreateCampaign, canViewCampaigns } from "@/utils/permissions";
+import { accountDisplayName, orderedSenders } from "@/utils/sender-accounts";
 
 export default function CampaignsListPage() {
   const { t } = useTranslation();
@@ -37,6 +38,7 @@ export default function CampaignsListPage() {
 
   useEffect(() => {
     if (!canView) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- permission determines initial loading state
       setLoading(false);
       return;
     }
@@ -128,6 +130,7 @@ export default function CampaignsListPage() {
                           <th>{t("platform")}</th>
                           <th>{t("status")}</th>
                           <th>{t("recipients")}</th>
+                          <th>{t("sender")}</th>
                           <th>{t("actions")}</th>
                         </tr>
                       </thead>
@@ -139,6 +142,15 @@ export default function CampaignsListPage() {
                             <td>{c.platform}</td>
                             <td>{campaignStatusLabel(c.status, t)}</td>
                             <td>{c.total_recipients}</td>
+                            <td>
+                              {(() => {
+                                const senders = orderedSenders(c);
+                                if (senders.length === 0) return t("senderModeAuto");
+                                const names = senders.slice(0, 2).map(accountDisplayName);
+                                const rest = senders.length - names.length;
+                                return `${names.join("، ")}${rest > 0 ? ` + ${t("senderMoreCount", { count: rest })}` : ""}`;
+                              })()}
+                            </td>
                             <td>
                               <Link href={`/campaigns/${c.id}`}>{t("monitor")}</Link>
                             </td>

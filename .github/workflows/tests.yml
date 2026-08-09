@@ -7,6 +7,32 @@ on:
 jobs:
   pytest:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: mmp_user
+          POSTGRES_PASSWORD: mmp_pass
+          POSTGRES_DB: mmp_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U mmp_user -d mmp_db"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     defaults:
       run:
         working-directory: multi-messaging-platform

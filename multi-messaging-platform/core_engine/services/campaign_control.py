@@ -81,6 +81,16 @@ def _auto_prepare(db: Session, campaign_id: int) -> None:
         )
     except HTTPException as exc:
         db.rollback()
+        detail = exc.detail if isinstance(exc.detail, dict) else {}
+        if detail.get("code") in {
+            "no_active_sender_account",
+            "no_enabled_campaign_sender",
+            "campaign_sender_inactive",
+            "campaign_sender_platform_mismatch",
+            "campaign_sender_missing",
+            "prepared_sender_assignment_mismatch",
+        }:
+            raise
         logger.info(
             "auto-prepare skipped for campaign=%s: %s", campaign_id, exc.detail
         )

@@ -17,10 +17,9 @@ from sqlalchemy.orm import Session
 
 from core_engine.config import get_settings
 from core_engine.models import (
-    Account,
-    AccountStatus,
     Campaign,
     CampaignStatus,
+    Message,
     PlatformType,
     StagedQueueItem,
     StagedQueueItemStatus,
@@ -28,14 +27,8 @@ from core_engine.models import (
 from core_engine.services.consent_service import get_consent_block_reason
 from core_engine.services.redis_client import get_redis_client
 from workers.redis_keys import queue_key
-from workers.rubika_account_pool import RubikaAccountPoolManager
 
 logger = logging.getLogger(__name__)
-
-# Rubika senders are drawn from rubika_account_pool, not from "any active
-# rubika account" — an account can be active yet not enrolled for sending.
-RUBIKA_QUEUE_PHASE = "day"
-
 
 def _is_baileys_mode() -> bool:
     return get_settings().WHATSAPP_DELIVERY_MODE.strip().lower() == "baileys"
@@ -61,8 +54,6 @@ async def push_staged_items_to_worker_queue(
     skipped_no_account = 0
     skipped_invalid = 0
     failed = 0
-
-    rr_cursor: dict[str, int] = {}
 
     # (a) Claim items using row-level locking and SKIP LOCKED.
     # Items staged outside the normal prepare path have no rendered_message_id.
@@ -115,6 +106,20 @@ async def push_staged_items_to_worker_queue(
     db.commit()
 
     redis = get_redis_client()
+    message_ids = {
+        int(item.queue_payload["message_id"])
+        for item in claimed_items
+        if item.queue_payload
+        and str(item.queue_payload.get("message_id", "")).isdigit()
+    }
+    messages_by_id = (
+        {
+            message.id: message
+            for message in db.query(Message).filter(Message.id.in_(message_ids)).all()
+        }
+        if message_ids
+        else {}
+    )
 
     # (b) Process claimed items after releasing locks.
     for item in claimed_items:
@@ -158,42 +163,41 @@ async def push_staged_items_to_worker_queue(
                 db.commit()
                 continue
 
-            if platform_enum == PlatformType.RUBIKA:
-                accounts = RubikaAccountPoolManager(db).list_pool_accounts(
-                    RUBIKA_QUEUE_PHASE
-                )
-            else:
-                accounts = (
-                    db.query(Account)
-                    .filter(
-                        Account.platform == platform_enum,
-                        Account.status == AccountStatus.ACTIVE,
-                    )
-                    .order_by(Account.id.asc())
-                    .all()
-                )
-
-            if not accounts:
-                item.status = StagedQueueItemStatus.READY.value
-                skipped_no_account += 1
+            payload: dict[str, Any] = dict(item.queue_payload or {})
+            try:
+                message_id = int(payload["message_id"])
+                payload_account_id = int(payload["account_id"])
+            except (KeyError, TypeError, ValueError):
+                item.status = StagedQueueItemStatus.SKIPPED.value
+                item.skip_reason = "invalid_payload:missing_sender_assignment"
+                skipped_invalid += 1
                 db.commit()
                 continue
 
-            platform_key = platform_enum.value
-            idx = rr_cursor.get(platform_key, 0) % len(accounts)
-            account = accounts[idx]
-            rr_cursor[platform_key] = idx + 1
-
-            payload: dict[str, Any] = dict(item.queue_payload or {})
-            payload["account_id"] = int(account.id)
-            item.queue_payload = payload  # re-assign for JSONB change detection
+            message = messages_by_id.get(message_id)
+            if message is None:
+                item.status = StagedQueueItemStatus.SKIPPED.value
+                item.skip_reason = "invalid_payload:message_not_found"
+                skipped_invalid += 1
+                db.commit()
+                continue
+            if (
+                message.campaign_id != item.campaign_id
+                or message.contact_id != item.contact_id
+                or message.account_id != payload_account_id
+            ):
+                item.status = StagedQueueItemStatus.SKIPPED.value
+                item.skip_reason = "invalid_payload:sender_assignment_mismatch"
+                skipped_invalid += 1
+                db.commit()
+                continue
 
             if platform_enum == PlatformType.WHATSAPP and _is_baileys_mode():
                 from core_engine.services.baileys_queue import enqueue_baileys_from_worker_payload
 
                 await enqueue_baileys_from_worker_payload(db, payload, route="campaign")
             else:
-                key = queue_key(item.channel, account.id)
+                key = queue_key(platform_enum.value, message.account_id)
                 raw_payload = json.dumps(payload, ensure_ascii=False)
                 await redis.rpush(key, raw_payload)
 

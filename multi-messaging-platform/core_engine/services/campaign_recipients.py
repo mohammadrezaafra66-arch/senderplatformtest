@@ -7,10 +7,10 @@ import io
 from datetime import datetime
 
 from fastapi import HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
-from core_engine.api.schemas import CampaignRecipientItemResponse
-from core_engine.models import Campaign, CampaignRecipient, Contact, SendStatus
+from core_engine.api.schemas import CampaignRecipientItemResponse, MessageSenderAccountResponse
+from core_engine.models import Campaign, CampaignRecipient, Contact, Message, SendStatus
 
 CSV_EXPORT_MAX_ROWS = 50_000
 
@@ -41,6 +41,9 @@ def campaign_recipients_base_query(
 ):
     query = (
         db.query(CampaignRecipient, Contact)
+        .options(
+            joinedload(CampaignRecipient.final_message).joinedload(Message.account)
+        )
         .join(Contact, CampaignRecipient.contact_id == Contact.id)
         .filter(CampaignRecipient.campaign_id == campaign_id)
     )
@@ -53,6 +56,8 @@ def recipient_to_response(
     recipient: CampaignRecipient,
     contact: Contact,
 ) -> CampaignRecipientItemResponse:
+    message = recipient.final_message
+    account = message.account if message is not None else None
     return CampaignRecipientItemResponse(
         id=recipient.id,
         campaign_id=recipient.campaign_id,
@@ -67,6 +72,19 @@ def recipient_to_response(
         if hasattr(recipient.send_status, "value")
         else str(recipient.send_status),
         failure_reason=recipient.failure_reason,
+        final_message_id=recipient.final_message_id,
+        account_id=message.account_id if message is not None else None,
+        sender_account=(
+            MessageSenderAccountResponse(
+                account_id=account.id,
+                label=account.label,
+                account_identifier=account.phone_number,
+                platform=account.platform,
+                status=account.status,
+            )
+            if account is not None
+            else None
+        ),
         updated_at=recipient.updated_at,
     )
 

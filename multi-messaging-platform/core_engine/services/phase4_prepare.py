@@ -15,11 +15,13 @@ from core_engine.models import (
     CampaignRecipient,
     CampaignStatus,
     Contact,
+    Message,
     ProductSnapshot,
     RenderedMessage,
     StagedQueueItem,
 )
 from core_engine.schemas.phase4 import PrepareMessagesRequest, PrepareMessagesResultResponse
+from core_engine.services.campaign_sender_assignment import resolve_campaign_sender_accounts
 from core_engine.services.gpt_orchestrator import build_product_context
 from core_engine.services.phase4_utils import (
     build_full_name,
@@ -151,16 +153,23 @@ def prepare_campaign_messages(
 
     # Contacts are attached to a campaign through campaign_recipients (see the
     # POST /campaigns handler); Contact.campaign_id is left NULL by the importer.
-    contacts = (
-        db.query(Contact)
-        .join(CampaignRecipient, CampaignRecipient.contact_id == Contact.id)
+    recipient_rows = (
+        db.query(CampaignRecipient, Contact)
+        .join(Contact, CampaignRecipient.contact_id == Contact.id)
         .filter(CampaignRecipient.campaign_id == campaign_id)
-        .order_by(Contact.id.asc())
+        .order_by(CampaignRecipient.id.asc())
         .all()
     )
+    contacts = [contact for _recipient, contact in recipient_rows]
 
     total_contacts = len(contacts)
     allowed_contacts_list = [c for c in contacts if is_consent_allowed(c.consent_status)]
+    allowed_contact_ids = {contact.id for contact in allowed_contacts_list}
+    allowed_recipient_rows = [
+        (recipient, contact)
+        for recipient, contact in recipient_rows
+        if contact.id in allowed_contact_ids
+    ]
     allowed_contacts = len(allowed_contacts_list)
     blocked_count = sum(
         1
@@ -169,12 +178,33 @@ def prepare_campaign_messages(
     )
     skipped_contacts = total_contacts - allowed_contacts
 
+    sender_accounts = (
+        resolve_campaign_sender_accounts(db, campaign)
+        if allowed_recipient_rows
+        else []
+    )
+
     existing_staged: dict[int, StagedQueueItem] = {
         item.contact_id: item
         for item in db.query(StagedQueueItem)
         .filter(StagedQueueItem.campaign_id == campaign_id)
         .all()
     }
+    final_message_ids = {
+        recipient.final_message_id
+        for recipient, _contact in allowed_recipient_rows
+        if recipient.final_message_id is not None
+    }
+    existing_messages = (
+        {
+            message.id: message
+            for message in db.query(Message)
+            .filter(Message.id.in_(final_message_ids))
+            .all()
+        }
+        if final_message_ids
+        else {}
+    )
 
     effective_limit = _compute_effective_limit(
         allowed_contacts=allowed_contacts,
@@ -200,7 +230,8 @@ def prepare_campaign_messages(
             return build_phase4_mock_final_text(contact, campaign)
         return render_campaign_template(contact, campaign)
 
-    for contact in allowed_contacts_list:
+    for recipient_index, (recipient, contact) in enumerate(allowed_recipient_rows):
+        assigned_account = sender_accounts[recipient_index % len(sender_accounts)]
         existing_item = existing_staged.get(contact.id)
         if existing_item is not None:
             if existing_item.status == "ready":
@@ -208,25 +239,59 @@ def prepare_campaign_messages(
                 # the campaign text has changed since it was staged. Items that
                 # already moved on (queued/sent) are never touched.
                 current_text = _render(contact)
+                message = (
+                    existing_messages.get(recipient.final_message_id)
+                    if recipient.final_message_id is not None
+                    else None
+                )
+                if message is not None and message.account_id != assigned_account.id:
+                    db.rollback()
+                    raise HTTPException(
+                        status_code=409,
+                        detail={
+                            "code": "prepared_sender_assignment_mismatch",
+                            "message": (
+                                f"Message {message.id} has account {message.account_id}, "
+                                f"but deterministic assignment requires {assigned_account.id}."
+                            ),
+                        },
+                    )
+                if message is None:
+                    message = Message(
+                        campaign_id=campaign_id,
+                        account_id=assigned_account.id,
+                        contact_id=contact.id,
+                        rendered_text=current_text,
+                        dedupe_key=f"campaign:{campaign_id}:contact:{contact.id}",
+                    )
+                    db.add(message)
+                    db.flush()
+                    recipient.final_message_id = message.id
+                    existing_messages[message.id] = message
+                else:
+                    message.rendered_text = current_text
+
                 if existing_item.final_text != current_text:
                     existing_item.final_text = current_text
-                    existing_item.queue_payload = build_staged_queue_payload(
-                        campaign_id=campaign_id,
-                        contact_id=contact.id,
-                        rendered_message_id=existing_item.rendered_message_id,
-                        channel=campaign.channel,
-                        phone=contact.phone,
-                        channel_handle=contact.channel_handle,
-                        final_text=current_text,
+                existing_item.queue_payload = build_staged_queue_payload(
+                    campaign_id=campaign_id,
+                    contact_id=contact.id,
+                    rendered_message_id=existing_item.rendered_message_id,
+                    message_id=message.id,
+                    account_id=message.account_id,
+                    channel=campaign.channel,
+                    phone=contact.phone,
+                    channel_handle=contact.channel_handle,
+                    final_text=current_text,
+                )
+                if existing_item.rendered_message_id is not None:
+                    stale_rendered = db.get(
+                        RenderedMessage, existing_item.rendered_message_id
                     )
-                    if existing_item.rendered_message_id is not None:
-                        stale_rendered = db.get(
-                            RenderedMessage, existing_item.rendered_message_id
-                        )
-                        if stale_rendered is not None:
-                            stale_rendered.final_text = current_text
-                            stale_rendered.render_mode = render_mode
-                            stale_rendered.queue_payload = existing_item.queue_payload
+                    if stale_rendered is not None:
+                        stale_rendered.final_text = current_text
+                        stale_rendered.render_mode = render_mode
+                        stale_rendered.queue_payload = existing_item.queue_payload
                 already_staged_count += 1
                 returned_items.append(existing_item)
             continue
@@ -252,10 +317,23 @@ def prepare_campaign_messages(
         db.add(rendered_message)
         db.flush()
 
+        message = Message(
+            campaign_id=campaign_id,
+            account_id=assigned_account.id,
+            contact_id=contact.id,
+            rendered_text=final_text,
+            dedupe_key=f"campaign:{campaign_id}:contact:{contact.id}",
+        )
+        db.add(message)
+        db.flush()
+        recipient.final_message_id = message.id
+
         queue_payload = build_staged_queue_payload(
             campaign_id=campaign_id,
             contact_id=contact.id,
             rendered_message_id=rendered_message.id,
+            message_id=message.id,
+            account_id=message.account_id,
             channel=campaign.channel,
             phone=contact.phone,
             channel_handle=contact.channel_handle,
