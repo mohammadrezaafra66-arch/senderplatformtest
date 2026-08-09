@@ -450,8 +450,6 @@ class Contact(Base):
 
 class OptEvent(Base):
     __tablename__ = "opt_events"
-    __table_args__ = (Index("ix_opt_events_contact_id", "contact_id"),)
-
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     contact_id: Mapped[int] = mapped_column(
         ForeignKey("contacts.id"),
