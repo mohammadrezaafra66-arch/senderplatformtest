@@ -1,6 +1,7 @@
 import asyncio
 import os
 import threading
+import uuid
 from unittest.mock import patch
 
 import pytest
@@ -15,6 +16,7 @@ from core_engine.models import (
     Campaign,
     CampaignStatus,
     Contact,
+    Message,
     OptEvent,
     PlatformType,
     RenderedMessage,
@@ -106,17 +108,33 @@ def _seed_accounts(session, platform: PlatformType, count: int = 2):
     return accounts
 
 
-def _seed_ready_items(session, campaign_id: int, n: int = 10):
+def _seed_ready_items(session, campaign_id: int, n: int = 10, accounts=None):
     items: list[StagedQueueItem] = []
+    if accounts is None:
+        accounts = []
+    phone_prefix = uuid.uuid4().hex[:8]
     for i in range(n):
         contact = Contact(
-            phone=f"+989120000{i:03d}",
-            phone_e164=f"+989120000{i:03d}",
+            phone=f"+98{phone_prefix}{i:03d}",
+            phone_e164=f"+98{phone_prefix}{i:03d}",
             consent_status="unknown",
             blacklisted=False,
         )
         session.add(contact)
         session.flush()
+
+        message = None
+        if accounts:
+            account = accounts[i % len(accounts)]
+            message = Message(
+                campaign_id=campaign_id,
+                account_id=account.id,
+                contact_id=contact.id,
+                rendered_text=f"hello {i}",
+                dedupe_key=f"bridge:{campaign_id}:{contact.id}",
+            )
+            session.add(message)
+            session.flush()
 
         # Mirror the real prepare path: a staged item always points at the
         # RenderedMessage it came from, and the bridge relies on that link.
@@ -143,6 +161,8 @@ def _seed_ready_items(session, campaign_id: int, n: int = 10):
             queue_payload={
                 "campaign_id": campaign_id,
                 "contact_id": contact.id,
+                "message_id": message.id if message is not None else None,
+                "account_id": message.account_id if message is not None else None,
                 "channel": "bale",
                 "final_text": f"hello {i}",
             },
@@ -160,8 +180,8 @@ def test_push_concurrency_no_duplicate_push(pg_session_factory, fake_redis, enab
     s = pg_session_factory()
     try:
         campaign = _seed_campaign_bundle(s)
-        _seed_accounts(s, PlatformType.BALE, count=3)
-        items = _seed_ready_items(s, campaign.id, n=12)
+        accounts = _seed_accounts(s, PlatformType.BALE, count=3)
+        items = _seed_ready_items(s, campaign.id, n=12, accounts=accounts)
         s.commit()
         ids = [it.id for it in items]
     finally:
@@ -206,8 +226,8 @@ def test_consent_becomes_blocked_skips_item(pg_session_factory, fake_redis, enab
     s = pg_session_factory()
     try:
         campaign = _seed_campaign_bundle(s)
-        _seed_accounts(s, PlatformType.BALE, count=1)
-        items = _seed_ready_items(s, campaign.id, n=1)
+        accounts = _seed_accounts(s, PlatformType.BALE, count=1)
+        items = _seed_ready_items(s, campaign.id, n=1, accounts=accounts)
         s.commit()
         item_id = items[0].id
         contact_id = items[0].contact_id
@@ -242,12 +262,12 @@ def test_consent_becomes_blocked_skips_item(pg_session_factory, fake_redis, enab
 
 
 @pytest.mark.integration
-def test_no_active_account_returns_item_to_ready(pg_session_factory, fake_redis, enable_real_push):
+def test_missing_sender_assignment_is_not_pushed(pg_session_factory, fake_redis, enable_real_push):
     s = pg_session_factory()
     try:
         campaign = _seed_campaign_bundle(s)
         # No accounts seeded
-        items = _seed_ready_items(s, campaign.id, n=2)
+        items = _seed_ready_items(s, campaign.id, n=2, accounts=[])
         s.commit()
         ids = [it.id for it in items]
     finally:
@@ -256,25 +276,31 @@ def test_no_active_account_returns_item_to_ready(pg_session_factory, fake_redis,
     s2 = pg_session_factory()
     try:
         result = asyncio.run(push_staged_items_to_worker_queue(s2, batch_size=10))
-        assert result["skipped_no_account"] == 2
+        assert result["skipped_invalid"] == 2
         states = {
             row.id: row.status
             for row in s2.query(StagedQueueItem).filter(StagedQueueItem.id.in_(ids)).all()
         }
-        assert set(states.values()) == {StagedQueueItemStatus.READY.value}
+        assert set(states.values()) == {StagedQueueItemStatus.SKIPPED.value}
         assert len(fake_redis.calls) == 0
     finally:
         s2.close()
 
 
 @pytest.mark.integration
-def test_disabled_flag_prevents_push(pg_session_factory, fake_redis):
-    get_settings.cache_clear()
+def test_disabled_flag_prevents_push(pg_session_factory, fake_redis, monkeypatch):
+    class DisabledSettings:
+        REAL_QUEUE_PUSH_ENABLED = False
+        WHATSAPP_DELIVERY_MODE = "web"
+
+    monkeypatch.setattr(
+        "core_engine.services.queue_bridge.get_settings", lambda: DisabledSettings()
+    )
     s = pg_session_factory()
     try:
         campaign = _seed_campaign_bundle(s)
-        _seed_accounts(s, PlatformType.BALE, count=1)
-        items = _seed_ready_items(s, campaign.id, n=3)
+        accounts = _seed_accounts(s, PlatformType.BALE, count=1)
+        items = _seed_ready_items(s, campaign.id, n=3, accounts=accounts)
         s.commit()
         ids = [it.id for it in items]
     finally:
@@ -294,6 +320,10 @@ def test_disabled_flag_prevents_push(pg_session_factory, fake_redis):
             for row in s2.query(StagedQueueItem).filter(StagedQueueItem.id.in_(ids)).all()
         }
         assert set(states.values()) == {StagedQueueItemStatus.READY.value}
+        s2.query(StagedQueueItem).filter(StagedQueueItem.id.in_(ids)).delete(
+            synchronize_session=False
+        )
+        s2.commit()
     finally:
         s2.close()
 
@@ -304,8 +334,8 @@ def test_non_running_campaign_is_skipped(pg_session_factory, fake_redis, enable_
     try:
         campaign = _seed_campaign_bundle(s)
         campaign.status = CampaignStatus.DRAFT.value
-        _seed_accounts(s, PlatformType.BALE, count=1)
-        items = _seed_ready_items(s, campaign.id, n=4)
+        accounts = _seed_accounts(s, PlatformType.BALE, count=1)
+        items = _seed_ready_items(s, campaign.id, n=4, accounts=accounts)
         s.commit()
         ids = [it.id for it in items]
     finally:
@@ -335,8 +365,8 @@ def test_celery_beat_task_runs(monkeypatch, pg_session_factory, fake_redis):
     try:
         campaign = _seed_campaign_bundle(s)
         campaign.status = CampaignStatus.RUNNING.value
-        _seed_accounts(s, PlatformType.BALE, count=1)
-        _seed_ready_items(s, campaign.id, n=3)
+        accounts = _seed_accounts(s, PlatformType.BALE, count=1)
+        _seed_ready_items(s, campaign.id, n=3, accounts=accounts)
         s.commit()
     finally:
         s.close()

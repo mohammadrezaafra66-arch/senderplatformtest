@@ -20,6 +20,7 @@ from core_engine.models import (
     Campaign,
     CampaignStatus,
     Contact,
+    Message,
     PlatformType,
     RenderedMessage,
     StagedQueueItem,
@@ -128,6 +129,18 @@ def bridge_env(pg_session_factory, monkeypatch):
             session.flush()
             rendered_id = rendered.id
 
+        message = None
+        if with_rendered:
+            message = Message(
+                campaign_id=campaign.id,
+                account_id=account.id,
+                contact_id=contact.id,
+                rendered_text=text,
+                dedupe_key=f"bridge:{campaign.id}:{contact.id}",
+            )
+            session.add(message)
+            session.flush()
+
         item = StagedQueueItem(
             campaign_id=campaign.id,
             contact_id=contact.id,
@@ -138,6 +151,8 @@ def bridge_env(pg_session_factory, monkeypatch):
             queue_payload={
                 "campaign_id": campaign.id,
                 "contact_id": contact.id,
+                "message_id": message.id if message is not None else None,
+                "account_id": account.id if message is not None else None,
                 "channel": "telegram",
                 "phone": contact.phone,
                 "final_text": text,
@@ -156,6 +171,9 @@ def bridge_env(pg_session_factory, monkeypatch):
     session.query(RenderedMessage).filter(
         RenderedMessage.campaign_id == campaign.id
     ).delete(synchronize_session=False)
+    session.query(Message).filter(Message.campaign_id == campaign.id).delete(
+        synchronize_session=False
+    )
     for contact_id in created["contacts"]:
         session.query(Contact).filter(Contact.id == contact_id).delete(
             synchronize_session=False
@@ -206,6 +224,7 @@ def test_item_with_rendered_message_is_still_pushed(bridge_env):
 
     assert result["pushed"] == 1
     assert len(redis.pushed) == 1
+    assert redis.pushed[0][0] == f"queue:telegram:{good.queue_payload['account_id']}"
     assert "سلام مطهره" in redis.pushed[0][1]
 
     session.expire_all()
@@ -245,6 +264,30 @@ def test_orphan_does_not_block_the_valid_item_behind_it(bridge_env):
         session.get(StagedQueueItem, orphan.id).status
         == StagedQueueItemStatus.READY.value
     )
+
+
+def test_sender_assignment_mismatch_is_never_pushed(bridge_env):
+    session, redis, _campaign, contact, staged = bridge_env
+    item = staged(
+        contact("mismatch", "+989120007105"),
+        text="sender mismatch",
+        with_rendered=True,
+    )
+    item.queue_payload = {
+        **item.queue_payload,
+        "account_id": int(item.queue_payload["account_id"]) + 1_000_000,
+    }
+    session.commit()
+
+    result = asyncio.run(queue_bridge.push_staged_items_to_worker_queue(session))
+
+    assert result["pushed"] == 0
+    assert result["skipped_invalid"] == 1
+    assert redis.pushed == []
+    session.expire_all()
+    refreshed = session.get(StagedQueueItem, item.id)
+    assert refreshed.status == StagedQueueItemStatus.SKIPPED.value
+    assert refreshed.skip_reason == "invalid_payload:sender_assignment_mismatch"
 
 
 def test_no_dry_run_text_is_ever_pushed(bridge_env):
