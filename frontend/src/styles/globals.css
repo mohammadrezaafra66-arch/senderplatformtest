@@ -442,6 +442,18 @@ a.mmp-btn {
   margin-top: 8px;
 }
 
+.mmp-message-sender {
+  min-width: 110px;
+  line-height: 1.4;
+}
+
+.mmp-message-sender small {
+  display: block;
+  color: var(--text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
 .mmp-table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Layout } from "@/components/Layout";
+import { MessageSenderCell } from "@/components/MessageSenderCell";
 import { CampaignSenderSelector, type SenderMode } from "@/components/CampaignSenderSelector";
 import {
   Alert,
@@ -329,6 +330,7 @@ export default function CampaignMonitorPage() {
                           <th>{t("name")}</th>
                           <th>render</th>
                           <th>send</th>
+                          <th>{t("sender")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -357,6 +359,7 @@ export default function CampaignMonitorPage() {
                                 </div>
                               )}
                             </td>
+                            <td><MessageSenderCell item={r} /></td>
                           </tr>
                         ))}
                       </tbody>

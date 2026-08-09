@@ -5,17 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Layout } from "@/components/Layout";
+import { MessageSenderCell } from "@/components/MessageSenderCell";
 import {
   Alert,
   Button,
-  EmptyState,
-  FormField,
   PageContent,
-  Panel,
-  TableWrap,
-  inputClassName,
-  selectClassName,
-  tableClassName,
 } from "@/components/ui";
 import { ApiError } from "@/lib/api";
 import { fetchCampaignRecipients, fetchCampaigns, downloadCampaignRecipientsExport } from "@/lib/campaign-api";
@@ -68,6 +62,7 @@ export default function MessageLogsPage() {
     if (!router.isReady || !canListCampaigns) return;
     const raw = router.query.campaign_id;
     if (typeof raw === "string" && raw.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronize the form with the query parameter
       setCampaignIdInput(raw.trim());
       const id = Number.parseInt(raw.trim(), 10);
       if (Number.isFinite(id)) setSelectedCampaignId(id);
@@ -117,6 +112,7 @@ export default function MessageLogsPage() {
 
   useEffect(() => {
     if (selectedCampaignId != null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- initial and filter-driven remote data load
       void loadRecipients();
     }
   }, [loadRecipients, selectedCampaignId]);
@@ -287,6 +283,7 @@ export default function MessageLogsPage() {
                       <th style={{ padding: 8, textAlign: "right" }}>{t("name")}</th>
                       <th style={{ padding: 8, textAlign: "right" }}>render</th>
                       <th style={{ padding: 8, textAlign: "right" }}>send</th>
+                      <th style={{ padding: 8, textAlign: "right" }}>{t("sender")}</th>
                       <th style={{ padding: 8, textAlign: "right" }}>{t("updatedAt")}</th>
                     </tr>
                   </thead>
@@ -302,6 +299,7 @@ export default function MessageLogsPage() {
                         <td style={{ padding: 8, color: sendStatusColor(r.send_status) }}>
                           {r.send_status}
                         </td>
+                        <td style={{ padding: 8 }}><MessageSenderCell item={r} /></td>
                         <td style={{ padding: 8 }}>{toJalaliDateTime(r.updated_at)}</td>
                       </tr>
                     ))}

@@ -312,5 +312,8 @@
   "senderErrorPlatformMismatch": "یکی از اکانت‌های انتخاب‌شده با پلتفرم کمپین سازگار نیست.",
   "senderErrorNoActive": "برای این پلتفرم اکانت فعال وجود ندارد.",
   "senderErrorNoEnabled": "هیچ اکانت فرستنده فعالی برای این کمپین انتخاب نشده است.",
-  "retry": "تلاش دوباره"
+  "retry": "تلاش دوباره",
+  "senderAccountUnknown": "اکانت نامشخص",
+  "senderNotAssigned": "هنوز تخصیص داده نشده",
+  "senderAccountNumber": "اکانت #{{id}}"
 }

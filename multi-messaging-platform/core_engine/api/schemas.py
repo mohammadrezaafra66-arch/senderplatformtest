@@ -152,6 +152,14 @@ class CampaignStopResponse(BaseModel):
     paused_in_redis: bool
 
 
+class MessageSenderAccountResponse(BaseModel):
+    account_id: int
+    label: str | None = None
+    account_identifier: str | None = None
+    platform: PlatformType
+    status: AccountStatus
+
+
 class CampaignRecipientItemResponse(BaseModel):
     """یک ردیف message log (گیرنده کمپین + مخاطب)."""
 
@@ -164,6 +172,9 @@ class CampaignRecipientItemResponse(BaseModel):
     render_status: str
     send_status: str
     failure_reason: str | None = None
+    final_message_id: int | None = None
+    account_id: int | None = None
+    sender_account: MessageSenderAccountResponse | None = None
     updated_at: datetime
 
 

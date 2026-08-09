@@ -58,7 +58,18 @@ export type CampaignRecipientItem = {
   render_status: string;
   send_status: string;
   failure_reason: string | null;
+  final_message_id?: number | null;
+  account_id?: number | null;
+  sender_account?: MessageSenderAccount | null;
   updated_at: string;
+};
+
+export type MessageSenderAccount = {
+  account_id: number;
+  label: string | null;
+  account_identifier: string | null;
+  platform: PlatformOption;
+  status: string;
 };
 
 export type PlatformOption = "bale" | "telegram" | "whatsapp" | "rubika";
