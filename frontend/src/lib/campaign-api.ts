@@ -1,6 +1,7 @@
 import { apiFetch } from "@/lib/api";
 import type {
   CampaignDetail,
+  CampaignAccountsResult,
   CampaignListItem,
   CampaignRecipientItem,
   CreateCampaignFromImportPayload,
@@ -89,4 +90,16 @@ export async function createCampaignFromImport(
     body: JSON.stringify(payload),
   });
   return response.json() as Promise<{ campaign_id: number; message: string }>;
+}
+
+export async function updateCampaignAccounts(
+  campaignId: number,
+  accountIds: number[],
+): Promise<CampaignAccountsResult> {
+  const response = await apiFetch(`/campaigns/${campaignId}/accounts`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ account_ids: accountIds }),
+  });
+  return response.json() as Promise<CampaignAccountsResult>;
 }

@@ -381,6 +381,67 @@ a.mmp-btn {
   font-size: 14px;
 }
 
+.mmp-sender-selector {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  min-width: 0;
+}
+
+.mmp-sender-selector legend {
+  padding: 0 6px;
+  font-weight: 700;
+}
+
+.mmp-sender-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.mmp-sender-row {
+  display: grid;
+  grid-template-columns: auto 28px 1fr;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.mmp-sender-row small,
+.mmp-sender-summary span {
+  display: block;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.mmp-sender-order {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  font-size: 12px;
+}
+
+.mmp-field-error {
+  color: var(--danger);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.mmp-sender-summary {
+  margin: 12px 0 0;
+  padding-inline-start: 24px;
+}
+
+.mmp-sender-summary li + li {
+  margin-top: 8px;
+}
+
 .mmp-table-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;

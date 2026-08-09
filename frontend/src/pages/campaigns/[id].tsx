@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Layout } from "@/components/Layout";
+import { CampaignSenderSelector, type SenderMode } from "@/components/CampaignSenderSelector";
 import {
   Alert,
   Button,
@@ -17,17 +18,22 @@ import {
   tableClassName,
 } from "@/components/ui";
 import { ApiError } from "@/lib/api";
+import { fetchAccounts } from "@/lib/accounts-api";
+import { campaignAccountError } from "@/lib/campaign-account-errors";
 import { getFailureReasonFa } from "@/lib/failure-reason";
 import {
   fetchCampaignDetail,
   fetchCampaignRecipients,
   startCampaign,
   stopCampaign,
+  updateCampaignAccounts,
 } from "@/lib/campaign-api";
 import { useAuth } from "@/state/auth";
 import type { CampaignDetail, CampaignRecipientItem } from "@/types/campaign";
+import type { AccountItem } from "@/types/account";
 import { campaignStatusLabel, SEND_STATUS_OPTIONS } from "@/utils/campaign-status";
 import { canControlCampaign, canViewCampaigns } from "@/utils/permissions";
+import { accountDisplayName, orderedSenders } from "@/utils/sender-accounts";
 
 export default function CampaignMonitorPage() {
   const { t } = useTranslation();
@@ -47,6 +53,30 @@ export default function CampaignMonitorPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<AccountItem[]>([]);
+  const [accountsLoading, setAccountsLoading] = useState(true);
+  const [accountsError, setAccountsError] = useState<string | null>(null);
+  const [senderMode, setSenderMode] = useState<SenderMode>("auto");
+  const [selectedAccountIds, setSelectedAccountIds] = useState<number[]>([]);
+  const [senderSaving, setSenderSaving] = useState(false);
+
+  const loadAccounts = useCallback(async () => {
+    setAccountsLoading(true);
+    setAccountsError(null);
+    try {
+      const result = await fetchAccounts();
+      setAccounts(result.items);
+    } catch (err) {
+      setAccountsError(err instanceof ApiError ? err.message : t("accountsLoadError"));
+    } finally {
+      setAccountsLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial remote data load
+    if (canControl) void loadAccounts();
+  }, [canControl, loadAccounts]);
 
   const loadCampaign = useCallback(async () => {
     if (!canView || !Number.isFinite(campaignId)) return;
@@ -61,6 +91,9 @@ export default function CampaignMonitorPage() {
         }),
       ]);
       setCampaign(detail);
+      const ids = detail.account_ids ?? [];
+      setSenderMode(ids.length > 0 ? "manual" : "auto");
+      setSelectedAccountIds(ids);
       setRecipients(recip.items);
       setRecipientsTotal(recip.total_count);
     } catch (err) {
@@ -72,6 +105,7 @@ export default function CampaignMonitorPage() {
 
   useEffect(() => {
     if (!router.isReady) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial and filter-driven remote data load
     void loadCampaign();
   }, [router.isReady, loadCampaign]);
 
@@ -102,6 +136,26 @@ export default function CampaignMonitorPage() {
       setError(err instanceof ApiError ? err.message : t("actionFailed"));
     } finally {
       setActionLoading(false);
+    }
+  }
+
+  async function handleSaveSenders() {
+    if (!canControl || !Number.isFinite(campaignId)) return;
+    if (senderMode === "manual" && selectedAccountIds.length === 0) {
+      setError(t("senderManualRequired"));
+      return;
+    }
+    setSenderSaving(true);
+    setError(null);
+    setNotice(null);
+    try {
+      await updateCampaignAccounts(campaignId, senderMode === "auto" ? [] : selectedAccountIds);
+      setNotice(t("senderAccountsSaved"));
+      await loadCampaign();
+    } catch (err) {
+      setError(campaignAccountError(err, t));
+    } finally {
+      setSenderSaving(false);
     }
   }
 
@@ -199,6 +253,49 @@ export default function CampaignMonitorPage() {
                       {t("recipients")}: {campaign.stats.total_recipients}
                     </span>
                   </div>
+                </PanelContent>
+              </Panel>
+
+              <Panel title={t("senderAccountsTitle")}>
+                <PanelContent>
+                  <div className="mmp-muted">
+                    {t("senderMode")}: {(campaign.account_ids?.length ?? 0) > 0 ? t("senderModeManual") : t("senderModeAuto")}
+                  </div>
+                  {(campaign.account_ids?.length ?? 0) > 0 ? (
+                    <ol className="mmp-sender-summary">
+                      {orderedSenders(campaign).map((sender) => (
+                        <li key={sender.account_id}>
+                          <strong>{accountDisplayName(sender)}</strong>
+                          {sender.label && sender.account_identifier ? <span>{sender.account_identifier}</span> : null}
+                          <span>{t(`account_status_${sender.status}`)}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : null}
+                  {canControl ? (
+                    <div style={{ marginTop: 16 }}>
+                      <CampaignSenderSelector
+                        platform={campaign.platform}
+                        accounts={accounts}
+                        mode={senderMode}
+                        selectedIds={selectedAccountIds}
+                        loading={accountsLoading}
+                        loadError={accountsError}
+                        disabled={senderSaving}
+                        onModeChange={setSenderMode}
+                        onSelectedIdsChange={setSelectedAccountIds}
+                        onRetry={() => void loadAccounts()}
+                      />
+                      <p className="mmp-muted">{t("senderChangeWarning")}</p>
+                      <Button
+                        variant="primary"
+                        disabled={senderSaving || (senderMode === "manual" && selectedAccountIds.length === 0)}
+                        onClick={() => void handleSaveSenders()}
+                      >
+                        {senderSaving ? t("loading") : t("saveSenderAccounts")}
+                      </Button>
+                    </div>
+                  ) : null}
                 </PanelContent>
               </Panel>
 

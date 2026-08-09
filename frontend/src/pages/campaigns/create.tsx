@@ -1,10 +1,11 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Layout } from "@/components/Layout";
+import { CampaignSenderSelector, type SenderMode } from "@/components/CampaignSenderSelector";
 import {
   Alert,
   Button,
@@ -17,9 +18,12 @@ import {
   textareaClassName,
 } from "@/components/ui";
 import { ApiError } from "@/lib/api";
+import { fetchAccounts } from "@/lib/accounts-api";
+import { campaignAccountError } from "@/lib/campaign-account-errors";
 import { createCampaignFromImport } from "@/lib/campaign-api";
 import { useAuth } from "@/state/auth";
 import type { PlatformOption } from "@/types/campaign";
+import type { AccountItem } from "@/types/account";
 import { canCreateCampaign } from "@/utils/permissions";
 
 export default function CampaignCreatePage() {
@@ -36,11 +40,35 @@ export default function CampaignCreatePage() {
   const [includeProducts, setIncludeProducts] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<AccountItem[]>([]);
+  const [accountsLoading, setAccountsLoading] = useState(true);
+  const [accountsError, setAccountsError] = useState<string | null>(null);
+  const [senderMode, setSenderMode] = useState<SenderMode>("auto");
+  const [selectedAccountIds, setSelectedAccountIds] = useState<number[]>([]);
+
+  const loadAccounts = useCallback(async () => {
+    setAccountsLoading(true);
+    setAccountsError(null);
+    try {
+      const result = await fetchAccounts();
+      setAccounts(result.items);
+    } catch (err) {
+      setAccountsError(err instanceof ApiError ? err.message : t("accountsLoadError"));
+    } finally {
+      setAccountsLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial remote data load
+    void loadAccounts();
+  }, [loadAccounts]);
 
   useEffect(() => {
     if (!router.isReady) return;
     const raw = router.query.import_batch_id;
     if (typeof raw === "string" && raw.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronize the form with the query parameter
       setImportBatchId(raw.trim());
     }
   }, [router.isReady, router.query.import_batch_id]);
@@ -58,6 +86,10 @@ export default function CampaignCreatePage() {
       setError(t("requiredFields"));
       return;
     }
+    if (senderMode === "manual" && selectedAccountIds.length === 0) {
+      setError(t("senderManualRequired"));
+      return;
+    }
 
     setSubmitting(true);
     setError(null);
@@ -69,10 +101,11 @@ export default function CampaignCreatePage() {
         template_text: templateText.trim(),
         use_gpt: useGpt,
         include_products: includeProducts,
+        account_ids: senderMode === "auto" ? [] : selectedAccountIds,
       });
       void router.push(`/campaigns/${result.campaign_id}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("actionFailed"));
+      setError(campaignAccountError(err, t));
       setSubmitting(false);
     }
   }
@@ -116,7 +149,10 @@ export default function CampaignCreatePage() {
                 <select
                   className={selectClassName}
                   value={platform}
-                  onChange={(e) => setPlatform(e.target.value as PlatformOption)}
+                  onChange={(e) => {
+                    setPlatform(e.target.value as PlatformOption);
+                    setSelectedAccountIds([]);
+                  }}
                 >
                   <option value="bale">bale</option>
                   <option value="telegram">telegram</option>
@@ -124,6 +160,19 @@ export default function CampaignCreatePage() {
                   <option value="rubika">rubika</option>
                 </select>
               </FormField>
+
+              <CampaignSenderSelector
+                platform={platform}
+                accounts={accounts}
+                mode={senderMode}
+                selectedIds={selectedAccountIds}
+                loading={accountsLoading}
+                loadError={accountsError}
+                disabled={submitting}
+                onModeChange={setSenderMode}
+                onSelectedIdsChange={setSelectedAccountIds}
+                onRetry={() => void loadAccounts()}
+              />
 
               <FormField label={t("templateText")}>
                 <textarea
@@ -155,7 +204,11 @@ export default function CampaignCreatePage() {
 
               {error ? <Alert>{error}</Alert> : null}
 
-              <Button type="submit" variant="primary" disabled={submitting}>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={submitting || (senderMode === "manual" && selectedAccountIds.length === 0)}
+              >
                 {submitting ? t("loading") : t("createCampaign")}
               </Button>
             </form>
