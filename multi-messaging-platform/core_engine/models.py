@@ -5,6 +5,7 @@ from datetime import datetime
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     Float,
@@ -15,6 +16,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -176,6 +178,12 @@ class Account(Base):
     messages: Mapped[list["Message"]] = relationship(
         "Message",
         back_populates="account",
+    )
+    campaign_accounts: Mapped[list["CampaignAccount"]] = relationship(
+        "CampaignAccount",
+        back_populates="account",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
 
 
@@ -515,6 +523,55 @@ class Campaign(Base):
     staged_items: Mapped[list["StagedQueueItem"]] = relationship(
         "StagedQueueItem",
         back_populates="campaign",
+    )
+    campaign_accounts: Mapped[list["CampaignAccount"]] = relationship(
+        "CampaignAccount",
+        back_populates="campaign",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        order_by="CampaignAccount.priority",
+    )
+
+
+class CampaignAccount(Base):
+    __tablename__ = "campaign_accounts"
+    __table_args__ = (
+        UniqueConstraint(
+            "campaign_id",
+            "account_id",
+            name="uq_campaign_accounts_campaign_id_account_id",
+        ),
+        CheckConstraint("priority >= 1", name="ck_campaign_accounts_priority_gte_1"),
+        CheckConstraint("weight >= 1", name="ck_campaign_accounts_weight_gte_1"),
+        Index("ix_campaign_accounts_campaign_id", "campaign_id"),
+        Index("ix_campaign_accounts_account_id", "account_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    campaign_id: Mapped[int] = mapped_column(
+        ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False
+    )
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="CASCADE"), nullable=False
+    )
+    priority: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
+    weight: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
+    enabled: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
+
+    campaign: Mapped["Campaign"] = relationship(
+        "Campaign", back_populates="campaign_accounts"
+    )
+    account: Mapped["Account"] = relationship(
+        "Account", back_populates="campaign_accounts"
     )
 
 

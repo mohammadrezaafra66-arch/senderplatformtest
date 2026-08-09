@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, PositiveInt, model_validator
 
 from core_engine.models import AccountStatus, PlatformType
 
@@ -33,6 +33,39 @@ class CampaignFromImportRequest(BaseModel):
     template_text: str
     use_gpt: bool = False
     include_products: bool = False
+    account_ids: list[PositiveInt] | None = None
+
+    @model_validator(mode="after")
+    def deduplicate_account_ids(self) -> "CampaignFromImportRequest":
+        if self.account_ids is not None:
+            object.__setattr__(self, "account_ids", list(dict.fromkeys(self.account_ids)))
+        return self
+
+
+class SenderAccountResponse(BaseModel):
+    account_id: int
+    label: str | None = None
+    account_identifier: str | None = None
+    platform: PlatformType
+    status: AccountStatus
+    priority: int
+    weight: int
+    enabled: bool
+
+
+class CampaignAccountsUpdateRequest(BaseModel):
+    account_ids: list[PositiveInt]
+
+    @model_validator(mode="after")
+    def deduplicate_account_ids(self) -> "CampaignAccountsUpdateRequest":
+        object.__setattr__(self, "account_ids", list(dict.fromkeys(self.account_ids)))
+        return self
+
+
+class CampaignAccountsResponse(BaseModel):
+    campaign_id: int
+    account_ids: list[int]
+    sender_accounts: list[SenderAccountResponse]
 
 
 class CampaignFromImportResponse(BaseModel):
@@ -42,6 +75,8 @@ class CampaignFromImportResponse(BaseModel):
     contacts_attached_count: int
     skipped_contacts_count: int
     message: str
+    account_ids: list[int] = Field(default_factory=list)
+    sender_accounts: list[SenderAccountResponse] = Field(default_factory=list)
 
 
 class CampaignStatsData(BaseModel):
@@ -66,6 +101,8 @@ class CampaignListItemResponse(BaseModel):
     status: str  # "draft", "prepared", "running", etc.
     created_at: datetime
     total_recipients: int
+    account_ids: list[int] = Field(default_factory=list)
+    sender_accounts: list[SenderAccountResponse] = Field(default_factory=list)
 
 
 class CampaignDetailResponse(BaseModel):
@@ -88,6 +125,8 @@ class CampaignDetailResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     stats: CampaignStatsData
+    account_ids: list[int] = Field(default_factory=list)
+    sender_accounts: list[SenderAccountResponse] = Field(default_factory=list)
 
 
 class CampaignsListResponse(BaseModel):
