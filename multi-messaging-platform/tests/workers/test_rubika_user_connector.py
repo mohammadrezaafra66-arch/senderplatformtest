@@ -271,12 +271,21 @@ async def test_deliver_rubika_user_live_success_and_then_resend(monkeypatch, pg_
     # تست را مستقل از زمان واقعی اجرا می‌کنیم با یک بازه ۰ تا ۲۴ (همیشه فعال).
     session.query(RubikaSenderSchedule).delete()
     session.add(
-        RubikaSenderSchedule(phase="day", start_hour=0, end_hour=24, max_per_hour=999, is_active=True)
+        RubikaSenderSchedule(
+            phase="test-resend",
+            start_hour=0,
+            end_hour=24,
+            max_per_hour=999,
+            is_active=True,
+        )
     )
     session.commit()
 
-    account = _make_send_ready_account(session, label="senduser1", phase="day")
-
+    account = _make_send_ready_account(
+        session,
+        label="senduser1",
+        phase="test-resend",
+    )
     campaign = Campaign(
         name="user-connector-test", title="user-connector-test", channel="rubika",
         platform=PlatformType.RUBIKA,
@@ -325,11 +334,17 @@ async def test_deliver_rubika_user_live_success_and_then_resend(monkeypatch, pg_
     async def fake_send_message(self, **kwargs):
         return fake_send
 
+    async def fake_set_min_delay(redis, account_id, delay_seconds):
+        return None
+
     monkeypatch.setattr("rubpy.Client.connect", fake_connect)
     monkeypatch.setattr("rubpy.Client.disconnect", fake_disconnect)
     monkeypatch.setattr("rubpy.Client.add_address_book", fake_add_address_book)
     monkeypatch.setattr("rubpy.Client.send_message", fake_send_message)
-
+    monkeypatch.setattr(
+        "workers.rate_limit.set_min_delay",
+        fake_set_min_delay,
+    )
     result = await deliver_rubika_user_live(payload, settings, db=session)
     assert result.success is True
     assert result.status == "delivered"
