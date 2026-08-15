@@ -143,6 +143,8 @@ async def test_telegram_session_wiring_to_delivery(monkeypatch, pg_session_facto
 
 @pytest.mark.asyncio
 async def test_rubika_session_wiring_to_delivery(monkeypatch, pg_session_factory):
+    monkeypatch.setenv("RUBIKA_DELIVERY_MODE", "bot_api")
+    get_settings.cache_clear()
     session = pg_session_factory()
     account = Account(
         platform=PlatformType.RUBIKA,
