@@ -2,7 +2,8 @@
 
 **Branch:** `feature/rubika-module`  
 **START_HEAD:** `bccfe557302e135412933f3c194c6e2b145db01b`  
-**Result:** see gate checklist below (filled after validation).
+**END_HEAD:** `e7b84f2a0b7a8ba5fdbcb52a3eb5be3efd0c4f1f`  
+**Result:** **PASS**
 
 ## Objective
 
@@ -33,7 +34,7 @@ assigned account
   → commit (success) / release (failure)
 ```
 
-## Gates (post-validation)
+## Gates
 
 | Gate | Criterion | Status |
 |------|-----------|--------|
@@ -49,11 +50,11 @@ assigned account
 | 10 | Blocked states ≠ transport | PASS |
 | 11 | No silent account replace | PASS |
 | 12 | Production bypass = 0 | PASS* |
-| 13 | Targeted tests | (run) |
-| 14 | Full backend suite | (run) |
-| 15 | compileall | (run) |
+| 13 | Targeted tests | PASS (12) |
+| 14 | Full backend suite | PASS (362) |
+| 15 | compileall | PASS |
 | 16 | Single Alembic head | PASS |
-| 17 | git diff --check | (run) |
+| 17 | git diff --check | PASS |
 | 18 | No real message | PASS |
 
 \*bot_api uses Layers A–E (session/state). Warm-up/daily/hourly application
