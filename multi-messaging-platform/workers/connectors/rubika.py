@@ -368,12 +368,55 @@ async def deliver_rubika_live(
             chat_id[-4:] if len(chat_id) >= 4 else "****",
         )
 
-        return await send_rubika_text_message(
+        result = await send_rubika_text_message(
             bot_token=bot_token,
             chat_id=chat_id,
             text=payload.message_text,
             settings=settings,
         )
+        try:
+            from core_engine.services.redis_client import get_redis_client
+            from core_engine.services.rubika_health import (
+                record_rubika_send_failure,
+                record_rubika_send_success,
+            )
+
+            redis = get_redis_client()
+            if result.success:
+                await record_rubika_send_success(
+                    redis,
+                    account_id,
+                    window_seconds=int(settings.RUBIKA_HEALTH_WINDOW_SECONDS),
+                    half_open_successes_to_close=int(
+                        settings.RUBIKA_CIRCUIT_HALF_OPEN_SUCCESS_TO_CLOSE
+                    ),
+                )
+            else:
+                await record_rubika_send_failure(
+                    redis,
+                    session,
+                    account_id=account_id,
+                    code=result.error_code,
+                    retryable=bool(result.retryable),
+                    mode=RUBIKA_MODE_BOT_API,
+                    campaign_id=payload.campaign_id,
+                    message_id=payload.message_id,
+                    source="bot_api",
+                    consecutive_threshold=int(settings.RUBIKA_HEALTH_CONSECUTIVE_FAILURES),
+                    failure_count_threshold=int(settings.RUBIKA_HEALTH_FAILURE_COUNT),
+                    failure_ratio_threshold=float(settings.RUBIKA_HEALTH_FAILURE_RATIO),
+                    min_samples=int(settings.RUBIKA_HEALTH_MIN_SAMPLES),
+                    cooldown_threshold=int(settings.RUBIKA_FAILURE_THRESHOLD),
+                    cooldown_seconds=int(settings.RUBIKA_FAILURE_COOLDOWN_SECONDS),
+                    throttle_seconds=int(settings.RUBIKA_FAILURE_THROTTLE_SECONDS),
+                    circuit_distinct_accounts=int(settings.RUBIKA_CIRCUIT_DISTINCT_ACCOUNTS),
+                    circuit_failure_threshold=int(settings.RUBIKA_CIRCUIT_FAILURE_THRESHOLD),
+                    circuit_window_seconds=int(settings.RUBIKA_CIRCUIT_WINDOW_SECONDS),
+                    circuit_open_seconds=int(settings.RUBIKA_CIRCUIT_OPEN_SECONDS),
+                )
+        except Exception:  # noqa: BLE001 — health bookkeeping must not break delivery result
+            logger.exception("rubika_bot_health_record_failed account_id=%s", account_id)
+        return result
     finally:
         if owns_session:
             session.close()

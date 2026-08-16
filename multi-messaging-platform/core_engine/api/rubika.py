@@ -581,3 +581,129 @@ def delete_rubika_content_schedule(
     if not deleted:
         raise HTTPException(status_code=404, detail="آیتم زمان‌بندی پیدا نشد.")
     return {"success": True, "schedule_id": schedule_id}
+
+
+# ─────────────────────────────────────────────────────────────────
+# Phase 4 — health / protection / incidents / restore
+# ─────────────────────────────────────────────────────────────────
+
+
+@router.get("/health")
+async def rubika_system_health(
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    from core_engine.services.redis_client import get_redis_client
+    from core_engine.services.rubika_circuit import get_circuit_snapshot
+    from core_engine.services.rubika_incidents import list_open_incidents
+    from workers.config import get_worker_settings
+
+    settings = get_worker_settings()
+    redis = get_redis_client()
+    snap = await get_circuit_snapshot(
+        redis,
+        probe_budget=int(settings.RUBIKA_CIRCUIT_PROBE_BUDGET),
+        window_seconds=int(settings.RUBIKA_CIRCUIT_WINDOW_SECONDS),
+    )
+    incidents = await list_open_incidents(redis)
+    return {
+        "state": snap.state,
+        "code": "RUBIKA_CIRCUIT_OPEN" if snap.state == "open" else "OK",
+        "message": "وضعیت حفاظت سراسری روبیکا",
+        "circuit": {
+            "state": snap.state,
+            "opened_at": snap.opened_at,
+            "half_open_at": snap.half_open_at,
+            "open_until": snap.open_until,
+            "probe_budget": snap.probe_budget,
+            "probe_remaining": snap.probe_remaining,
+            "reason": snap.reason,
+        },
+        "open_incidents": len(incidents),
+    }
+
+
+@router.get("/protection/status")
+async def rubika_protection_status(
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    return await rubika_system_health(current_user=current_user)
+
+
+@router.get("/accounts/{account_id}/health")
+async def rubika_account_health(
+    account_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    from core_engine.services.redis_client import get_redis_client
+    from core_engine.services.rubika_health import build_health_snapshot
+
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if account is None:
+        raise HTTPException(status_code=404, detail="اکانت پیدا نشد.")
+    if account.platform != PlatformType.RUBIKA:
+        raise HTTPException(status_code=400, detail="اکانت روبیکا نیست.")
+    redis = get_redis_client()
+    snap = await build_health_snapshot(redis, account)
+    return {
+        "state": snap.health_state,
+        "code": "ACCOUNT_QUARANTINED" if snap.quarantined else "OK",
+        "message": "وضعیت سلامت اکانت روبیکا",
+        "health": snap.to_dict(),
+    }
+
+
+@router.get("/incidents")
+async def rubika_list_incidents(
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    from core_engine.services.redis_client import get_redis_client
+    from core_engine.services.rubika_incidents import list_open_incidents
+
+    redis = get_redis_client()
+    items = await list_open_incidents(redis)
+    return {"items": [i.to_dict() for i in items], "count": len(items)}
+
+
+@router.post("/accounts/{account_id}/restore")
+async def rubika_restore_account(
+    account_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
+):
+    from core_engine.services.redis_client import get_redis_client
+    from core_engine.services.rubika_health import restore_rubika_account
+
+    redis = get_redis_client()
+    result = await restore_rubika_account(
+        db,
+        redis,
+        account_id=account_id,
+        username=current_user["username"],
+        require_session_ready=True,
+    )
+    if not result.ok:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "state": "denied",
+                "code": result.code,
+                "message": result.message,
+                "retryable": False,
+            },
+        )
+    return {
+        "state": "restored",
+        "code": result.code,
+        "message": result.message,
+        "account_id": result.account_id,
+        "health_state": result.health_state,
+    }

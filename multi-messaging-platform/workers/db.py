@@ -88,6 +88,8 @@ _RESULT_TO_SEND_STATUS: dict[str, SendStatus] = {
     "rubika_outside_send_window": SendStatus.FAILED_RETRYABLE,
     "rubika_account_throttled": SendStatus.FAILED_RETRYABLE,
     "rubika_account_suspended": SendStatus.FAILED_PERMANENT,
+    "rubika_account_quarantined": SendStatus.FAILED_PERMANENT,
+    "rubika_circuit_open": SendStatus.FAILED_RETRYABLE,
     "rubika_redis_unavailable": SendStatus.FAILED_RETRYABLE,
     "rubika_unknown_preflight_error": SendStatus.FAILED_RETRYABLE,
     # تکراری cross-campaign — موفق محسوب می‌شود (تصمیم عمدی)، نه شکست
@@ -184,6 +186,8 @@ _RESULT_TO_ATTEMPT_STATUS: dict[str, MessageAttemptStatus] = {
     "rubika_outside_send_window": MessageAttemptStatus.FAILED_RETRYABLE,
     "rubika_account_throttled": MessageAttemptStatus.FAILED_RETRYABLE,
     "rubika_account_suspended": MessageAttemptStatus.FAILED_PERMANENT,
+    "rubika_account_quarantined": MessageAttemptStatus.FAILED_PERMANENT,
+    "rubika_circuit_open": MessageAttemptStatus.FAILED_RETRYABLE,
     "rubika_redis_unavailable": MessageAttemptStatus.FAILED_RETRYABLE,
     "rubika_unknown_preflight_error": MessageAttemptStatus.FAILED_RETRYABLE,
     "skipped_duplicate": MessageAttemptStatus.SUCCESS,

@@ -16,6 +16,12 @@ DASHBOARD_QUEUE_NAMES = (
 )
 
 
+def reset_redis_client() -> None:
+    """Drop cached client so a later call can reconnect after failures/loop changes."""
+    global _redis_client
+    _redis_client = None
+
+
 def get_redis_client() -> Redis:
     global _redis_client
     if _redis_client is None:
@@ -25,12 +31,6 @@ def get_redis_client() -> Redis:
             decode_responses=True,
         )
     return _redis_client
-
-
-def reset_redis_client() -> None:
-    """Drop cached client so a later call can reconnect after failures."""
-    global _redis_client
-    _redis_client = None
 
 
 async def ping_redis(*, max_attempts: int = 3) -> bool:

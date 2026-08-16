@@ -57,6 +57,8 @@ MIN_INTERVAL_ACTIVE = "MIN_INTERVAL_ACTIVE"
 OUTSIDE_SEND_WINDOW = "OUTSIDE_SEND_WINDOW"
 ACCOUNT_THROTTLED = "ACCOUNT_THROTTLED"
 ACCOUNT_SUSPENDED = "ACCOUNT_SUSPENDED"
+ACCOUNT_QUARANTINED = "ACCOUNT_QUARANTINED"
+RUBIKA_CIRCUIT_OPEN = "RUBIKA_CIRCUIT_OPEN"
 REDIS_UNAVAILABLE = "REDIS_UNAVAILABLE"
 UNKNOWN_PREFLIGHT_ERROR = "UNKNOWN_PREFLIGHT_ERROR"
 
@@ -68,6 +70,7 @@ _RETRYABLE_CODES = frozenset({
     MIN_INTERVAL_ACTIVE,
     OUTSIDE_SEND_WINDOW,
     ACCOUNT_THROTTLED,
+    RUBIKA_CIRCUIT_OPEN,
     REDIS_UNAVAILABLE,
     ACCOUNT_NOT_IN_ALLOWED_POOL,  # pool membership may change; treat as retryable
 })
@@ -95,6 +98,8 @@ _PERSIAN_MESSAGES: dict[str, str] = {
     OUTSIDE_SEND_WINDOW: "خارج از بازه زمانی ارسال روبیکا است.",
     ACCOUNT_THROTTLED: "اکانت در حالت محدودیت موقت (throttled) است.",
     ACCOUNT_SUSPENDED: "اکانت معلق است و ارسال مجاز نیست.",
+    ACCOUNT_QUARANTINED: "اکانت در قرنطینه حفاظتی است و ارسال مجاز نیست.",
+    RUBIKA_CIRCUIT_OPEN: "مدارشکن سراسری روبیکا باز است؛ ارسال متوقف شد.",
     REDIS_UNAVAILABLE: "سرویس Redis در دسترس نیست؛ ارسال متوقف شد.",
     UNKNOWN_PREFLIGHT_ERROR: "خطای ناشناخته در پیش‌پرواز ارسال روبیکا.",
 }
@@ -113,8 +118,11 @@ class RubikaPreflightResult:
 
     @property
     def worker_error_code(self) -> str:
-        """Stable WorkerResult.error_code (snake_case, rubika_ prefixed)."""
-        return f"rubika_{self.code.lower()}"
+        """Stable WorkerResult.error_code (snake_case, rubika_ prefixed once)."""
+        code = self.code.lower()
+        if code.startswith("rubika_"):
+            return code
+        return f"rubika_{code}"
 
 
 def _deny(
@@ -336,6 +344,87 @@ async def evaluate_rubika_send_preflight(
                 details=details,
             )
     # bot_api has no separate "disabled" flag beyond env gates in delivery.py
+
+    # --- Layer P0: System circuit + account quarantine (Phase 4) ---
+    # Runs for ALL modes/contexts before quota so OPEN circuit never reserves.
+    details["layer"] = "P0"
+    try:
+        from core_engine.services.redis_client import get_redis_client, reset_redis_client
+
+        async def _usable_redis(existing: Any | None) -> Any:
+            client = existing if existing is not None else get_redis_client()
+            try:
+                await client.ping()
+                return client
+            except RuntimeError:
+                # pytest-asyncio may close the loop between tests; reconnect.
+                reset_redis_client()
+                client = get_redis_client()
+                await client.ping()
+                return client
+
+        redis = await _usable_redis(redis)
+        from core_engine.services.rubika_circuit import assert_circuit_allows_send
+        from core_engine.services.rubika_health import get_quarantine_meta, is_account_quarantined
+        from workers.config import get_worker_settings
+
+        _settings = get_worker_settings()
+        allowed_circuit, circuit_detail, probe_token = await assert_circuit_allows_send(
+            redis,
+            probe_budget=int(getattr(_settings, "RUBIKA_CIRCUIT_PROBE_BUDGET", 1) or 1),
+            clock=clock,
+        )
+        if not allowed_circuit:
+            return _deny(
+                code=RUBIKA_CIRCUIT_OPEN,
+                account_id=account_id,
+                delivery_mode=mode,
+                session_type=session_type,
+                details={
+                    **details,
+                    "circuit_detail": circuit_detail,
+                    "retry_after_hint": "wait_for_circuit_recovery",
+                },
+            )
+        if probe_token:
+            details["circuit_probe_token"] = probe_token
+
+        if await is_account_quarantined(redis, account_id):
+            qmeta = await get_quarantine_meta(redis, account_id) or {}
+            return _deny(
+                code=ACCOUNT_QUARANTINED,
+                account_id=account_id,
+                delivery_mode=mode,
+                session_type=session_type,
+                details={
+                    **details,
+                    "reason": qmeta.get("reason"),
+                    "source": qmeta.get("source"),
+                    "started_at": qmeta.get("started_at"),
+                    "until": qmeta.get("until"),
+                    "manual_review_required": qmeta.get("manual_review_required"),
+                    "last_failure_code": qmeta.get("last_failure_code"),
+                },
+            )
+    except Exception as exc:  # noqa: BLE001 — protection deps fail closed
+        logger.warning(
+            "event=rubika_protection_redis_failure account_id=%s error=%s detail=%s",
+            account_id,
+            type(exc).__name__,
+            str(exc)[:200],
+        )
+        return _deny(
+            code=REDIS_UNAVAILABLE,
+            account_id=account_id,
+            delivery_mode=mode,
+            session_type=session_type,
+            details={
+                **details,
+                "error": type(exc).__name__,
+                "error_message": str(exc)[:200],
+                "protection": True,
+            },
+        )
 
     # --- Layer B: Account state (fail closed; ACTIVE only for send) ---
     details["layer"] = "B"

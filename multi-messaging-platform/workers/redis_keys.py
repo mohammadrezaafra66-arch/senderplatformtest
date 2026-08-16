@@ -67,3 +67,51 @@ def rubika_cooldown_meta_key(account_id: int | str) -> str:
 
 def rubika_throttle_key(account_id: int | str) -> str:
     return f"rubika:throttle:{account_id}"
+
+
+def rubika_quarantine_key(account_id: int | str) -> str:
+    return f"rubika:quarantine:{account_id}"
+
+
+def rubika_health_success_key(account_id: int | str, window: str) -> str:
+    return f"rubika:health:ok:{account_id}:{window}"
+
+
+def rubika_health_fail_key(account_id: int | str, window: str) -> str:
+    return f"rubika:health:fail:{account_id}:{window}"
+
+
+def rubika_health_consec_key(account_id: int | str) -> str:
+    return f"rubika:health:consec:{account_id}"
+
+
+def rubika_health_meta_key(account_id: int | str) -> str:
+    return f"rubika:health:meta:{account_id}"
+
+
+def rubika_circuit_state_key() -> str:
+    return "rubika:circuit:state"
+
+
+def rubika_circuit_meta_key() -> str:
+    return "rubika:circuit:meta"
+
+
+def rubika_circuit_probe_key() -> str:
+    return "rubika:circuit:probe"
+
+
+def rubika_circuit_sys_accounts_key(window: str) -> str:
+    return f"rubika:circuit:sysacct:{window}"
+
+
+def rubika_circuit_sys_count_key(window: str) -> str:
+    return f"rubika:circuit:syscount:{window}"
+
+
+def rubika_incident_key(dedupe: str) -> str:
+    return f"rubika:incident:{dedupe}"
+
+
+def rubika_incident_index_key() -> str:
+    return "rubika:incidents:open"

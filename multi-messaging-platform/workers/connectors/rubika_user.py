@@ -197,6 +197,10 @@ async def deliver_rubika_user_live(
         resolve_effective_limits,
         resolve_rubika_lifecycle,
     )
+    from core_engine.services.rubika_health import (
+        record_rubika_send_failure,
+        record_rubika_send_success,
+    )
     from core_engine.services.rubika_preflight import (
         ACCOUNT_MISSING,
         REDIS_UNAVAILABLE,
@@ -206,9 +210,7 @@ async def deliver_rubika_user_live(
         preflight_to_worker_result,
     )
     from core_engine.services.rubika_quota import (
-        clear_failure_count,
         commit_reservation,
-        record_send_failure,
         release_reservation,
         reserve_send_quota,
     )
@@ -409,6 +411,28 @@ async def deliver_rubika_user_live(
                 error_message=str(exc),
                 requires_relogin=True,
             )
+            await record_rubika_send_failure(
+                redis,
+                session,
+                account_id=account.id,
+                code="rubika_user_session_invalid",
+                retryable=False,
+                mode=RUBIKA_MODE_USER_ACCOUNT,
+                campaign_id=payload.campaign_id,
+                message_id=payload.message_id,
+                source="user_account",
+                consecutive_threshold=int(settings.RUBIKA_HEALTH_CONSECUTIVE_FAILURES),
+                failure_count_threshold=int(settings.RUBIKA_HEALTH_FAILURE_COUNT),
+                failure_ratio_threshold=float(settings.RUBIKA_HEALTH_FAILURE_RATIO),
+                min_samples=int(settings.RUBIKA_HEALTH_MIN_SAMPLES),
+                cooldown_threshold=int(settings.RUBIKA_FAILURE_THRESHOLD),
+                cooldown_seconds=int(settings.RUBIKA_FAILURE_COOLDOWN_SECONDS),
+                throttle_seconds=int(settings.RUBIKA_FAILURE_THROTTLE_SECONDS),
+                circuit_distinct_accounts=int(settings.RUBIKA_CIRCUIT_DISTINCT_ACCOUNTS),
+                circuit_failure_threshold=int(settings.RUBIKA_CIRCUIT_FAILURE_THRESHOLD),
+                circuit_window_seconds=int(settings.RUBIKA_CIRCUIT_WINDOW_SECONDS),
+                circuit_open_seconds=int(settings.RUBIKA_CIRCUIT_OPEN_SECONDS),
+            )
             return WorkerResult(
                 success=False,
                 status="failed_permanent",
@@ -424,6 +448,28 @@ async def deliver_rubika_user_live(
                 error_message=str(exc),
                 requires_relogin=True,
             )
+            await record_rubika_send_failure(
+                redis,
+                session,
+                account_id=account.id,
+                code="rubika_user_session_invalid",
+                retryable=False,
+                mode=RUBIKA_MODE_USER_ACCOUNT,
+                campaign_id=payload.campaign_id,
+                message_id=payload.message_id,
+                source="user_account",
+                consecutive_threshold=int(settings.RUBIKA_HEALTH_CONSECUTIVE_FAILURES),
+                failure_count_threshold=int(settings.RUBIKA_HEALTH_FAILURE_COUNT),
+                failure_ratio_threshold=float(settings.RUBIKA_HEALTH_FAILURE_RATIO),
+                min_samples=int(settings.RUBIKA_HEALTH_MIN_SAMPLES),
+                cooldown_threshold=int(settings.RUBIKA_FAILURE_THRESHOLD),
+                cooldown_seconds=int(settings.RUBIKA_FAILURE_COOLDOWN_SECONDS),
+                throttle_seconds=int(settings.RUBIKA_FAILURE_THROTTLE_SECONDS),
+                circuit_distinct_accounts=int(settings.RUBIKA_CIRCUIT_DISTINCT_ACCOUNTS),
+                circuit_failure_threshold=int(settings.RUBIKA_CIRCUIT_FAILURE_THRESHOLD),
+                circuit_window_seconds=int(settings.RUBIKA_CIRCUIT_WINDOW_SECONDS),
+                circuit_open_seconds=int(settings.RUBIKA_CIRCUIT_OPEN_SECONDS),
+            )
             return WorkerResult(
                 success=False,
                 status="failed_permanent",
@@ -437,12 +483,27 @@ async def deliver_rubika_user_live(
             pool.mark_account_failed(
                 account_id=account.id, error_message=str(exc), permanent=False
             )
-            await record_send_failure(
+            await record_rubika_send_failure(
                 redis,
-                account.id,
-                threshold=int(settings.RUBIKA_FAILURE_THRESHOLD),
+                session,
+                account_id=account.id,
+                code="rubika_user_rate_limited",
+                retryable=True,
+                mode=RUBIKA_MODE_USER_ACCOUNT,
+                campaign_id=payload.campaign_id,
+                message_id=payload.message_id,
+                source="user_account",
+                consecutive_threshold=int(settings.RUBIKA_HEALTH_CONSECUTIVE_FAILURES),
+                failure_count_threshold=int(settings.RUBIKA_HEALTH_FAILURE_COUNT),
+                failure_ratio_threshold=float(settings.RUBIKA_HEALTH_FAILURE_RATIO),
+                min_samples=int(settings.RUBIKA_HEALTH_MIN_SAMPLES),
+                cooldown_threshold=int(settings.RUBIKA_FAILURE_THRESHOLD),
                 cooldown_seconds=int(settings.RUBIKA_FAILURE_COOLDOWN_SECONDS),
                 throttle_seconds=int(settings.RUBIKA_FAILURE_THROTTLE_SECONDS),
+                circuit_distinct_accounts=int(settings.RUBIKA_CIRCUIT_DISTINCT_ACCOUNTS),
+                circuit_failure_threshold=int(settings.RUBIKA_CIRCUIT_FAILURE_THRESHOLD),
+                circuit_window_seconds=int(settings.RUBIKA_CIRCUIT_WINDOW_SECONDS),
+                circuit_open_seconds=int(settings.RUBIKA_CIRCUIT_OPEN_SECONDS),
             )
             return WorkerResult(
                 success=False,
@@ -454,12 +515,27 @@ async def deliver_rubika_user_live(
         except RubikaRequestError as exc:
             await release_reservation(redis, reservation)
             reservation = None
-            await record_send_failure(
+            await record_rubika_send_failure(
                 redis,
-                account.id,
-                threshold=int(settings.RUBIKA_FAILURE_THRESHOLD),
+                session,
+                account_id=account.id,
+                code="rubika_user_api_error",
+                retryable=True,
+                mode=RUBIKA_MODE_USER_ACCOUNT,
+                campaign_id=payload.campaign_id,
+                message_id=payload.message_id,
+                source="user_account",
+                consecutive_threshold=int(settings.RUBIKA_HEALTH_CONSECUTIVE_FAILURES),
+                failure_count_threshold=int(settings.RUBIKA_HEALTH_FAILURE_COUNT),
+                failure_ratio_threshold=float(settings.RUBIKA_HEALTH_FAILURE_RATIO),
+                min_samples=int(settings.RUBIKA_HEALTH_MIN_SAMPLES),
+                cooldown_threshold=int(settings.RUBIKA_FAILURE_THRESHOLD),
                 cooldown_seconds=int(settings.RUBIKA_FAILURE_COOLDOWN_SECONDS),
                 throttle_seconds=int(settings.RUBIKA_FAILURE_THROTTLE_SECONDS),
+                circuit_distinct_accounts=int(settings.RUBIKA_CIRCUIT_DISTINCT_ACCOUNTS),
+                circuit_failure_threshold=int(settings.RUBIKA_CIRCUIT_FAILURE_THRESHOLD),
+                circuit_window_seconds=int(settings.RUBIKA_CIRCUIT_WINDOW_SECONDS),
+                circuit_open_seconds=int(settings.RUBIKA_CIRCUIT_OPEN_SECONDS),
             )
             return WorkerResult(
                 success=False,
@@ -483,7 +559,14 @@ async def deliver_rubika_user_live(
         delay_seconds = compute_jitter_seconds(limits, rng=random)
         await commit_reservation(redis, reservation, min_interval_seconds=delay_seconds)
         reservation = None
-        await clear_failure_count(redis, account.id)
+        await record_rubika_send_success(
+            redis,
+            account.id,
+            window_seconds=int(settings.RUBIKA_HEALTH_WINDOW_SECONDS),
+            half_open_successes_to_close=int(
+                settings.RUBIKA_CIRCUIT_HALF_OPEN_SUCCESS_TO_CLOSE
+            ),
+        )
 
         if ensure_warming_started(account):
             logger.info(
