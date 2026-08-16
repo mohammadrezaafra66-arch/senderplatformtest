@@ -181,52 +181,83 @@ async def deliver_rubika_user_live(
     settings: WorkerSettings,
     db: Session | None = None,
 ) -> WorkerResult:
-    """ارسال از طریق اکانت شخصی روبیکا (rubpy) — استخر چند اکانتی + عکس.
+    """ارسال از طریق اکانت شخصی روبیکا (rubpy).
 
-    dedup سراسری (rubika_global_sent_registry) عمداً اعمال نمی‌شود: یک contact
-    می‌تواند در چند کمپین مختلف پیام بگیرد. خود جدول دست‌نخورده باقی می‌ماند.
+    Phase 2 account selection precedence:
+    - WorkerPayload.account_id is the EXACT assigned sender (campaign/ops/queue).
+    - Pool membership / send-window / cooldown / hourly cap are enforced via
+      central preflight — the connector does NOT silently replace the account.
     """
+    from core_engine.models import Account
     from core_engine.services.redis_client import get_redis_client
+    from core_engine.services.rubika_mode import RUBIKA_MODE_USER_ACCOUNT
+    from core_engine.services.rubika_preflight import (
+        ACCOUNT_MISSING,
+        RubikaPreflightResult,
+        evaluate_rubika_send_preflight,
+        log_rubika_preflight_denial,
+        preflight_to_worker_result,
+    )
     from workers.rate_limit import record_successful_send, set_min_delay
 
     owns_session = db is None
     session = db or get_db_session()
     try:
-        # contact_id در send-test endpoint ممکن است string غیر-عددی مثل ops-test-xxx باشد
         try:
             contact_id = int(payload.contact_id)
         except (TypeError, ValueError):
             contact_id = None
 
-        # ۱) فاز فعال همین لحظه (به وقت ایران) — خارج از بازه یعنی صبر کن
-        phase = resolve_current_phase(session)
-        if phase is None:
-            return WorkerResult(
-                success=False,
-                status="failed_retryable",
-                error_code="rubika_user_outside_send_window",
-                error_message="هیچ بازه فعالی در rubika_sender_schedules ساعت جاری را پوشش نمی‌دهد.",
-                retryable=True,
+        try:
+            account_id = int(payload.account_id)
+        except (TypeError, ValueError):
+            denied = RubikaPreflightResult(
+                allowed=False,
+                code=ACCOUNT_MISSING,
+                message="account_id نامعتبر است.",
+                retryable=False,
             )
+            log_rubika_preflight_denial(
+                denied,
+                context="user_account",
+                campaign_id=payload.campaign_id,
+                message_id=payload.message_id,
+                recipient_type=payload.recipient_type,
+            )
+            return preflight_to_worker_result(denied)
 
-        # ۲) اکانت سالم این فاز که در cooldown/سقف ساعتی نیست
         redis = get_redis_client()
-        pool = RubikaAccountPoolManager(session)
-        account = await pool.get_available_account(
-            phase=phase, redis=redis, hourly_cap=settings.RUBIKA_HOURLY_SEND_CAP
+        preflight = await evaluate_rubika_send_preflight(
+            session,
+            account_id=account_id,
+            delivery_mode=RUBIKA_MODE_USER_ACCOUNT,
+            user_account_enabled=settings.RUBIKA_USER_ACCOUNT_ENABLED,
+            campaign_id=payload.campaign_id,
+            context="worker",
+            redis=redis,
+            hourly_cap=settings.RUBIKA_HOURLY_SEND_CAP,
+            check_runtime_limits=True,
+            check_pool_membership=True,
+            check_send_window=True,
+            check_campaign_assignment=True,
         )
-        if account is None:
-            return WorkerResult(
-                success=False,
-                status="failed_retryable",
-                error_code="rubika_user_no_account_available",
-                error_message=f"هیچ اکانت سالمی در فاز '{phase}' آماده نیست (cooldown یا سقف ساعتی).",
-                retryable=True,
+        if not preflight.allowed:
+            log_rubika_preflight_denial(
+                preflight,
+                context="user_account",
+                campaign_id=payload.campaign_id,
+                message_id=payload.message_id,
+                recipient_type=payload.recipient_type,
             )
+            return preflight_to_worker_result(preflight)
 
-        # اگر contact_id معتبر نیست (مثلاً send-test)، یک Contact مصنوعی با recipient بساز
+        account = session.query(Account).filter(Account.id == account_id).first()
+        assert account is not None  # preflight already verified
+
+        pool = RubikaAccountPoolManager(session)
+        phase = resolve_current_phase(session)
+
         if contact_id is None:
-            # send-test بدون contact واقعی — مستقیم از recipient استفاده می‌کنیم
             contact = Contact(
                 phone_e164=payload.recipient,
                 phone=payload.recipient,
@@ -342,7 +373,6 @@ async def deliver_rubika_user_live(
         finally:
             await client.disconnect()
 
-        # ۳) موفق — rate limit و delay تصادفی بعدی را ثبت کن
         await record_successful_send(redis, account.id)
         pool.mark_account_used(account_id=account.id)
         random_delay = random.uniform(

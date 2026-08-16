@@ -219,6 +219,9 @@ class RubikaStatusBot:
         """یک دوره: دریافت پست‌های جدید + لایک + نظر (با rate cap)."""
         from rubpy.rubino import Rubino
 
+        if not await self._side_channel_preflight_ok():
+            return {"likes": 0, "comments": 0, "reason": "preflight_denied"}
+
         like_count = await _get_like_count(redis, self.account_id)
         comment_count = await _get_comment_count(redis, self.account_id)
 
@@ -289,6 +292,9 @@ class RubikaStatusBot:
     async def _run_publish_cycle(self) -> dict:
         """انتشار استاتوس‌های زمان‌بندی‌شده که وقتشان رسیده."""
         from rubpy.rubino import Rubino
+
+        if not await self._side_channel_preflight_ok():
+            return {"published": 0, "reason": "preflight_denied"}
 
         db: Session = get_db_session()
         published = 0
@@ -366,6 +372,27 @@ class RubikaStatusBot:
                 permanent=False,
             )
             db.commit()
+        finally:
+            db.close()
+
+    async def _side_channel_preflight_ok(self) -> bool:
+        """Phase 2: block status transports when account/session not ready."""
+        if self.account_id is None:
+            return False
+        from core_engine.services.rubika_preflight import (
+            log_rubika_preflight_denial,
+            require_rubika_side_channel_send,
+        )
+
+        db = get_db_session()
+        try:
+            gate = await require_rubika_side_channel_send(
+                db, account_id=int(self.account_id), context="status"
+            )
+            if not gate.allowed:
+                log_rubika_preflight_denial(gate, context="status")
+                return False
+            return True
         finally:
             db.close()
 

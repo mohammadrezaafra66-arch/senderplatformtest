@@ -277,43 +277,103 @@ def load_rubika_bot_token(account_id: int | str, db=None) -> str:
 async def deliver_rubika_live(
     payload: WorkerPayload,
     settings: WorkerSettings,
+    db=None,
 ) -> WorkerResult:
-    """Send a message through the Rubika Bot API using the account session token."""
+    """Send a message through the Rubika Bot API using the account session token.
+
+    Phase 2: central preflight MUST pass before any HTTP transport call.
+    """
+    from core_engine.services.rubika_mode import RUBIKA_MODE_BOT_API
+    from core_engine.services.rubika_preflight import (
+        evaluate_rubika_send_preflight,
+        log_rubika_preflight_denial,
+        preflight_to_worker_result,
+    )
+
+    owns_session = db is None
+    session = db or get_db_session()
     try:
-        bot_token = load_rubika_bot_token(payload.account_id)
-        chat_id = resolve_rubika_chat_id(payload)
-    except SessionInvalidError as exc:
-        return WorkerResult(
-            success=False,
-            status="failed_permanent",
-            error_code="rubika_session_missing",
-            error_message=str(exc),
-            retryable=False,
+        try:
+            account_id = int(payload.account_id)
+        except (TypeError, ValueError):
+            from core_engine.services.rubika_preflight import (
+                ACCOUNT_MISSING,
+                RubikaPreflightResult,
+            )
+
+            denied = RubikaPreflightResult(
+                allowed=False,
+                code=ACCOUNT_MISSING,
+                message="account_id نامعتبر است.",
+                retryable=False,
+            )
+            log_rubika_preflight_denial(
+                denied,
+                context="bot_api",
+                campaign_id=payload.campaign_id,
+                message_id=payload.message_id,
+                recipient_type=payload.recipient_type,
+            )
+            return preflight_to_worker_result(denied)
+
+        preflight = await evaluate_rubika_send_preflight(
+            session,
+            account_id=account_id,
+            delivery_mode=RUBIKA_MODE_BOT_API,
+            campaign_id=payload.campaign_id,
+            context="worker",
+            check_runtime_limits=False,
+            check_pool_membership=False,
+            check_send_window=False,
         )
-    except PermanentWorkerError as exc:
-        message = str(exc)
-        error_code = (
-            "rubika_chat_id_required"
-            if "chat_id" in message.lower()
-            else "rubika_invalid_payload"
-        )
-        return WorkerResult(
-            success=False,
-            status="failed_permanent",
-            error_code=error_code,
-            error_message=message,
-            retryable=False,
+        if not preflight.allowed:
+            log_rubika_preflight_denial(
+                preflight,
+                context="bot_api",
+                campaign_id=payload.campaign_id,
+                message_id=payload.message_id,
+                recipient_type=payload.recipient_type,
+            )
+            return preflight_to_worker_result(preflight)
+
+        try:
+            bot_token = load_rubika_bot_token(account_id, db=session)
+            chat_id = resolve_rubika_chat_id(payload)
+        except SessionInvalidError as exc:
+            return WorkerResult(
+                success=False,
+                status="failed_permanent",
+                error_code="rubika_session_missing",
+                error_message=str(exc),
+                retryable=False,
+            )
+        except PermanentWorkerError as exc:
+            message = str(exc)
+            error_code = (
+                "rubika_chat_id_required"
+                if "chat_id" in message.lower()
+                else "rubika_invalid_payload"
+            )
+            return WorkerResult(
+                success=False,
+                status="failed_permanent",
+                error_code=error_code,
+                error_message=message,
+                retryable=False,
+            )
+
+        logger.info(
+            "rubika_send_attempt account_id=%s chat_id_suffix=%s",
+            account_id,
+            chat_id[-4:] if len(chat_id) >= 4 else "****",
         )
 
-    logger.info(
-        "rubika_send_attempt account_id=%s chat_id_suffix=%s",
-        payload.account_id,
-        chat_id[-4:] if len(chat_id) >= 4 else "****",
-    )
-
-    return await send_rubika_text_message(
-        bot_token=bot_token,
-        chat_id=chat_id,
-        text=payload.message_text,
-        settings=settings,
-    )
+        return await send_rubika_text_message(
+            bot_token=bot_token,
+            chat_id=chat_id,
+            text=payload.message_text,
+            settings=settings,
+        )
+    finally:
+        if owns_session:
+            session.close()

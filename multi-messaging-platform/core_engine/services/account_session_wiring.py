@@ -328,6 +328,7 @@ def evaluate_account_session_readiness(
     *,
     whatsapp_delivery_mode: str | None = None,
     rubika_delivery_mode: str | None = None,
+    rubika_user_account_enabled: bool | None = None,
 ) -> SessionReadiness:
     """Check whether an account has the credentials workers need."""
     if account is None:
@@ -350,17 +351,23 @@ def evaluate_account_session_readiness(
                 code=CONFIG_INVALID,
             )
 
-        if rubika_mode == RUBIKA_MODE_USER_ACCOUNT and not is_rubika_user_account_enabled():
-            return SessionReadiness.make(
-                ready=False,
-                message=(
-                    "Rubika user-account delivery is disabled "
-                    "(RUBIKA_USER_ACCOUNT_ENABLED=false)."
-                ),
-                code=USER_ACCOUNT_DISABLED,
-                session_type=SessionType.RUBIKA_SESSION,
-                delivery_mode=rubika_mode,
+        if rubika_mode == RUBIKA_MODE_USER_ACCOUNT:
+            enabled = (
+                is_rubika_user_account_enabled()
+                if rubika_user_account_enabled is None
+                else bool(rubika_user_account_enabled)
             )
+            if not enabled:
+                return SessionReadiness.make(
+                    ready=False,
+                    message=(
+                        "Rubika user-account delivery is disabled "
+                        "(RUBIKA_USER_ACCOUNT_ENABLED=false)."
+                    ),
+                    code=USER_ACCOUNT_DISABLED,
+                    session_type=SessionType.RUBIKA_SESSION,
+                    delivery_mode=rubika_mode,
+                )
 
     session_type = required_session_type(
         account.platform,

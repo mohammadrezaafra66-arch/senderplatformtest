@@ -11,6 +11,8 @@ from core_engine.database import Base
 from core_engine.models import (
     Account,
     AccountStatus,
+    Campaign,
+    CampaignAccount,
     ChannelSession,
     PlatformType,
     SessionType,
@@ -153,23 +155,28 @@ async def test_send_rubika_text_message_success(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_deliver_rubika_live_missing_session(monkeypatch):
-    def fake_load_rubika_bot_token(account_id):
-        raise SessionInvalidError("Rubika session not found")
+async def test_deliver_rubika_live_missing_session(
+    monkeypatch,
+    rubika_sqlite_session_factory,
+):
+    """Preflight blocks before transport when no session is registered."""
+    SessionLocal, account_id = rubika_sqlite_session_factory
+    transport_calls = {"count": 0}
 
-    monkeypatch.setattr(
-        rubika_connector,
-        "load_rubika_bot_token",
-        fake_load_rubika_bot_token,
-    )
+    async def fake_request(*args, **kwargs):
+        transport_calls["count"] += 1
+        raise AssertionError("transport must not be called")
+
+    monkeypatch.setattr(rubika_connector, "request_rubika_api", fake_request)
 
     result = await deliver_rubika_live(
-        _sample_payload(),
+        _sample_payload(account_id=account_id),
         _live_settings(),
     )
 
     assert result.success is False
     assert result.error_code == "rubika_session_missing"
+    assert transport_calls["count"] == 0
 
 
 @pytest.mark.asyncio
@@ -289,6 +296,8 @@ def rubika_sqlite_session_factory(worker_session_secret, monkeypatch):
         tables=[
             Account.__table__,
             ChannelSession.__table__,
+            Campaign.__table__,
+            CampaignAccount.__table__,
         ],
     )
 

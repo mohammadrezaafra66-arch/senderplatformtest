@@ -54,6 +54,8 @@ def _live_settings(**overrides) -> WorkerSettings:
 def worker_session_secret(monkeypatch):
     key = Fernet.generate_key().decode()
     monkeypatch.setenv("SESSION_SECRET", key)
+    monkeypatch.setenv("RUBIKA_DELIVERY_MODE", "user_account")
+    monkeypatch.setenv("RUBIKA_USER_ACCOUNT_ENABLED", "true")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

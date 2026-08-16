@@ -191,7 +191,21 @@ class RubikaGroupListener:
             if text and group.keywords and group.keyword_response:
                 if _contains_any(text, group.keywords):
                     try:
-                        await update.reply(group.keyword_response)
+                        from core_engine.services.rubika_preflight import (
+                            log_rubika_preflight_denial,
+                            require_rubika_side_channel_send,
+                        )
+
+                        if self.account_id is not None:
+                            gate = await require_rubika_side_channel_send(
+                                db, account_id=int(self.account_id), context="listener"
+                            )
+                            if not gate.allowed:
+                                log_rubika_preflight_denial(gate, context="listener")
+                            else:
+                                await update.reply(group.keyword_response)
+                        else:
+                            await update.reply(group.keyword_response)
                     except Exception:  # noqa: BLE001 — ذخیره پیام مهم‌تر از موفقیت پاسخ خودکار است
                         logger.exception(
                             "rubika_listener_keyword_reply_failed group_guid=%s", group_guid

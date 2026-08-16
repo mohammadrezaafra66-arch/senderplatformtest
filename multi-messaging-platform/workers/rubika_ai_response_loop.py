@@ -90,6 +90,19 @@ class RubikaAiResponseLoop:
                 if reply:
                     # اگر اتصال قطع باشد این خط استثنا می‌دهد و به حلقهٔ reconnect می‌رسد؛
                     # چون هنوز commit نکرده‌ایم پیام دوباره پس از اتصال مجدد پردازش می‌شود.
+                    from core_engine.services.rubika_preflight import (
+                        log_rubika_preflight_denial,
+                        require_rubika_side_channel_send,
+                    )
+
+                    gate = await require_rubika_side_channel_send(
+                        db, account_id=int(self.account_id), context="ai"
+                    )
+                    if not gate.allowed:
+                        log_rubika_preflight_denial(
+                            gate, context="ai", message_id=msg.id
+                        )
+                        continue
                     await self.client.send_message(object_guid=msg.group_guid, text=reply)
                     logger.info(
                         "rubika_ai_loop_reply_sent message_id=%s group_guid=%s len=%s",

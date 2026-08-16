@@ -235,6 +235,8 @@ def build_operational_worker_settings(
             "REAL_MESSAGE_SENDING_ENABLED": True,
             "CHANNEL_CONNECTORS_ENABLED": True,
             "WHATSAPP_DELIVERY_MODE": app_settings.WHATSAPP_DELIVERY_MODE,
+            "RUBIKA_DELIVERY_MODE": app_settings.RUBIKA_DELIVERY_MODE,
+            "RUBIKA_USER_ACCOUNT_ENABLED": app_settings.RUBIKA_USER_ACCOUNT_ENABLED,
         }
     )
 
