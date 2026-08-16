@@ -191,17 +191,32 @@ async def deliver_rubika_user_live(
     from core_engine.models import Account
     from core_engine.services.redis_client import get_redis_client
     from core_engine.services.rubika_mode import RUBIKA_MODE_USER_ACCOUNT
+    from core_engine.services.rubika_policy import (
+        compute_jitter_seconds,
+        ensure_warming_started,
+        resolve_effective_limits,
+        resolve_rubika_lifecycle,
+    )
     from core_engine.services.rubika_preflight import (
         ACCOUNT_MISSING,
+        REDIS_UNAVAILABLE,
         RubikaPreflightResult,
         evaluate_rubika_send_preflight,
         log_rubika_preflight_denial,
         preflight_to_worker_result,
     )
-    from workers.rate_limit import record_successful_send, set_min_delay
+    from core_engine.services.rubika_quota import (
+        clear_failure_count,
+        commit_reservation,
+        record_send_failure,
+        release_reservation,
+        reserve_send_quota,
+    )
 
     owns_session = db is None
     session = db or get_db_session()
+    reservation = None
+    redis = None
     try:
         try:
             contact_id = int(payload.contact_id)
@@ -236,6 +251,7 @@ async def deliver_rubika_user_live(
             context="worker",
             redis=redis,
             hourly_cap=settings.RUBIKA_HOURLY_SEND_CAP,
+            daily_cap=settings.RUBIKA_DAILY_SEND_CAP,
             check_runtime_limits=True,
             check_pool_membership=True,
             check_send_window=True,
@@ -257,6 +273,60 @@ async def deliver_rubika_user_live(
         pool = RubikaAccountPoolManager(session)
         phase = resolve_current_phase(session)
 
+        # Phase 3: atomic quota reservation BEFORE transport (burst-safe).
+        policy = preflight.details.get("policy") or {}
+        daily_cap = int(policy.get("daily_cap") or settings.RUBIKA_DAILY_SEND_CAP)
+        hourly_cap = int(policy.get("hourly_cap") or settings.RUBIKA_HOURLY_SEND_CAP)
+        try:
+            reserve = await reserve_send_quota(
+                redis,
+                account.id,
+                daily_cap=daily_cap,
+                hourly_cap=hourly_cap,
+                reserve_ttl_seconds=int(settings.RUBIKA_RESERVE_TTL_SECONDS),
+            )
+        except Exception as exc:  # noqa: BLE001 — fail closed
+            denied = RubikaPreflightResult(
+                allowed=False,
+                code=REDIS_UNAVAILABLE,
+                message="سرویس Redis در دسترس نیست؛ ارسال متوقف شد.",
+                account_id=account.id,
+                delivery_mode=RUBIKA_MODE_USER_ACCOUNT,
+                retryable=True,
+                details={"error": type(exc).__name__},
+            )
+            log_rubika_preflight_denial(
+                denied,
+                context="user_account_reserve",
+                campaign_id=payload.campaign_id,
+                message_id=payload.message_id,
+            )
+            return preflight_to_worker_result(denied)
+
+        if not reserve.ok or reserve.reservation is None:
+            denied = RubikaPreflightResult(
+                allowed=False,
+                code=reserve.code,
+                message=reserve.code,
+                account_id=account.id,
+                delivery_mode=RUBIKA_MODE_USER_ACCOUNT,
+                retryable=True,
+                details={
+                    "retry_after_seconds": reserve.retry_after_seconds,
+                    "sent_today": reserve.sent_today,
+                    "sent_this_hour": reserve.sent_this_hour,
+                },
+            )
+            log_rubika_preflight_denial(
+                denied,
+                context="user_account_reserve",
+                campaign_id=payload.campaign_id,
+                message_id=payload.message_id,
+            )
+            return preflight_to_worker_result(denied)
+
+        reservation = reserve.reservation
+
         if contact_id is None:
             contact = Contact(
                 phone_e164=payload.recipient,
@@ -266,6 +336,8 @@ async def deliver_rubika_user_live(
         else:
             contact = session.query(Contact).filter(Contact.id == contact_id).first()
         if contact is None:
+            await release_reservation(redis, reservation)
+            reservation = None
             return WorkerResult(
                 success=False,
                 status="failed_permanent",
@@ -277,6 +349,8 @@ async def deliver_rubika_user_live(
         try:
             client = await load_rubika_user_client(account.id, db=session)
         except SessionInvalidError as exc:
+            await release_reservation(redis, reservation)
+            reservation = None
             pool.mark_account_failed(
                 account_id=account.id,
                 error_message=str(exc),
@@ -295,6 +369,8 @@ async def deliver_rubika_user_live(
             try:
                 guid = await _resolve_object_guid(client, session, contact=contact)
             except PermanentWorkerError as exc:
+                await release_reservation(redis, reservation)
+                reservation = None
                 return WorkerResult(
                     success=False,
                     status="failed_permanent",
@@ -326,6 +402,8 @@ async def deliver_rubika_user_live(
             message_id = str(_deep_find(result, "message_id") or "").strip()
 
         except RubikaNotRegistered as exc:
+            await release_reservation(redis, reservation)
+            reservation = None
             pool.mark_account_failed(
                 account_id=account.id,
                 error_message=str(exc),
@@ -339,6 +417,8 @@ async def deliver_rubika_user_live(
                 retryable=False,
             )
         except RubikaInvalidAuth as exc:
+            await release_reservation(redis, reservation)
+            reservation = None
             pool.mark_account_failed(
                 account_id=account.id,
                 error_message=str(exc),
@@ -352,8 +432,17 @@ async def deliver_rubika_user_live(
                 retryable=False,
             )
         except RubikaTooRequests as exc:
+            await release_reservation(redis, reservation)
+            reservation = None
             pool.mark_account_failed(
                 account_id=account.id, error_message=str(exc), permanent=False
+            )
+            await record_send_failure(
+                redis,
+                account.id,
+                threshold=int(settings.RUBIKA_FAILURE_THRESHOLD),
+                cooldown_seconds=int(settings.RUBIKA_FAILURE_COOLDOWN_SECONDS),
+                throttle_seconds=int(settings.RUBIKA_FAILURE_THROTTLE_SECONDS),
             )
             return WorkerResult(
                 success=False,
@@ -363,6 +452,15 @@ async def deliver_rubika_user_live(
                 retryable=True,
             )
         except RubikaRequestError as exc:
+            await release_reservation(redis, reservation)
+            reservation = None
+            await record_send_failure(
+                redis,
+                account.id,
+                threshold=int(settings.RUBIKA_FAILURE_THRESHOLD),
+                cooldown_seconds=int(settings.RUBIKA_FAILURE_COOLDOWN_SECONDS),
+                throttle_seconds=int(settings.RUBIKA_FAILURE_THROTTLE_SECONDS),
+            )
             return WorkerResult(
                 success=False,
                 status="failed_retryable",
@@ -373,12 +471,26 @@ async def deliver_rubika_user_live(
         finally:
             await client.disconnect()
 
-        await record_successful_send(redis, account.id)
-        pool.mark_account_used(account_id=account.id)
-        random_delay = random.uniform(
-            settings.RUBIKA_MIN_SEND_DELAY_SECONDS, settings.RUBIKA_MAX_SEND_DELAY_SECONDS
+        lifecycle = resolve_rubika_lifecycle(account)
+        limits = resolve_effective_limits(
+            lifecycle,
+            configured_daily_cap=int(settings.RUBIKA_DAILY_SEND_CAP),
+            configured_hourly_cap=int(settings.RUBIKA_HOURLY_SEND_CAP),
+            configured_min_interval=int(settings.RUBIKA_MIN_SEND_DELAY_SECONDS),
+            configured_max_interval=int(settings.RUBIKA_MAX_SEND_DELAY_SECONDS),
+            jitter_enabled=bool(settings.RUBIKA_JITTER_ENABLED),
         )
-        await set_min_delay(redis, account.id, int(random_delay))
+        delay_seconds = compute_jitter_seconds(limits, rng=random)
+        await commit_reservation(redis, reservation, min_interval_seconds=delay_seconds)
+        reservation = None
+        await clear_failure_count(redis, account.id)
+
+        if ensure_warming_started(account):
+            logger.info(
+                "event=rubika_warming_started account_id=%s",
+                account.id,
+            )
+        pool.mark_account_used(account_id=account.id)
         session.commit()
 
         return WorkerResult(
@@ -390,6 +502,11 @@ async def deliver_rubika_user_live(
 
     except Exception as exc:  # noqa: BLE001 — آخرین خط دفاعی، باید WorkerResult برگردد نه crash
         session.rollback()
+        if reservation is not None and redis is not None:
+            try:
+                await release_reservation(redis, reservation)
+            except Exception:  # noqa: BLE001
+                logger.exception("rubika_user_reserve_release_failed")
         logger.exception("rubika_user_unexpected_error contact_id=%s", payload.contact_id)
         return WorkerResult(
             success=False,

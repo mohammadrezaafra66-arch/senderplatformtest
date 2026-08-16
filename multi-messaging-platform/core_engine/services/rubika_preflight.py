@@ -52,7 +52,11 @@ ACCOUNT_NOT_IN_ALLOWED_POOL = "ACCOUNT_NOT_IN_ALLOWED_POOL"
 CAMPAIGN_ACCOUNT_NOT_ALLOWED = "CAMPAIGN_ACCOUNT_NOT_ALLOWED"
 COOLDOWN_ACTIVE = "COOLDOWN_ACTIVE"
 HOURLY_CAP_REACHED = "HOURLY_CAP_REACHED"
+DAILY_CAP_REACHED = "DAILY_CAP_REACHED"
+MIN_INTERVAL_ACTIVE = "MIN_INTERVAL_ACTIVE"
 OUTSIDE_SEND_WINDOW = "OUTSIDE_SEND_WINDOW"
+ACCOUNT_THROTTLED = "ACCOUNT_THROTTLED"
+ACCOUNT_SUSPENDED = "ACCOUNT_SUSPENDED"
 REDIS_UNAVAILABLE = "REDIS_UNAVAILABLE"
 UNKNOWN_PREFLIGHT_ERROR = "UNKNOWN_PREFLIGHT_ERROR"
 
@@ -60,7 +64,10 @@ UNKNOWN_PREFLIGHT_ERROR = "UNKNOWN_PREFLIGHT_ERROR"
 _RETRYABLE_CODES = frozenset({
     COOLDOWN_ACTIVE,
     HOURLY_CAP_REACHED,
+    DAILY_CAP_REACHED,
+    MIN_INTERVAL_ACTIVE,
     OUTSIDE_SEND_WINDOW,
+    ACCOUNT_THROTTLED,
     REDIS_UNAVAILABLE,
     ACCOUNT_NOT_IN_ALLOWED_POOL,  # pool membership may change; treat as retryable
 })
@@ -83,7 +90,11 @@ _PERSIAN_MESSAGES: dict[str, str] = {
     CAMPAIGN_ACCOUNT_NOT_ALLOWED: "اکانت برای این کمپین مجاز نیست.",
     COOLDOWN_ACTIVE: "اکانت در دوره انتظار (cooldown) است.",
     HOURLY_CAP_REACHED: "سقف ارسال ساعتی اکانت پر شده است.",
+    DAILY_CAP_REACHED: "سقف ارسال روزانه اکانت پر شده است.",
+    MIN_INTERVAL_ACTIVE: "حداقل فاصله ارسال برای این اکانت هنوز فعال است.",
     OUTSIDE_SEND_WINDOW: "خارج از بازه زمانی ارسال روبیکا است.",
+    ACCOUNT_THROTTLED: "اکانت در حالت محدودیت موقت (throttled) است.",
+    ACCOUNT_SUSPENDED: "اکانت معلق است و ارسال مجاز نیست.",
     REDIS_UNAVAILABLE: "سرویس Redis در دسترس نیست؛ ارسال متوقف شد.",
     UNKNOWN_PREFLIGHT_ERROR: "خطای ناشناخته در پیش‌پرواز ارسال روبیکا.",
 }
@@ -239,16 +250,22 @@ async def evaluate_rubika_send_preflight(
     context: str = "worker",
     redis: Any | None = None,
     hourly_cap: int | None = None,
+    daily_cap: int | None = None,
     check_runtime_limits: bool | None = None,
     check_pool_membership: bool | None = None,
     check_campaign_assignment: bool | None = None,
     check_send_window: bool | None = None,
+    clock: Any | None = None,
+    rng: Any | None = None,
 ) -> RubikaPreflightResult:
     """Evaluate whether a Rubika send may proceed for the EXACT account.
 
     Deterministic layers:
     A identity → B account state → C mode/config → D session readiness →
-    E sender authorization → F runtime limits → G Redis dependency safety.
+    E sender authorization → F lifecycle + rate policy → G Redis dependency safety.
+
+    Phase 3: Layer F is the single authoritative Rubika send-policy path
+    (lifecycle, daily/hourly caps, min interval, cooldown, throttle).
     """
     details: dict[str, Any] = {"context": context, "layer": "A"}
 
@@ -344,11 +361,11 @@ async def evaluate_rubika_send_preflight(
             account_id=account_id,
             delivery_mode=mode,
             session_type=session_type,
-            details=details,
+            details={**details, "lifecycle_state": "throttled"},
         )
     if account.status != AccountStatus.ACTIVE:
         return _deny(
-            code=ACCOUNT_DISABLED,
+            code=ACCOUNT_SUSPENDED,
             account_id=account_id,
             delivery_mode=mode,
             session_type=session_type,
@@ -412,7 +429,7 @@ async def evaluate_rubika_send_preflight(
                 details=details,
             )
 
-    # --- Layer F + G: Runtime limits (Redis) ---
+    # --- Layer F + G: Lifecycle + rate policy (Redis) ---
     if check_runtime_limits:
         details["layer"] = "F"
         if redis is None:
@@ -431,30 +448,163 @@ async def evaluate_rubika_send_preflight(
                     details={**details, "error": type(exc).__name__},
                 )
 
-        from workers.rate_limit import is_hourly_cap_reached, is_min_delay_active
+        from core_engine.services.rubika_policy import (
+            RubikaLifecycleState,
+            build_policy_snapshot,
+            compute_warmup_day,
+            resolve_effective_limits,
+            resolve_rubika_lifecycle,
+        )
+        from core_engine.services.rubika_quota import read_quota_snapshot
 
         try:
-            if await is_min_delay_active(redis, account_id):
+            from workers.config import get_worker_settings
+
+            settings = get_worker_settings()
+            cfg_hourly = int(
+                hourly_cap
+                if hourly_cap is not None
+                else settings.RUBIKA_HOURLY_SEND_CAP
+            )
+            cfg_daily = int(
+                daily_cap if daily_cap is not None else settings.RUBIKA_DAILY_SEND_CAP
+            )
+            cfg_min = int(settings.RUBIKA_MIN_SEND_DELAY_SECONDS)
+            cfg_max = int(settings.RUBIKA_MAX_SEND_DELAY_SECONDS)
+            jitter_enabled = bool(settings.RUBIKA_JITTER_ENABLED)
+
+            snap = await read_quota_snapshot(redis, account_id, clock=clock)
+            lifecycle = resolve_rubika_lifecycle(
+                account,
+                cooldown_active=bool(snap.cooldown_until),
+                throttle_active=snap.throttle_active,
+                clock=clock,
+            )
+            warmup_day = compute_warmup_day(
+                getattr(account, "warming_started_at", None), clock=clock
+            )
+            limits = resolve_effective_limits(
+                lifecycle,
+                configured_daily_cap=cfg_daily,
+                configured_hourly_cap=cfg_hourly,
+                configured_min_interval=cfg_min,
+                configured_max_interval=cfg_max,
+                jitter_enabled=jitter_enabled,
+            )
+
+            policy_base = {
+                "lifecycle_state": lifecycle.value,
+                "warmup_day": warmup_day,
+                "daily_cap": limits.daily_cap,
+                "hourly_cap": limits.hourly_cap,
+                "minimum_interval_seconds": limits.min_interval_seconds,
+                "sent_today": snap.sent_today,
+                "sent_this_hour": snap.sent_this_hour,
+                "timezone": "Asia/Tehran",
+                "send_window_phase": phase,
+            }
+
+            if lifecycle == RubikaLifecycleState.SUSPENDED:
+                return _deny(
+                    code=ACCOUNT_SUSPENDED,
+                    account_id=account_id,
+                    delivery_mode=mode,
+                    session_type=session_type,
+                    details={**details, **policy_base},
+                )
+            if lifecycle == RubikaLifecycleState.THROTTLED or snap.throttle_active:
+                return _deny(
+                    code=ACCOUNT_THROTTLED,
+                    account_id=account_id,
+                    delivery_mode=mode,
+                    session_type=session_type,
+                    details={**details, **policy_base},
+                )
+            if lifecycle == RubikaLifecycleState.COOLDOWN or snap.cooldown_until:
                 return _deny(
                     code=COOLDOWN_ACTIVE,
                     account_id=account_id,
                     delivery_mode=mode,
                     session_type=session_type,
-                    details=details,
+                    details={
+                        **details,
+                        **policy_base,
+                        "cooldown_until": snap.cooldown_until,
+                        "reason": snap.cooldown_reason,
+                    },
                 )
-            cap = hourly_cap
-            if cap is None:
-                from workers.config import get_worker_settings
 
-                cap = int(get_worker_settings().RUBIKA_HOURLY_SEND_CAP)
-            if await is_hourly_cap_reached(redis, account_id, int(cap)):
+            if snap.delay_ttl_seconds > 0:
+                from datetime import datetime, timedelta, timezone
+
+                next_at = (
+                    datetime.now(timezone.utc) + timedelta(seconds=snap.delay_ttl_seconds)
+                ).isoformat()
+                if clock is not None:
+                    base = clock if clock.tzinfo else clock.replace(tzinfo=timezone.utc)
+                    next_at = (base.astimezone(timezone.utc) + timedelta(
+                        seconds=snap.delay_ttl_seconds
+                    )).isoformat()
+                return _deny(
+                    code=MIN_INTERVAL_ACTIVE,
+                    account_id=account_id,
+                    delivery_mode=mode,
+                    session_type=session_type,
+                    details={
+                        **details,
+                        **policy_base,
+                        "retry_after_seconds": snap.delay_ttl_seconds,
+                        "next_allowed_at": next_at,
+                    },
+                )
+
+            if snap.sent_today >= limits.daily_cap:
+                return _deny(
+                    code=DAILY_CAP_REACHED,
+                    account_id=account_id,
+                    delivery_mode=mode,
+                    session_type=session_type,
+                    details={**details, **policy_base},
+                )
+            if snap.sent_this_hour >= limits.hourly_cap:
                 return _deny(
                     code=HOURLY_CAP_REACHED,
                     account_id=account_id,
                     delivery_mode=mode,
                     session_type=session_type,
-                    details={**details, "hourly_cap": cap},
+                    details={**details, **policy_base},
                 )
+
+            snapshot = build_policy_snapshot(
+                account_id=account_id,
+                lifecycle=lifecycle,
+                warmup_day=warmup_day,
+                limits=limits,
+                sent_today=snap.sent_today,
+                sent_this_hour=snap.sent_this_hour,
+                allowed=True,
+                code=READY,
+                cooldown_until=snap.cooldown_until,
+                cooldown_reason=snap.cooldown_reason,
+                send_window_phase=phase,
+                details={"context": context},
+            )
+            details["policy"] = {
+                "lifecycle_state": snapshot.lifecycle_state,
+                "warmup_day": snapshot.warmup_day,
+                "sent_today": snapshot.sent_today,
+                "daily_cap": snapshot.daily_cap,
+                "remaining_daily": snapshot.remaining_daily,
+                "sent_this_hour": snapshot.sent_this_hour,
+                "hourly_cap": snapshot.hourly_cap,
+                "remaining_hourly": snapshot.remaining_hourly,
+                "minimum_interval_seconds": snapshot.minimum_interval_seconds,
+                "timezone": snapshot.timezone,
+                "send_window_phase": snapshot.send_window_phase,
+            }
+            # Suppress unused rng param lint — reserved for deterministic tests
+            # that inject jitter at commit time in the connector.
+            _ = rng
         except Exception as exc:  # noqa: BLE001 — Redis outage fail closed
             details["layer"] = "G"
             return _deny(
@@ -478,13 +628,18 @@ async def require_rubika_side_channel_send(
     *,
     account_id: int,
     context: str = "side_channel",
+    redis: Any | None = None,
 ) -> RubikaPreflightResult:
-    """Preflight for AI/listener/status transports (session+state, no campaign limits)."""
+    """Preflight for AI/listener/status transports.
+
+    Phase 3: enforces lifecycle + rate policy (no campaign/pool/window).
+    """
     return await evaluate_rubika_send_preflight(
         db,
         account_id=account_id,
         context=context,
-        check_runtime_limits=False,
+        redis=redis,
+        check_runtime_limits=True,
         check_pool_membership=False,
         check_send_window=False,
         check_campaign_assignment=False,

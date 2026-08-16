@@ -47,3 +47,23 @@ def whatsapp_browser_lock_key(account_id: int | str) -> str:
 
 def worker_heartbeat_key(platform: str, hostname: str) -> str:
     return f"worker:alive:{platform}:{hostname}"
+
+
+def rubika_send_lock_key(account_id: int | str) -> str:
+    return f"lock:rubika:send:{account_id}"
+
+
+def rubika_reserve_key(account_id: int | str, token: str) -> str:
+    return f"rubika:reserve:{account_id}:{token}"
+
+
+def rubika_failure_count_key(account_id: int | str) -> str:
+    return f"rubika:failcount:{account_id}"
+
+
+def rubika_cooldown_meta_key(account_id: int | str) -> str:
+    return f"rubika:cooldown:{account_id}"
+
+
+def rubika_throttle_key(account_id: int | str) -> str:
+    return f"rubika:throttle:{account_id}"

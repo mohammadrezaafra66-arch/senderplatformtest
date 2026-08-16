@@ -44,6 +44,13 @@ class WorkerSettings(BaseSettings):
     RUBIKA_MIN_SEND_DELAY_SECONDS: int = 5
     RUBIKA_MAX_SEND_DELAY_SECONDS: int = 15
     RUBIKA_HOURLY_SEND_CAP: int = 50
+    # Phase 3 — application policy ceilings (not official Rubika platform limits).
+    RUBIKA_DAILY_SEND_CAP: int = 100
+    RUBIKA_JITTER_ENABLED: bool = True
+    RUBIKA_RESERVE_TTL_SECONDS: int = 120
+    RUBIKA_FAILURE_THRESHOLD: int = 3
+    RUBIKA_FAILURE_COOLDOWN_SECONDS: int = 300
+    RUBIKA_FAILURE_THROTTLE_SECONDS: int = 600
 
     WHATSAPP_API_BASE_URL: str = "https://graph.facebook.com/v21.0"
     WHATSAPP_API_TIMEOUT_SECONDS: float = 30.0

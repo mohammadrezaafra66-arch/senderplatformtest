@@ -43,8 +43,11 @@ def _live_settings(**overrides) -> WorkerSettings:
         RUBIKA_DELIVERY_MODE="user_account",
         RUBIKA_USER_ACCOUNT_ENABLED=True,
         RUBIKA_HOURLY_SEND_CAP=50,
+        RUBIKA_DAILY_SEND_CAP=100,
         RUBIKA_MIN_SEND_DELAY_SECONDS=1,
         RUBIKA_MAX_SEND_DELAY_SECONDS=2,
+        RUBIKA_JITTER_ENABLED=False,
+        RUBIKA_RESERVE_TTL_SECONDS=120,
     )
     base.update(overrides)
     return WorkerSettings(**base)
@@ -203,11 +206,14 @@ async def test_rubika_user_login_flow_success(monkeypatch, pg_session_factory):
 
 
 def _make_send_ready_account(session, *, label: str, phase: str) -> Account:
+    from datetime import datetime, timedelta, timezone
+
     account = Account(
         platform=PlatformType.RUBIKA,
         phone_number=f"98912{label[-6:]}",
         label=label,
         status=AccountStatus.ACTIVE,
+        warming_started_at=datetime.now(timezone.utc) - timedelta(days=20),
     )
     session.add(account)
     session.flush()
@@ -336,17 +342,10 @@ async def test_deliver_rubika_user_live_success_and_then_resend(monkeypatch, pg_
     async def fake_send_message(self, **kwargs):
         return fake_send
 
-    async def fake_set_min_delay(redis, account_id, delay_seconds):
-        return None
-
     monkeypatch.setattr("rubpy.Client.connect", fake_connect)
     monkeypatch.setattr("rubpy.Client.disconnect", fake_disconnect)
     monkeypatch.setattr("rubpy.Client.add_address_book", fake_add_address_book)
     monkeypatch.setattr("rubpy.Client.send_message", fake_send_message)
-    monkeypatch.setattr(
-        "workers.rate_limit.set_min_delay",
-        fake_set_min_delay,
-    )
     result = await deliver_rubika_user_live(payload, settings, db=session)
     assert result.success is True
     assert result.status == "delivered"
@@ -362,6 +361,13 @@ async def test_deliver_rubika_user_live_success_and_then_resend(monkeypatch, pg_
         .first()
     )
     assert dup is None
+
+    # Clear min-interval so a second consecutive send can proceed in this unit test.
+    from core_engine.services.redis_client import get_redis_client
+    from workers.redis_keys import delay_key
+
+    redis = get_redis_client()
+    await redis.delete(delay_key(account.id))
 
     # فراخوانی دوم برای همان contact — باید دوباره ارسال شود، نه رد
     payload2 = payload.model_copy(update={"message_id": 2, "dedupe_key": "dedupe-user-2"})

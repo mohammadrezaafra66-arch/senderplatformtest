@@ -29,6 +29,7 @@ from core_engine.services.rubika_preflight import (
     CAMPAIGN_ACCOUNT_NOT_ALLOWED,
     COOLDOWN_ACTIVE,
     HOURLY_CAP_REACHED,
+    MIN_INTERVAL_ACTIVE,
     OUTSIDE_SEND_WINDOW,
     READY,
     REDIS_UNAVAILABLE,
@@ -37,6 +38,7 @@ from core_engine.services.rubika_preflight import (
     WRONG_PLATFORM,
     evaluate_rubika_send_preflight,
 )
+from core_engine.services.rubika_policy import rubika_hour_bucket
 from core_engine.services.rubika_user_session import build_session_envelope
 from core_engine.services.session_storage import store_channel_session
 from workers.config import WorkerSettings
@@ -97,8 +99,11 @@ def _user_settings(**over) -> WorkerSettings:
         RUBIKA_DELIVERY_MODE="user_account",
         RUBIKA_USER_ACCOUNT_ENABLED=True,
         RUBIKA_HOURLY_SEND_CAP=50,
+        RUBIKA_DAILY_SEND_CAP=100,
         RUBIKA_MIN_SEND_DELAY_SECONDS=1,
         RUBIKA_MAX_SEND_DELAY_SECONDS=2,
+        RUBIKA_JITTER_ENABLED=False,
+        RUBIKA_RESERVE_TTL_SECONDS=120,
     )
     base.update(over)
     return WorkerSettings(**base)
@@ -371,13 +376,16 @@ async def test_preflight_cooldown_and_hourly(monkeypatch, pg_session_factory):
     _pin(monkeypatch, "user_account", user_enabled=True)
     session = pg_session_factory()
     account = _make_account(session, label="p2cap")
+    # Mature warming so NORMAL caps apply for hourly check.
+    from datetime import datetime, timedelta, timezone
+
+    account.warming_started_at = datetime.now(timezone.utc) - timedelta(days=20)
     _store_user_envelope(session, account)
     phase = _ensure_full_window(session, "p2-cap")
     session.add(RubikaAccountPool(account_id=account.id, phase=phase, priority=1))
     session.commit()
 
     from core_engine.services.redis_client import get_redis_client
-    from datetime import datetime, timezone
 
     redis = get_redis_client()
     await redis.set(delay_key(account.id), "1", ex=60)
@@ -388,10 +396,11 @@ async def test_preflight_cooldown_and_hourly(monkeypatch, pg_session_factory):
         redis=redis,
         hourly_cap=5,
     )
-    assert r.code == COOLDOWN_ACTIVE
+    assert r.code == MIN_INTERVAL_ACTIVE
+    assert r.details.get("retry_after_seconds", 0) > 0
     await redis.delete(delay_key(account.id))
 
-    hour = datetime.now(timezone.utc).strftime("%Y%m%d%H")
+    hour = rubika_hour_bucket()
     await redis.set(hourly_rate_key(account.id, hour), "5", ex=3600)
     r2 = await evaluate_rubika_send_preflight(
         session,
@@ -421,6 +430,21 @@ async def test_preflight_redis_fail_closed(monkeypatch, pg_session_factory):
             raise ConnectionError("down")
 
         async def get(self, *_a, **_k):
+            raise ConnectionError("down")
+
+        async def exists(self, *_a, **_k):
+            raise ConnectionError("down")
+
+        async def delete(self, *_a, **_k):
+            raise ConnectionError("down")
+
+        async def eval(self, *_a, **_k):
+            raise ConnectionError("down")
+
+        async def incr(self, *_a, **_k):
+            raise ConnectionError("down")
+
+        async def set(self, *_a, **_k):
             raise ConnectionError("down")
 
     r = await evaluate_rubika_send_preflight(
@@ -574,6 +598,9 @@ async def test_user_account_blocked_and_valid(monkeypatch, pg_session_factory):
 
     # valid path
     a2 = _make_account(session, label="p2u2")
+    from datetime import datetime, timedelta, timezone
+
+    a2.warming_started_at = datetime.now(timezone.utc) - timedelta(days=20)
     _store_user_envelope(session, a2)
     session.add(RubikaAccountPool(account_id=a2.id, phase=phase, priority=1))
     phone_e164 = f"98912{a2.id:06d}"
@@ -585,10 +612,6 @@ async def test_user_account_blocked_and_valid(monkeypatch, pg_session_factory):
     session.add(contact)
     session.commit()
 
-    async def fake_set_min_delay(*_a, **_k):
-        return None
-
-    monkeypatch.setattr("workers.rate_limit.set_min_delay", fake_set_min_delay)
     r2 = await deliver_rubika_user_live(
         _payload(
             account_id=a2.id,

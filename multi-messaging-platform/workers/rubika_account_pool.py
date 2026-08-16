@@ -97,12 +97,16 @@ class RubikaAccountPoolManager:
         چون هر بار که یک اکانت استفاده می‌شود last_used_at آن به‌روز می‌شود و در صف
         ordering به انتها می‌رود).
         """
-        from workers.rate_limit import is_hourly_cap_reached, is_min_delay_active
+        from core_engine.services.rubika_quota import read_quota_snapshot
 
         for account in self.list_pool_accounts(phase):
-            if await is_min_delay_active(redis, account.id):
+            try:
+                snap = await read_quota_snapshot(redis, account.id)
+            except Exception:  # noqa: BLE001 — fail closed: skip account
                 continue
-            if await is_hourly_cap_reached(redis, account.id, hourly_cap):
+            if snap.delay_ttl_seconds > 0 or snap.cooldown_until or snap.throttle_active:
+                continue
+            if snap.sent_this_hour >= hourly_cap:
                 continue
             return account
         return None
