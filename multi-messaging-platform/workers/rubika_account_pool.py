@@ -119,19 +119,28 @@ class RubikaAccountPoolManager:
         account_id: int,
         error_message: str,
         permanent: bool = False,
+        requires_relogin: bool = False,
     ) -> None:
         """اکانت را ناسالم کن. Account.status منبع حقیقت سلامت در کل سیستم است —
 
-        اینجا یک فلگ جدا (مثل is_healthy) ساخته نمی‌شود تا با evaluate_account_session_readiness
-        و بقیه سیستم ناهمگام نشود. last_error_at/last_error_message در rubika_account_pool
-        فقط زمینه (context) برای نوتیف/بازبینی است.
+        Transitions (explicit, no silent ACTIVE leave-behind):
+        - permanent=True → BANNED
+        - requires_relogin=True → REQUIRES_LOGIN (invalid/expired session; re-OTP)
+        - else → RESTING (temporary failure; restore path available)
+
+        last_error_at/last_error_message در rubika_account_pool فقط زمینه نوتیف است.
         """
         account = self.db.query(Account).filter(Account.id == account_id).first()
         if account is None:
             logger.warning("rubika_pool_mark_failed_account_missing account_id=%s", account_id)
             return
 
-        account.status = AccountStatus.BANNED if permanent else AccountStatus.RESTING
+        if permanent:
+            account.status = AccountStatus.BANNED
+        elif requires_relogin:
+            account.status = AccountStatus.REQUIRES_LOGIN
+        else:
+            account.status = AccountStatus.RESTING
 
         now = datetime.utcnow()
         pool_rows = (
@@ -145,19 +154,24 @@ class RubikaAccountPoolManager:
 
         self.db.flush()
         logger.error(
-            "rubika_pool_account_marked_failed account_id=%s permanent=%s error=%s",
+            "rubika_pool_account_marked_failed account_id=%s permanent=%s "
+            "requires_relogin=%s error=%s",
             account_id,
             permanent,
+            requires_relogin,
             error_message,
         )
-        # TODO(فاز ۴): اتصال این رویداد به یک کانال نوتیف واقعی برای ادمین (مثلاً پیام
-        # داخلی یا ایمیل). فعلاً به‌صورت ساخت‌یافته لاگ می‌شود (last_error_at/message در
-        # rubika_account_pool ذخیره است) و از طریق GET /rubika/accounts قابل خواندن خواهد بود.
 
     def mark_account_restored(self, *, account_id: int) -> None:
-        """RESTING → ACTIVE (بازبینی دستی تأیید کرد اکانت سالم است). BANNED را تغییر نمی‌دهد."""
+        """RESTING یا REQUIRES_LOGIN → ACTIVE پس از بازبینی/لاگین مجدد.
+
+        BANNED را تغییر نمی‌دهد — رفع بن باید صریح و دستی باشد.
+        """
         account = self.db.query(Account).filter(Account.id == account_id).first()
-        if account is not None and account.status == AccountStatus.RESTING:
+        if account is not None and account.status in (
+            AccountStatus.RESTING,
+            AccountStatus.REQUIRES_LOGIN,
+        ):
             account.status = AccountStatus.ACTIVE
             self.db.flush()
             logger.info("rubika_pool_account_restored account_id=%s", account_id)

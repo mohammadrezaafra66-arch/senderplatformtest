@@ -92,12 +92,9 @@ class WorkerSettings(BaseSettings):
     @field_validator("RUBIKA_DELIVERY_MODE", mode="before")
     @classmethod
     def normalize_rubika_delivery_mode(cls, value: object) -> str:
-        mode = str(value or "bot_api").strip().lower()
-        if mode not in {"bot_api", "user_account"}:
-            raise ValueError(
-                "RUBIKA_DELIVERY_MODE must be 'bot_api' or 'user_account'."
-            )
-        return mode
+        from core_engine.services.rubika_mode import normalize_rubika_delivery_mode
+
+        return normalize_rubika_delivery_mode(value)
 
     @field_validator("SHADOW_PHONE_NUMBER", mode="before")
     @classmethod

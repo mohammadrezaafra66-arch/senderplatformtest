@@ -284,6 +284,7 @@ class AccountSessionStatusResponse(BaseModel):
     ready_for_delivery: bool
     message: str
     error: str | None = None
+    code: str | None = None
     delivery_mode: str | None = None
     linked: bool | None = None
     needs_qr: bool | None = None
@@ -535,6 +536,8 @@ class DeployReadinessWorkerService(BaseModel):
     platform: str
     mode: str
     enabled_when: str | None = None
+    delivery_mode: str | None = None
+    user_account_enabled: bool | None = None
 
 
 class DeployReadinessResponse(BaseModel):
@@ -543,6 +546,8 @@ class DeployReadinessResponse(BaseModel):
     dry_run: bool
     shadow_mode: bool
     whatsapp_delivery_mode: str
+    rubika_delivery_mode: str | None = None
+    rubika_user_account_enabled: bool | None = None
     operational_send: dict[str, bool]
     worker_services: list[DeployReadinessWorkerService]
     accounts_total: int

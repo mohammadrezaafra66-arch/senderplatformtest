@@ -45,12 +45,19 @@ def _redis_key(registration_token: str) -> str:
     return f"{_REDIS_KEY_PREFIX}{registration_token}"
 
 
+ENVELOPE_VERSION = 1
+
+
 def build_session_envelope(
-    *, phone_number: str, auth: str, guid: str, user_agent: str, private_key: str
+    *, phone_number: str, auth: str, guid: str, user_agent: str, private_key: str,
+    version: int = ENVELOPE_VERSION,
 ) -> str:
-    """ساخت پاکت JSON ۵‌عنصری که Client.connect() در rubpy انتظار دارد."""
+    """ساخت پاکت JSON نسخه‌دار که Client.connect() در rubpy انتظار دارد."""
+    if version != ENVELOPE_VERSION:
+        raise ValueError(f"Unsupported Rubika session envelope version: {version}")
     return json.dumps(
         {
+            "version": version,
             "phone_number": phone_number,
             "auth": auth,
             "guid": guid,
@@ -62,24 +69,72 @@ def build_session_envelope(
 
 
 def parse_session_envelope(plaintext: bytes | str) -> dict[str, str]:
+    """Parse and validate a Rubika user-account session envelope.
+
+    Backward compatible: envelopes without ``version`` are treated as v1.
+    """
     text = plaintext.decode("utf-8") if isinstance(plaintext, bytes) else plaintext
-    data = json.loads(text)
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Rubika session envelope JSON is invalid.") from exc
     if not isinstance(data, dict):
         raise ValueError("Rubika session envelope must be a JSON object.")
+
+    raw_version = data.get("version", ENVELOPE_VERSION)
+    try:
+        version = int(raw_version)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Rubika session envelope version must be an integer.") from exc
+    if version != ENVELOPE_VERSION:
+        raise ValueError(f"Unsupported Rubika session envelope version: {version}")
+
     missing = [f for f in _ENVELOPE_FIELDS if not str(data.get(f) or "").strip()]
     if missing:
         raise ValueError(f"Rubika session envelope missing fields: {missing}")
-    return data
+    # Return credential fields only (callers expect the five rubpy keys).
+    return {f: str(data[f]) for f in _ENVELOPE_FIELDS}
 
 
 def is_rubika_user_account_mode() -> bool:
-    from core_engine.config import get_settings
-
-    settings = get_settings()
-    return (
-        settings.RUBIKA_DELIVERY_MODE.strip().lower() == "user_account"
-        and settings.RUBIKA_USER_ACCOUNT_ENABLED
+    from core_engine.services.rubika_mode import (
+        is_rubika_user_account_enabled,
+        resolve_rubika_delivery_mode,
+        RUBIKA_MODE_USER_ACCOUNT,
     )
+
+    try:
+        mode = resolve_rubika_delivery_mode()
+    except ValueError:
+        return False
+    return mode == RUBIKA_MODE_USER_ACCOUNT and is_rubika_user_account_enabled()
+
+
+async def _redis_get(redis, key: str) -> str | None:
+    try:
+        return await redis.get(key)
+    except Exception as exc:  # noqa: BLE001 — surface as login error, never crash API
+        raise RubikaLoginError(
+            "ذخیره موقت ورود در دسترس نیست (خطای Redis) — بعداً دوباره تلاش کنید."
+        ) from exc
+
+
+async def _redis_set(redis, key: str, value: str, *, ex: int) -> None:
+    try:
+        await redis.set(key, value, ex=ex)
+    except Exception as exc:  # noqa: BLE001
+        raise RubikaLoginError(
+            "ذخیره موقت ورود در دسترس نیست (خطای Redis) — بعداً دوباره تلاش کنید."
+        ) from exc
+
+
+async def _redis_delete(redis, key: str) -> None:
+    try:
+        await redis.delete(key)
+    except Exception as exc:  # noqa: BLE001
+        raise RubikaLoginError(
+            "ذخیره موقت ورود در دسترس نیست (خطای Redis) — بعداً دوباره تلاش کنید."
+        ) from exc
 
 
 async def start_rubika_user_login(
@@ -103,7 +158,7 @@ async def start_rubika_user_login(
     redis = get_redis_client()
 
     if registration_token:
-        raw_state = await redis.get(_redis_key(registration_token))
+        raw_state = await _redis_get(redis, _redis_key(registration_token))
         if not raw_state:
             raise RubikaLoginError(
                 "registration_token نامعتبر یا منقضی‌شده است — از ابتدا با phone_number شروع کنید."
@@ -141,7 +196,7 @@ async def start_rubika_user_login(
     if status == "SendPassKey":
         new_token = secrets.token_urlsafe(24)
         state = {"account_id": account_id, "phone_number": phone, "stage": "pass_key"}
-        await redis.set(_redis_key(new_token), json.dumps(state), ex=_REGISTRATION_TTL_SECONDS)
+        await _redis_set(redis, _redis_key(new_token), json.dumps(state), ex=_REGISTRATION_TTL_SECONDS)
         return {
             "registration_token": new_token,
             "stage": "pass_key_required",
@@ -166,7 +221,7 @@ async def start_rubika_user_login(
         "private_key": private_key,
         "stage": "code",
     }
-    await redis.set(_redis_key(new_token), json.dumps(state), ex=_REGISTRATION_TTL_SECONDS)
+    await _redis_set(redis, _redis_key(new_token), json.dumps(state), ex=_REGISTRATION_TTL_SECONDS)
 
     return {
         "registration_token": new_token,
@@ -184,7 +239,7 @@ async def verify_rubika_user_login(
     from rubpy.sessions import StringSession
 
     redis = get_redis_client()
-    raw_state = await redis.get(_redis_key(registration_token))
+    raw_state = await _redis_get(redis, _redis_key(registration_token))
     if not raw_state:
         raise RubikaLoginError(
             "registration_token نامعتبر یا منقضی‌شده است — از ابتدا شروع کنید."
@@ -264,7 +319,7 @@ async def verify_rubika_user_login(
         account.status = AccountStatus.ACTIVE
     db.flush()
 
-    await redis.delete(_redis_key(registration_token))
+    await _redis_delete(redis, _redis_key(registration_token))
 
     logger.info("rubika_user_login_success account_id=%s guid=%s", account_id, client.guid)
 

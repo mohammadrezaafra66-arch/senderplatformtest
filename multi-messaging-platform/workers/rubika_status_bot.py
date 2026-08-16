@@ -362,6 +362,7 @@ class RubikaStatusBot:
             RubikaAccountPoolManager(db).mark_account_failed(
                 account_id=self.account_id,
                 error_message=str(exc),
+                requires_relogin=isinstance(exc, SessionInvalidError),
                 permanent=False,
             )
             db.commit()

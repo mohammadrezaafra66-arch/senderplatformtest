@@ -65,9 +65,7 @@ class Settings(BaseSettings):
     WHATSAPP_WEB_PROFILE_ROOT: str = "storage/browser_profiles/whatsapp"
     WHATSAPP_DELIVERY_MODE: str = "web"
 
-    # روبیکا v2 — لایه API هم باید حالت ارسال را بداند (مثلاً برای انتخاب
-    # فرم ثبت سشن: توکن بات در برابر OTP حساب شخصی). اعمال واقعی در
-    # workers/config.py انجام می‌شود؛ این فقط برای لایه core_engine/api است.
+    # روبیکا — حالت ارسال (قرارداد مشترک با workers/config.py و rubika_mode).
     RUBIKA_DELIVERY_MODE: str = "bot_api"
     RUBIKA_USER_ACCOUNT_ENABLED: bool = False
 
@@ -105,6 +103,13 @@ class Settings(BaseSettings):
         except Exception as exc:
             raise ValueError("SESSION_SECRET must be a valid Fernet key.") from exc
         return stripped
+
+    @field_validator("RUBIKA_DELIVERY_MODE", mode="before")
+    @classmethod
+    def validate_rubika_delivery_mode(cls, value: object) -> str:
+        from core_engine.services.rubika_mode import normalize_rubika_delivery_mode
+
+        return normalize_rubika_delivery_mode(value)
 
 
 @lru_cache

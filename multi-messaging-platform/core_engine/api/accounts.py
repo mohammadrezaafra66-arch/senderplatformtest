@@ -513,6 +513,13 @@ async def register_rubika_user_session(
             status_code=400, detail="این endpoint فقط برای اکانت‌های روبیکا است."
         )
 
+    from core_engine.services.rubika_mode import assert_rubika_user_login_allowed
+
+    try:
+        assert_rubika_user_login_allowed()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     try:
         result = await start_rubika_user_login(
             account_id=account_id,
@@ -555,6 +562,13 @@ async def verify_rubika_user_session(
         raise HTTPException(
             status_code=400, detail="این endpoint فقط برای اکانت‌های روبیکا است."
         )
+
+    from core_engine.services.rubika_mode import assert_rubika_user_login_allowed
+
+    try:
+        assert_rubika_user_login_allowed()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     try:
         result = await verify_rubika_user_login(

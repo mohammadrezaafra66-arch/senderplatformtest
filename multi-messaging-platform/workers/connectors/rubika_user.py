@@ -247,7 +247,9 @@ async def deliver_rubika_user_live(
             client = await load_rubika_user_client(account.id, db=session)
         except SessionInvalidError as exc:
             pool.mark_account_failed(
-                account_id=account.id, error_message=str(exc), permanent=False
+                account_id=account.id,
+                error_message=str(exc),
+                requires_relogin=True,
             )
             return WorkerResult(
                 success=False,
@@ -294,7 +296,9 @@ async def deliver_rubika_user_live(
 
         except RubikaNotRegistered as exc:
             pool.mark_account_failed(
-                account_id=account.id, error_message=str(exc), permanent=False
+                account_id=account.id,
+                error_message=str(exc),
+                requires_relogin=True,
             )
             return WorkerResult(
                 success=False,
@@ -305,7 +309,9 @@ async def deliver_rubika_user_live(
             )
         except RubikaInvalidAuth as exc:
             pool.mark_account_failed(
-                account_id=account.id, error_message=str(exc), permanent=False
+                account_id=account.id,
+                error_message=str(exc),
+                requires_relogin=True,
             )
             return WorkerResult(
                 success=False,

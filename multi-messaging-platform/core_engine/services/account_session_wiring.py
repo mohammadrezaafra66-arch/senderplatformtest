@@ -1,4 +1,4 @@
-"""Unified account session wiring for all messaging channels (Phase 8.6)."""
+"""Unified account session wiring for all messaging channels (Phase 8.6 + Rubika Phase 1)."""
 
 from __future__ import annotations
 
@@ -11,6 +11,13 @@ from sqlalchemy.orm import Session
 from core_engine.config import get_settings
 from core_engine.models import Account, AccountStatus, ChannelSession, PlatformType, SessionType
 from core_engine.services.crypto import SessionDecryptionError
+from core_engine.services.rubika_mode import (
+    RUBIKA_MODE_BOT_API,
+    RUBIKA_MODE_USER_ACCOUNT,
+    is_rubika_user_account_enabled,
+    resolve_rubika_delivery_mode,
+    rubika_required_session_type,
+)
 from core_engine.services.safety_guard import get_safety_status
 from core_engine.services.session_storage import (
     load_channel_session_plaintext,
@@ -25,11 +32,57 @@ _API_TOKEN_PLATFORMS = frozenset({
 })
 
 
+# Structured readiness codes (uppercase). `error` mirrors historical snake_case API field.
+READY = "READY"
+ACCOUNT_MISSING = "ACCOUNT_MISSING"
+ACCOUNT_DISABLED = "ACCOUNT_DISABLED"
+ACCOUNT_BANNED = "ACCOUNT_BANNED"
+ACCOUNT_REQUIRES_LOGIN = "ACCOUNT_REQUIRES_LOGIN"
+ACCOUNT_IDENTIFIER_MISSING = "ACCOUNT_IDENTIFIER_MISSING"
+WRONG_PLATFORM = "WRONG_PLATFORM"
+SESSION_MISSING = "SESSION_MISSING"
+SESSION_INVALID = "SESSION_INVALID"
+SESSION_DECRYPT_FAILED = "SESSION_DECRYPT_FAILED"
+DELIVERY_MODE_DISABLED = "DELIVERY_MODE_DISABLED"
+USER_ACCOUNT_DISABLED = "USER_ACCOUNT_DISABLED"
+CONFIG_INVALID = "CONFIG_INVALID"
+EVOLUTION_NOT_CONNECTED = "EVOLUTION_NOT_CONNECTED"
+WHATSAPP_WEB_NOT_LINKED = "WHATSAPP_WEB_NOT_LINKED"
+
+
+def _code_to_error(code: str | None) -> str | None:
+    if code is None or code == READY:
+        return None
+    return code.lower()
+
+
 @dataclass(frozen=True, slots=True)
 class SessionReadiness:
     ready: bool
     message: str
     error: str | None = None
+    code: str = READY
+    session_type: str | None = None
+    delivery_mode: str | None = None
+
+    @staticmethod
+    def make(
+        *,
+        ready: bool,
+        message: str,
+        code: str,
+        session_type: SessionType | str | None = None,
+        delivery_mode: str | None = None,
+    ) -> "SessionReadiness":
+        st = session_type.value if isinstance(session_type, SessionType) else session_type
+        return SessionReadiness(
+            ready=ready,
+            message=message,
+            error=_code_to_error(code) if not ready else None,
+            code=code if not ready else READY,
+            session_type=st,
+            delivery_mode=delivery_mode,
+        )
 
 
 def resolve_whatsapp_delivery_mode() -> str:
@@ -43,19 +96,19 @@ def required_session_type(
     whatsapp_delivery_mode: str | None = None,
     rubika_delivery_mode: str | None = None,
 ) -> SessionType:
-    """Return the session type workers expect for a platform."""
+    """Return the session type workers expect for a platform.
+
+    Rubika mapping is centralized in ``rubika_required_session_type`` —
+    invalid delivery modes raise ValueError (no silent fallback).
+    """
     if platform == PlatformType.WHATSAPP:
         mode = (whatsapp_delivery_mode or resolve_whatsapp_delivery_mode()).strip().lower()
         if mode == "cloud_api":
             return SessionType.API_TOKEN
         return SessionType.BROWSER_PROFILE
     if platform == PlatformType.RUBIKA:
-        rubika_mode = (
-            rubika_delivery_mode or get_settings().RUBIKA_DELIVERY_MODE
-        ).strip().lower()
-        if rubika_mode == "user_account":
-            return SessionType.RUBIKA_SESSION
-        return SessionType.API_TOKEN
+        mode = resolve_rubika_delivery_mode(rubika_delivery_mode=rubika_delivery_mode)
+        return rubika_required_session_type(mode)
     if platform in _API_TOKEN_PLATFORMS:
         return SessionType.API_TOKEN
     raise ValueError(f"Unsupported platform for session wiring: {platform.value}")
@@ -66,6 +119,7 @@ def _latest_session_row(
     account_id: int,
     session_type: SessionType,
 ) -> ChannelSession | None:
+    """Deterministic current session: highest ChannelSession.id wins."""
     return (
         db.query(ChannelSession)
         .filter(
@@ -86,7 +140,12 @@ def has_encrypted_session(
     return row is not None and bool(row.ciphertext)
 
 
-def _validate_session_payload(platform: PlatformType, payload: str) -> str:
+def _validate_session_payload(
+    platform: PlatformType,
+    payload: str,
+    *,
+    rubika_delivery_mode: str | None = None,
+) -> str:
     text = payload.strip()
     if not text:
         raise ValueError("session_payload cannot be empty.")
@@ -113,19 +172,18 @@ def _validate_session_payload(platform: PlatformType, payload: str) -> str:
             ensure_ascii=False,
         )
 
-    if (
-        platform == PlatformType.RUBIKA
-        and required_session_type(platform) == SessionType.RUBIKA_SESSION
-    ):
-        # ساخته‌شده توسط core_engine.services.rubika_user_session — اینجا فقط validate
-        # می‌کنیم، توسط این تابع register_api_token_session ساخته نمی‌شود.
-        from core_engine.services.rubika_user_session import parse_session_envelope
+    if platform == PlatformType.RUBIKA:
+        mode = resolve_rubika_delivery_mode(rubika_delivery_mode=rubika_delivery_mode)
+        if mode == RUBIKA_MODE_USER_ACCOUNT:
+            from core_engine.services.rubika_user_session import parse_session_envelope
 
-        try:
-            parse_session_envelope(text)
-        except ValueError as exc:
-            raise ValueError(f"Rubika user-account session envelope invalid: {exc}") from exc
-        return text
+            try:
+                parse_session_envelope(text)
+            except ValueError as exc:
+                raise ValueError(
+                    f"Rubika user-account session envelope invalid: {exc}"
+                ) from exc
+            return text
 
     if text.startswith("{"):
         try:
@@ -155,6 +213,10 @@ def register_api_token_session(
             raise ValueError(
                 "API token registration is only for WhatsApp when WHATSAPP_DELIVERY_MODE=cloud_api."
             )
+    elif account.platform == PlatformType.RUBIKA:
+        from core_engine.services.rubika_mode import assert_rubika_bot_api_registration_allowed
+
+        assert_rubika_bot_api_registration_allowed()
     elif account.platform not in _API_TOKEN_PLATFORMS:
         raise ValueError(
             f"Platform {account.platform.value} does not use API token sessions."
@@ -181,18 +243,50 @@ def build_account_session_status(
 ) -> dict[str, Any]:
     """Summarize session readiness for API/UI (no live channel probe)."""
     mode = whatsapp_delivery_mode or resolve_whatsapp_delivery_mode()
-    session_type = required_session_type(account.platform, whatsapp_delivery_mode=mode)
-    readiness = evaluate_account_session_readiness(db, account, whatsapp_delivery_mode=mode)
+    rubika_mode: str | None = None
+    if account.platform == PlatformType.RUBIKA:
+        try:
+            rubika_mode = resolve_rubika_delivery_mode()
+        except ValueError:
+            rubika_mode = None
+
+    if account.platform == PlatformType.RUBIKA and rubika_mode is None:
+        session_type = SessionType.API_TOKEN
+    else:
+        session_type = required_session_type(
+            account.platform,
+            whatsapp_delivery_mode=mode,
+            rubika_delivery_mode=rubika_mode,
+        )
+
+    try:
+        readiness = evaluate_account_session_readiness(
+            db, account, whatsapp_delivery_mode=mode
+        )
+    except ValueError as exc:
+        readiness = SessionReadiness.make(
+            ready=False,
+            message=str(exc),
+            code=CONFIG_INVALID,
+            session_type=session_type,
+            delivery_mode=rubika_mode,
+        )
 
     base: dict[str, Any] = {
         "account_id": account.id,
         "platform": account.platform.value,
         "account_status": account.status.value,
-        "session_type": session_type.value,
-        "session_registered": has_encrypted_session(db, account.id, session_type),
+        "session_type": readiness.session_type or session_type.value,
+        "session_registered": (
+            has_encrypted_session(db, account.id, session_type)
+            if account.platform != PlatformType.RUBIKA or rubika_mode is not None
+            else False
+        ),
         "ready_for_delivery": readiness.ready,
         "message": readiness.message,
         "error": readiness.error,
+        "code": readiness.code,
+        "delivery_mode": readiness.delivery_mode,
     }
 
     if account.platform == PlatformType.WHATSAPP and mode == "web":
@@ -202,6 +296,7 @@ def build_account_session_status(
             base["delivery_mode"] = "web"
             base["message"] = "Stored session could not be decrypted."
             base["error"] = "session_decrypt_failed"
+            base["code"] = SESSION_DECRYPT_FAILED
             return base
         base.update(
             {
@@ -221,40 +316,96 @@ def build_account_session_status(
             base["message"] = str(wa_status["message"])
     elif account.platform == PlatformType.WHATSAPP:
         base["delivery_mode"] = "cloud_api"
-    else:
-        base["delivery_mode"] = None
+    elif account.platform == PlatformType.RUBIKA:
+        base["delivery_mode"] = readiness.delivery_mode or rubika_mode
 
     return base
 
 
 def evaluate_account_session_readiness(
     db: Session,
-    account: Account,
+    account: Account | None,
     *,
     whatsapp_delivery_mode: str | None = None,
+    rubika_delivery_mode: str | None = None,
 ) -> SessionReadiness:
     """Check whether an account has the credentials workers need."""
+    if account is None:
+        return SessionReadiness.make(
+            ready=False,
+            message="Account not found.",
+            code=ACCOUNT_MISSING,
+        )
+
+    rubika_mode: str | None = None
+    if account.platform == PlatformType.RUBIKA:
+        try:
+            rubika_mode = resolve_rubika_delivery_mode(
+                rubika_delivery_mode=rubika_delivery_mode
+            )
+        except ValueError as exc:
+            return SessionReadiness.make(
+                ready=False,
+                message=str(exc),
+                code=CONFIG_INVALID,
+            )
+
+        if rubika_mode == RUBIKA_MODE_USER_ACCOUNT and not is_rubika_user_account_enabled():
+            return SessionReadiness.make(
+                ready=False,
+                message=(
+                    "Rubika user-account delivery is disabled "
+                    "(RUBIKA_USER_ACCOUNT_ENABLED=false)."
+                ),
+                code=USER_ACCOUNT_DISABLED,
+                session_type=SessionType.RUBIKA_SESSION,
+                delivery_mode=rubika_mode,
+            )
+
+    session_type = required_session_type(
+        account.platform,
+        whatsapp_delivery_mode=whatsapp_delivery_mode,
+        rubika_delivery_mode=rubika_mode,
+    )
+    delivery_mode = rubika_mode
+    if account.platform == PlatformType.WHATSAPP:
+        delivery_mode = whatsapp_delivery_mode or resolve_whatsapp_delivery_mode()
+
     if account.status == AccountStatus.BANNED:
-        return SessionReadiness(False, "Account is banned.", error="account_banned")
+        return SessionReadiness.make(
+            ready=False,
+            message="Account is banned.",
+            code=ACCOUNT_BANNED,
+            session_type=session_type,
+            delivery_mode=delivery_mode,
+        )
     if account.status == AccountStatus.REQUIRES_LOGIN:
-        return SessionReadiness(
-            False,
-            "Account requires login or session registration.",
-            error="account_requires_login",
+        return SessionReadiness.make(
+            ready=False,
+            message="Account requires login or session registration.",
+            code=ACCOUNT_REQUIRES_LOGIN,
+            session_type=session_type,
+            delivery_mode=delivery_mode,
+        )
+    if account.status == AccountStatus.RESTING:
+        return SessionReadiness.make(
+            ready=False,
+            message="Account is resting (temporarily disabled for delivery).",
+            code=ACCOUNT_DISABLED,
+            session_type=session_type,
+            delivery_mode=delivery_mode,
         )
     if not account.phone_number:
-        return SessionReadiness(
-            False,
-            "Missing account_identifier.",
-            error="account_identifier_missing",
+        return SessionReadiness.make(
+            ready=False,
+            message="Missing account_identifier.",
+            code=ACCOUNT_IDENTIFIER_MISSING,
+            session_type=session_type,
+            delivery_mode=delivery_mode,
         )
 
     mode = whatsapp_delivery_mode or resolve_whatsapp_delivery_mode()
-    session_type = required_session_type(account.platform, whatsapp_delivery_mode=mode)
 
-    # WhatsApp via Evolution API: readiness is driven by a live EVOLUTION_INSTANCE
-    # ChannelSession whose evolution_status is "open" (resolve_whatsapp_delivery_mode
-    # collapses "evolution" to "web", so the raw setting must be read directly).
     raw_delivery_mode = get_settings().WHATSAPP_DELIVERY_MODE.strip().lower()
     if account.platform == PlatformType.WHATSAPP and raw_delivery_mode == "evolution":
         evolution_session = (
@@ -270,56 +421,95 @@ def evaluate_account_session_readiness(
             evolution_session is not None
             and (evolution_session.evolution_status or "").strip().lower() == "open"
         ):
-            return SessionReadiness(True, "Evolution instance connected")
-        return SessionReadiness(
-            False,
-            "Evolution instance is not connected.",
-            error="evolution_not_connected",
+            return SessionReadiness.make(
+                ready=True,
+                message="Evolution instance connected",
+                code=READY,
+                session_type=SessionType.EVOLUTION_INSTANCE,
+                delivery_mode="evolution",
+            )
+        return SessionReadiness.make(
+            ready=False,
+            message="Evolution instance is not connected.",
+            code=EVOLUTION_NOT_CONNECTED,
+            session_type=SessionType.EVOLUTION_INSTANCE,
+            delivery_mode="evolution",
         )
 
     if account.platform == PlatformType.WHATSAPP and mode == "web":
         try:
             wa_status = build_whatsapp_web_status(db, account.id)
         except SessionDecryptionError:
-            return SessionReadiness(
-                False,
-                "Stored session could not be decrypted.",
-                error="session_decrypt_failed",
+            return SessionReadiness.make(
+                ready=False,
+                message="Stored session could not be decrypted.",
+                code=SESSION_DECRYPT_FAILED,
+                session_type=session_type,
+                delivery_mode="web",
             )
         if wa_status["linked"] and wa_status["profile_exists"]:
-            return SessionReadiness(True, "WhatsApp Web session is linked and ready.")
-        return SessionReadiness(
-            False,
-            str(wa_status["message"]),
-            error="whatsapp_web_not_linked",
+            return SessionReadiness.make(
+                ready=True,
+                message="WhatsApp Web session is linked and ready.",
+                code=READY,
+                session_type=session_type,
+                delivery_mode="web",
+            )
+        return SessionReadiness.make(
+            ready=False,
+            message=str(wa_status["message"]),
+            code=WHATSAPP_WEB_NOT_LINKED,
+            session_type=session_type,
+            delivery_mode="web",
         )
 
     if not has_encrypted_session(db, account.id, session_type):
         label = session_type.value.replace("_", " ")
-        return SessionReadiness(
-            False,
-            f"No {label} session registered for this account.",
-            error="session_missing",
+        return SessionReadiness.make(
+            ready=False,
+            message=f"No {label} session registered for this account.",
+            code=SESSION_MISSING,
+            session_type=session_type,
+            delivery_mode=delivery_mode,
         )
 
-    # Verify ciphertext decrypts (catches corrupt sessions early).
     row = _latest_session_row(db, account.id, session_type)
     assert row is not None
     try:
         plaintext = load_channel_session_plaintext(row)
     except Exception:
-        return SessionReadiness(
-            False,
-            "Stored session could not be decrypted.",
-            error="session_decrypt_failed",
+        return SessionReadiness.make(
+            ready=False,
+            message="Stored session could not be decrypted.",
+            code=SESSION_DECRYPT_FAILED,
+            session_type=session_type,
+            delivery_mode=delivery_mode,
         )
 
     try:
-        _validate_session_payload(account.platform, plaintext.decode("utf-8"))
+        _validate_session_payload(
+            account.platform,
+            plaintext.decode("utf-8"),
+            rubika_delivery_mode=rubika_mode,
+        )
     except ValueError as exc:
-        return SessionReadiness(False, str(exc), error="session_invalid")
+        return SessionReadiness.make(
+            ready=False,
+            message=str(exc),
+            code=SESSION_INVALID,
+            session_type=session_type,
+            delivery_mode=delivery_mode,
+        )
 
-    return SessionReadiness(True, "Session is registered and looks valid.")
+    return SessionReadiness.make(
+        ready=True,
+        message="Session is registered and looks valid.",
+        code=READY,
+        session_type=session_type,
+        delivery_mode=delivery_mode or (
+            RUBIKA_MODE_BOT_API if account.platform == PlatformType.RUBIKA else None
+        ),
+    )
 
 
 def build_deploy_readiness(db: Session) -> dict[str, Any]:
@@ -342,6 +532,11 @@ def build_deploy_readiness(db: Session) -> dict[str, Any]:
                 active_ready += 1
         account_items.append(status)
 
+    try:
+        rubika_mode = resolve_rubika_delivery_mode()
+    except ValueError:
+        rubika_mode = settings.RUBIKA_DELIVERY_MODE
+
     worker_services = [
         {"name": "bale_worker", "platform": "bale", "mode": "single_account"},
         {"name": "telegram_worker", "platform": "telegram", "mode": "single_account"},
@@ -350,6 +545,7 @@ def build_deploy_readiness(db: Session) -> dict[str, Any]:
             "platform": "rubika",
             "mode": "single_account",
             "enabled_when": "RUBIKA_DELIVERY_MODE=bot_api",
+            "delivery_mode": rubika_mode,
         },
         {
             "name": "rubika_user_pool",
@@ -358,6 +554,8 @@ def build_deploy_readiness(db: Session) -> dict[str, Any]:
             "enabled_when": (
                 "RUBIKA_DELIVERY_MODE=user_account و RUBIKA_USER_ACCOUNT_ENABLED=true"
             ),
+            "delivery_mode": rubika_mode,
+            "user_account_enabled": is_rubika_user_account_enabled(),
         },
         {
             "name": "whatsapp_worker",
@@ -379,6 +577,8 @@ def build_deploy_readiness(db: Session) -> dict[str, Any]:
         "dry_run": settings.DRY_RUN,
         "shadow_mode": settings.SHADOW_MODE,
         "whatsapp_delivery_mode": mode,
+        "rubika_delivery_mode": rubika_mode,
+        "rubika_user_account_enabled": is_rubika_user_account_enabled(),
         "operational_send": operational_send_capabilities(),
         "worker_services": worker_services,
         "accounts_total": len(accounts),

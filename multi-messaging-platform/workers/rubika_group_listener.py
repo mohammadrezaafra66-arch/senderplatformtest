@@ -225,7 +225,9 @@ class RubikaGroupListener:
             db = get_db_session()
             try:
                 RubikaAccountPoolManager(db).mark_account_failed(
-                    account_id=self.account_id, error_message=str(exc), permanent=False
+                    account_id=self.account_id,
+                    error_message=str(exc),
+                    requires_relogin=True,
                 )
                 db.commit()
             finally:

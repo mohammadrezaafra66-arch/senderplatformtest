@@ -94,6 +94,7 @@ export type AccountSessionStatus = {
   ready_for_delivery: boolean;
   message: string;
   error: string | null;
+  code?: string | null;
   delivery_mode?: string | null;
   linked?: boolean | null;
   needs_qr?: boolean | null;

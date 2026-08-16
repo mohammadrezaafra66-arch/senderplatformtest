@@ -8,6 +8,7 @@ import {
 } from "@/lib/accounts-api";
 import { OperationalSendTestForm } from "@/components/OperationalSendTestForm";
 import type { AccountSessionStatus } from "@/types/account";
+import { sessionReadinessDisplay } from "@/utils/session-readiness";
 
 const panelInnerStyle: React.CSSProperties = {
   marginTop: 8,
@@ -107,14 +108,13 @@ export function ApiTokenSessionPanel({
   }
 
   const ready = status?.ready_for_delivery ?? false;
+  const readiness = sessionReadinessDisplay(ready, status?.code, status?.error);
 
   return (
     <div style={panelInnerStyle}>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <strong>{t("sessionTitle", { platform })}</strong>
-        <span style={badgeStyle(ready ? "#166534" : "#b45309")}>
-          {ready ? t("sessionReady") : t("sessionNotReady")}
-        </span>
+        <span style={badgeStyle(readiness.color)}>{t(readiness.labelKey)}</span>
       </div>
 
       {status ? (
@@ -126,6 +126,16 @@ export function ApiTokenSessionPanel({
           <div>
             {t("sessionType")}: {status.session_type}
           </div>
+          {status.delivery_mode ? (
+            <div>
+              {t("sessionDeliveryMode")}: {status.delivery_mode}
+            </div>
+          ) : null}
+          {status.code && status.code !== "READY" ? (
+            <div>
+              {t("sessionReadinessCode")}: {status.code}
+            </div>
+          ) : null}
         </div>
       ) : null}
 
