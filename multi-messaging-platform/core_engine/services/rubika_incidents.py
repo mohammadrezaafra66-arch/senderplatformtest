@@ -171,3 +171,84 @@ async def list_open_incidents(redis: "Redis") -> list[RubikaIncident]:
             out.append(RubikaIncident(**data))
     out.sort(key=lambda i: i.opened_at, reverse=True)
     return out
+
+
+async def list_incidents(
+    redis: "Redis",
+    *,
+    status: str | None = "OPEN",
+    scope: str | None = None,
+    severity: str | None = None,
+    category: str | None = None,
+    account_id: int | None = None,
+    sort: str = "newest",
+) -> list[RubikaIncident]:
+    """List incidents with operator filters. Default status=OPEN (index-backed)."""
+    items = await list_open_incidents(redis)
+    # Open index is authoritative for OPEN; RESOLVED not retained long-term in Phase 5.
+    if status and status.upper() != "OPEN":
+        if status.upper() == "ALL":
+            pass
+        else:
+            items = [i for i in items if i.status.upper() == status.upper()]
+    if scope:
+        items = [i for i in items if i.scope.upper() == scope.upper()]
+    if severity:
+        items = [i for i in items if i.severity.upper() == severity.upper()]
+    if category:
+        items = [i for i in items if i.category.lower() == category.lower()]
+    if account_id is not None:
+        items = [i for i in items if i.account_id == account_id]
+
+    severity_rank = {"CRITICAL": 0, "HIGH": 1, "WARNING": 2, "MEDIUM": 3, "INFO": 4, "LOW": 5}
+    if sort == "severity":
+        items.sort(key=lambda i: (severity_rank.get(i.severity.upper(), 9), -_incident_ts(i.opened_at)))
+    elif sort == "occurrence_count":
+        items.sort(key=lambda i: (-int(i.occurrence_count), -_incident_ts(i.opened_at)))
+    else:
+        items.sort(key=lambda i: i.opened_at, reverse=True)
+    return items
+
+
+def _incident_ts(iso: str) -> float:
+    try:
+        return datetime.fromisoformat(iso.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return 0.0
+
+
+async def get_incident_by_id(redis: "Redis", incident_id: str) -> RubikaIncident | None:
+    members = await redis.smembers(rubika_incident_index_key())
+    for member in members or []:
+        dedupe = _decode(member)
+        raw = await redis.get(rubika_incident_key(dedupe))
+        if not raw:
+            continue
+        data = json.loads(_decode(raw))
+        if data.get("incident_id") == incident_id:
+            return RubikaIncident(**data)
+    return None
+
+
+async def acknowledge_incident(
+    redis: "Redis",
+    *,
+    incident_id: str,
+    clock: datetime | None = None,
+) -> RubikaIncident | None:
+    """Mark incident acknowledged without resolving (status stays OPEN; reason annotated)."""
+    incident = await get_incident_by_id(redis, incident_id)
+    if incident is None:
+        return None
+    dedupe = incident_dedupe_key(
+        scope=incident.scope,
+        category=incident.category,
+        code=incident.code,
+        account_id=incident.account_id,
+    )
+    key = rubika_incident_key(dedupe)
+    data = incident.to_dict()
+    data["last_seen_at"] = _now_iso(clock)
+    data["reason"] = (data.get("reason") or "") + "|acknowledged"
+    await redis.set(key, json.dumps(data), ex=86400)
+    return RubikaIncident(**data)

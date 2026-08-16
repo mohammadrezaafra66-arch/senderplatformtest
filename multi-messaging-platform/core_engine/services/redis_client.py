@@ -33,6 +33,19 @@ def get_redis_client() -> Redis:
     return _redis_client
 
 
+async def ensure_redis_client() -> Redis:
+    """Return a live Redis client; reconnect if the pytest/event loop closed the pool."""
+    client = get_redis_client()
+    try:
+        await client.ping()
+        return client
+    except Exception:
+        reset_redis_client()
+        client = get_redis_client()
+        await client.ping()
+        return client
+
+
 async def ping_redis(*, max_attempts: int = 3) -> bool:
     for attempt in range(max_attempts):
         try:

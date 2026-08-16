@@ -1,14 +1,18 @@
 import { apiFetch } from "@/lib/api";
 import type {
   RubikaAccountsListResult,
+  RubikaAlertItem,
   RubikaGroupCreatePayload,
   RubikaGroupItem,
   RubikaGroupMessagesResult,
   RubikaGroupsListResult,
   RubikaGroupUpdatePayload,
+  RubikaIncidentItem,
   RubikaPoolPhase,
   RubikaPoolRestoreResult,
   RubikaPoolUpsertResult,
+  RubikaProtectionOverview,
+  RubikaProtectionRestoreResult,
   RubikaScheduleItem,
   RubikaScheduleListResult,
   RubikaSendLogResult,
@@ -176,4 +180,71 @@ export async function fetchAfrakalaAssistantPricing(): Promise<RubikaAssistantPr
 export async function refreshAfrakalaAssistantPricing(): Promise<RubikaAssistantPricing> {
   const response = await apiFetch("/debug/pricing-cache/refresh", { method: "POST" });
   return response.json() as Promise<RubikaAssistantPricing>;
+}
+
+// ─── Phase 5 — Protection / Operations ───
+
+export async function fetchRubikaProtectionOverview(): Promise<RubikaProtectionOverview> {
+  const response = await apiFetch("/rubika/protection/overview");
+  return response.json() as Promise<RubikaProtectionOverview>;
+}
+
+export async function fetchRubikaProtectionAccountDetail(
+  accountId: number,
+): Promise<Record<string, unknown>> {
+  const response = await apiFetch(`/rubika/accounts/${accountId}/protection`);
+  return response.json() as Promise<Record<string, unknown>>;
+}
+
+export async function restoreRubikaProtectionAccount(
+  accountId: number,
+): Promise<RubikaProtectionRestoreResult> {
+  const response = await apiFetch(`/rubika/accounts/${accountId}/restore`, {
+    method: "POST",
+  });
+  return response.json() as Promise<RubikaProtectionRestoreResult>;
+}
+
+export async function fetchRubikaIncidents(params: {
+  status?: string;
+  scope?: string;
+  severity?: string;
+  category?: string;
+  account_id?: number;
+  sort?: string;
+} = {}): Promise<{ items: RubikaIncidentItem[]; count: number }> {
+  const search = new URLSearchParams();
+  if (params.status) search.set("status", params.status);
+  if (params.scope) search.set("scope", params.scope);
+  if (params.severity) search.set("severity", params.severity);
+  if (params.category) search.set("category", params.category);
+  if (params.account_id != null) search.set("account_id", String(params.account_id));
+  if (params.sort) search.set("sort", params.sort);
+  const qs = search.toString();
+  const response = await apiFetch(`/rubika/incidents${qs ? `?${qs}` : ""}`);
+  return response.json() as Promise<{ items: RubikaIncidentItem[]; count: number }>;
+}
+
+export async function acknowledgeRubikaIncident(
+  incidentId: string,
+): Promise<{ state: string; incident: RubikaIncidentItem }> {
+  const response = await apiFetch(`/rubika/incidents/${incidentId}/acknowledge`, {
+    method: "POST",
+  });
+  return response.json() as Promise<{ state: string; incident: RubikaIncidentItem }>;
+}
+
+export async function fetchRubikaAlerts(): Promise<{ items: RubikaAlertItem[]; count: number }> {
+  const response = await apiFetch("/rubika/alerts");
+  return response.json() as Promise<{ items: RubikaAlertItem[]; count: number }>;
+}
+
+export async function acknowledgeRubikaAlert(
+  dedupeKey: string,
+): Promise<{ state: string; alert: RubikaAlertItem }> {
+  const response = await apiFetch(
+    `/rubika/alerts/${encodeURIComponent(dedupeKey)}/acknowledge`,
+    { method: "POST" },
+  );
+  return response.json() as Promise<{ state: string; alert: RubikaAlertItem }>;
 }

@@ -115,3 +115,11 @@ def rubika_incident_key(dedupe: str) -> str:
 
 def rubika_incident_index_key() -> str:
     return "rubika:incidents:open"
+
+
+def rubika_alert_key(dedupe: str) -> str:
+    return f"rubika:alert:{dedupe}"
+
+
+def rubika_alert_index_key() -> str:
+    return "rubika:alerts:open"

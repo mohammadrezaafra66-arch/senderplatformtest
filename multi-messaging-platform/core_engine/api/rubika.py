@@ -594,13 +594,13 @@ async def rubika_system_health(
         dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
     ] = None,
 ):
-    from core_engine.services.redis_client import get_redis_client
+    from core_engine.services.redis_client import ensure_redis_client
     from core_engine.services.rubika_circuit import get_circuit_snapshot
     from core_engine.services.rubika_incidents import list_open_incidents
     from workers.config import get_worker_settings
 
     settings = get_worker_settings()
-    redis = get_redis_client()
+    redis = await ensure_redis_client()
     snap = await get_circuit_snapshot(
         redis,
         probe_budget=int(settings.RUBIKA_CIRCUIT_PROBE_BUDGET),
@@ -641,7 +641,7 @@ async def rubika_account_health(
         dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
     ] = None,
 ):
-    from core_engine.services.redis_client import get_redis_client
+    from core_engine.services.redis_client import ensure_redis_client
     from core_engine.services.rubika_health import build_health_snapshot
 
     account = db.query(Account).filter(Account.id == account_id).first()
@@ -649,7 +649,7 @@ async def rubika_account_health(
         raise HTTPException(status_code=404, detail="اکانت پیدا نشد.")
     if account.platform != PlatformType.RUBIKA:
         raise HTTPException(status_code=400, detail="اکانت روبیکا نیست.")
-    redis = get_redis_client()
+    redis = await ensure_redis_client()
     snap = await build_health_snapshot(redis, account)
     return {
         "state": snap.health_state,
@@ -661,16 +661,175 @@ async def rubika_account_health(
 
 @router.get("/incidents")
 async def rubika_list_incidents(
+    status: str = "OPEN",
+    scope: str | None = None,
+    severity: str | None = None,
+    category: str | None = None,
+    account_id: int | None = None,
+    sort: str = "newest",
     current_user: Annotated[
         dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
     ] = None,
 ):
-    from core_engine.services.redis_client import get_redis_client
-    from core_engine.services.rubika_incidents import list_open_incidents
+    from core_engine.services.redis_client import ensure_redis_client
+    from core_engine.services.rubika_incidents import list_incidents
 
-    redis = get_redis_client()
-    items = await list_open_incidents(redis)
+    redis = await ensure_redis_client()
+    items = await list_incidents(
+        redis,
+        status=status,
+        scope=scope,
+        severity=severity,
+        category=category,
+        account_id=account_id,
+        sort=sort,
+    )
     return {"items": [i.to_dict() for i in items], "count": len(items)}
+
+
+@router.get("/incidents/{incident_id}")
+async def rubika_get_incident(
+    incident_id: str,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    from core_engine.services.redis_client import ensure_redis_client
+    from core_engine.services.rubika_circuit import get_circuit_snapshot
+    from core_engine.services.rubika_incidents import get_incident_by_id
+    from workers.config import get_worker_settings
+
+    redis = await ensure_redis_client()
+    incident = await get_incident_by_id(redis, incident_id)
+    if incident is None:
+        raise HTTPException(status_code=404, detail="حادثه پیدا نشد.")
+    settings = get_worker_settings()
+    circuit = await get_circuit_snapshot(
+        redis,
+        probe_budget=int(settings.RUBIKA_CIRCUIT_PROBE_BUDGET),
+        window_seconds=int(settings.RUBIKA_CIRCUIT_WINDOW_SECONDS),
+    )
+    return {
+        "incident": incident.to_dict(),
+        "related_circuit_state": circuit.state,
+        "resolution_status": incident.status,
+    }
+
+
+@router.post("/incidents/{incident_id}/acknowledge")
+async def rubika_acknowledge_incident(
+    incident_id: str,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
+):
+    from core_engine.services.redis_client import ensure_redis_client
+    from core_engine.services.rubika_incidents import acknowledge_incident
+
+    redis = await ensure_redis_client()
+    incident = await acknowledge_incident(redis, incident_id=incident_id)
+    if incident is None:
+        raise HTTPException(status_code=404, detail="حادثه پیدا نشد.")
+    record_audit(
+        db,
+        current_user["username"],
+        "rubika_incident_acknowledge",
+        "incident",
+        incident_id,
+        {"result": "acknowledged", "scope": incident.scope, "account_id": incident.account_id},
+    )
+    db.commit()
+    return {"state": "acknowledged", "incident": incident.to_dict()}
+
+
+@router.get("/protection/overview")
+async def rubika_protection_overview(
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    """Aggregate Protection Center payload — one call for system/accounts/incidents/alerts."""
+    from core_engine.services.redis_client import ensure_redis_client
+    from core_engine.services.rubika_operations import build_protection_overview
+
+    redis = await ensure_redis_client()
+    return await build_protection_overview(db, redis)
+
+
+@router.get("/protection/events")
+async def rubika_protection_events(
+    limit: int = 50,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    from core_engine.services.redis_client import ensure_redis_client
+    from core_engine.services.rubika_operations import build_protection_overview
+
+    redis = await ensure_redis_client()
+    overview = await build_protection_overview(
+        db, redis, include_alerts_sync=False
+    )
+    events = overview.get("events") or []
+    return {"items": events[: max(1, min(limit, 200))], "count": len(events)}
+
+
+@router.get("/alerts")
+async def rubika_list_alerts(
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    from core_engine.services.redis_client import ensure_redis_client
+    from core_engine.services.rubika_alerts import list_open_alerts
+
+    redis = await ensure_redis_client()
+    items = await list_open_alerts(redis)
+    return {"items": [i.to_dict() for i in items], "count": len(items)}
+
+
+@router.post("/alerts/{dedupe_key}/acknowledge")
+async def rubika_acknowledge_alert(
+    dedupe_key: str,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
+):
+    from core_engine.services.redis_client import ensure_redis_client
+    from core_engine.services.rubika_alerts import acknowledge_alert
+
+    redis = await ensure_redis_client()
+    alert = await acknowledge_alert(redis, dedupe_key=dedupe_key)
+    if alert is None:
+        raise HTTPException(status_code=404, detail="هشدار پیدا نشد.")
+    record_audit(
+        db,
+        current_user["username"],
+        "rubika_alert_acknowledge",
+        "alert",
+        dedupe_key,
+        {"result": "acknowledged", "type": alert.type, "account_id": alert.account_id},
+    )
+    db.commit()
+    return {"state": "acknowledged", "alert": alert.to_dict()}
+
+
+@router.get("/accounts/{account_id}/protection")
+async def rubika_account_protection_detail(
+    account_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    from core_engine.services.redis_client import ensure_redis_client
+    from core_engine.services.rubika_operations import build_account_protection_detail
+
+    redis = await ensure_redis_client()
+    detail = await build_account_protection_detail(db, redis, account_id)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="اکانت پیدا نشد.")
+    return detail
 
 
 @router.post("/accounts/{account_id}/restore")
@@ -679,10 +838,15 @@ async def rubika_restore_account(
     db: Annotated[Session, Depends(get_db)] = None,
     current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
 ):
-    from core_engine.services.redis_client import get_redis_client
+    from core_engine.services.redis_client import ensure_redis_client
+    from core_engine.services.rubika_alerts import (
+        RubikaAlertSeverity,
+        RubikaAlertType,
+        upsert_alert,
+    )
     from core_engine.services.rubika_health import restore_rubika_account
 
-    redis = get_redis_client()
+    redis = await ensure_redis_client()
     result = await restore_rubika_account(
         db,
         redis,
@@ -700,6 +864,17 @@ async def rubika_restore_account(
                 "retryable": False,
             },
         )
+    await upsert_alert(
+        redis,
+        alert_type=RubikaAlertType.ACCOUNT_RECOVERED.value,
+        severity=RubikaAlertSeverity.INFO.value,
+        title=f"اکانت {account_id} بازیابی شد",
+        message="اپراتور اکانت را از قرنطینه بازگرداند.",
+        account_id=account_id,
+        category="recovery",
+        metadata={"health_state": result.health_state},
+        ttl_seconds=3600,
+    )
     return {
         "state": "restored",
         "code": result.code,

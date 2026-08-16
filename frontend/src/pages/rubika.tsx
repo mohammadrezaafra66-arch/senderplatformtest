@@ -7,12 +7,13 @@ import { RubikaAssistantCard } from "@/components/RubikaAssistantCard";
 import { RubikaContentScheduleManager } from "@/components/RubikaContentScheduleManager";
 import { RubikaGroupManager } from "@/components/RubikaGroupManager";
 import { RubikaPoolPanel } from "@/components/RubikaPoolPanel";
+import { RubikaProtectionCenter } from "@/components/RubikaProtectionCenter";
 import { RubikaSendLogPanel } from "@/components/RubikaSendLogPanel";
 import { Panel, PageContent } from "@/components/ui";
 import { useAuth } from "@/state/auth";
 import { canManageRubika } from "@/utils/permissions";
 
-type Tab = "pool" | "groups" | "send-log" | "assistant" | "status";
+type Tab = "pool" | "groups" | "send-log" | "assistant" | "status" | "protection";
 
 export default function RubikaPage() {
   const { t } = useTranslation();
@@ -22,6 +23,7 @@ export default function RubikaPage() {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "pool", label: t("rubikaTabPool") },
+    { key: "protection", label: t("rubikaTabProtection") },
     { key: "groups", label: t("rubikaTabGroups") },
     { key: "send-log", label: t("rubikaTabSendLog") },
     { key: "assistant", label: t("rubikaTabAssistant") },
@@ -59,6 +61,7 @@ export default function RubikaPage() {
         >
           <div style={{ padding: 16 }}>
             {tab === "pool" ? <RubikaPoolPanel canManage={canManage} /> : null}
+            {tab === "protection" ? <RubikaProtectionCenter canManage={canManage} /> : null}
             {tab === "groups" ? <RubikaGroupManager canManage={canManage} /> : null}
             {tab === "send-log" ? <RubikaSendLogPanel /> : null}
             {tab === "assistant" ? <RubikaAssistantCard /> : null}
