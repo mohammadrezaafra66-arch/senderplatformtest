@@ -52,6 +52,19 @@ class GptPreviewRequest(BaseModel):
     requested_count: int | None = Field(default=None, ge=1, le=3)
 
 
+class CampaignRenderPreviewRequest(BaseModel):
+    """Sample composition preview. Backend owns final text; client secrets are forbidden."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    template_text: str
+    platform: PlatformType | None = None
+    use_gpt: bool = False
+    include_products: bool = False
+    preview_count: int | None = Field(default=3, ge=1, le=5)
+    preview_variables: dict[str, str] | None = None
+
+
 class SenderAccountResponse(BaseModel):
     account_id: int
     label: str | None = None
@@ -101,6 +114,26 @@ class CampaignStatsData(BaseModel):
     eta_seconds: int | None = None
 
 
+class CommittedRenderSampleResponse(BaseModel):
+    """Exact persisted RenderedMessage sample (not regenerated)."""
+
+    rendered_message_id: int
+    contact_id: int | None = None
+    recipient_name: str | None = None
+    sender_account_id: int | None = None
+    final_text: str
+    final_text_sha256: str | None = None
+    render_batch_id: str | None = None
+    render_version: str | None = None
+    use_gpt: bool = False
+    variation_id: str | None = None
+    include_products: bool = False
+    product_count: int = 0
+    rendered_at: datetime | None = None
+    committed: bool = True
+    label: str = "پیام نهایی ثبت‌شده"
+
+
 class CampaignListItemResponse(BaseModel):
     """خلاصه Campaign برای لیست."""
 
@@ -137,6 +170,9 @@ class CampaignDetailResponse(BaseModel):
     stats: CampaignStatsData
     account_ids: list[int] = Field(default_factory=list)
     sender_accounts: list[SenderAccountResponse] = Field(default_factory=list)
+    latest_render_batch_id: str | None = None
+    render_version: str | None = None
+    committed_renders: list[CommittedRenderSampleResponse] = Field(default_factory=list)
 
 
 class CampaignsListResponse(BaseModel):
@@ -186,6 +222,32 @@ class CampaignRecipientItemResponse(BaseModel):
     account_id: int | None = None
     sender_account: MessageSenderAccountResponse | None = None
     updated_at: datetime
+    final_text_preview: str | None = None
+    has_more: bool = False
+    has_long_text: bool = False
+    use_gpt: bool | None = None
+    include_products: bool | None = None
+    variation_id: str | None = None
+    product_count: int | None = None
+    render_batch_id: str | None = None
+    render_version: str | None = None
+    final_text_sha256: str | None = None
+
+
+class CampaignRecipientDetailResponse(CampaignRecipientItemResponse):
+    """Full message-log trace. Never includes secrets or raw provider payloads."""
+
+    rendered_message_id: int | None = None
+    message_id: int | None = None
+    attempt_no: int | None = None
+    platform: str | None = None
+    final_text: str | None = None
+    gpt: dict | None = None
+    products: dict | None = None
+    error_code: str | None = None
+    rendered_at: datetime | None = None
+    sent_at: datetime | None = None
+    created_at: datetime | None = None
 
 
 class CampaignRecipientsListResponse(BaseModel):

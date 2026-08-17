@@ -25,6 +25,11 @@ from core_engine.models import (
     StagedQueueItemStatus,
 )
 from core_engine.services.consent_service import get_consent_block_reason
+from core_engine.services.campaign_render import (
+    RENDER_CONTENT_MISMATCH,
+    RenderContentMismatchError,
+    verify_render_content,
+)
 from core_engine.services.redis_client import get_redis_client
 from workers.redis_keys import queue_key
 
@@ -127,8 +132,9 @@ async def push_staged_items_to_worker_queue(
             # Never fall back to placeholder or stale text: an item without a
             # usable rendered payload is parked as SKIPPED with an explicit
             # reason so it stays visible instead of going out wrong.
-            payload_text = str((item.queue_payload or {}).get("final_text") or "").strip()
-            if not item.queue_payload or not payload_text:
+            raw_final = (item.queue_payload or {}).get("final_text")
+            payload_text = "" if raw_final is None else str(raw_final)
+            if not item.queue_payload or payload_text.strip() == "":
                 item.status = StagedQueueItemStatus.SKIPPED.value
                 item.skip_reason = "invalid_payload:missing_rendered_text"
                 skipped_invalid += 1
@@ -189,6 +195,39 @@ async def push_staged_items_to_worker_queue(
                 item.status = StagedQueueItemStatus.SKIPPED.value
                 item.skip_reason = "invalid_payload:sender_assignment_mismatch"
                 skipped_invalid += 1
+                db.commit()
+                continue
+
+            alt_text = payload.get("message_text")
+            if alt_text is not None and str(alt_text) != payload_text:
+                item.status = StagedQueueItemStatus.SKIPPED.value
+                item.skip_reason = RENDER_CONTENT_MISMATCH
+                skipped_invalid += 1
+                logger.error(
+                    "queue bridge skipped staged_item=%s campaign_id=%s: conflicting text fields",
+                    item.id,
+                    item.campaign_id,
+                )
+                db.commit()
+                continue
+
+            metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else None
+            try:
+                verify_render_content(
+                    final_text=payload_text,
+                    metadata=metadata,
+                    message_rendered_text=message.rendered_text,
+                )
+            except RenderContentMismatchError:
+                item.status = StagedQueueItemStatus.SKIPPED.value
+                item.skip_reason = RENDER_CONTENT_MISMATCH
+                skipped_invalid += 1
+                logger.error(
+                    "queue bridge skipped staged_item=%s campaign_id=%s: %s",
+                    item.id,
+                    item.campaign_id,
+                    RENDER_CONTENT_MISMATCH,
+                )
                 db.commit()
                 continue
 

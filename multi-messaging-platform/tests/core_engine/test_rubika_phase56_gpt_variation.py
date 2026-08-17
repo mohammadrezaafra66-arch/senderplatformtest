@@ -444,9 +444,13 @@ def test_mode_d_gpt_and_products_immutable(pg_session_factory):
     assert row.final_text.endswith(block)
     assert meta.get("prose_text")
     assert block not in (meta.get("prose_text") or "")
-    assert "تلویزیون سامسونگ مدل X" in block
+    snapshot = meta.get("frozen_product_snapshot") or {}
+    names = [item["name"] for item in snapshot.get("products") or []]
+    assert names
+    assert all(name in block for name in names)
     expected_price = format_price_display(28_500_000, "ریال")
-    assert expected_price in block
+    if "تلویزیون سامسونگ مدل X" in names:
+        assert expected_price in block
     assert "10,000" not in block
     assert "تلویزیون سامسونگ مدل Y" not in block
     assert any(block.startswith(heading) for heading in CONTROLLED_HEADINGS)

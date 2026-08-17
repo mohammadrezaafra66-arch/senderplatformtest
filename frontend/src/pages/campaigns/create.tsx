@@ -20,9 +20,15 @@ import {
 import { ApiError } from "@/lib/api";
 import { fetchAccounts } from "@/lib/accounts-api";
 import { campaignAccountError } from "@/lib/campaign-account-errors";
-import { createCampaignFromImport, fetchGptStatus, fetchProductFeedStatus, previewGptVariations } from "@/lib/campaign-api";
+import {
+  createCampaignFromImport,
+  fetchGptStatus,
+  fetchProductFeedStatus,
+  previewCampaignRender,
+  previewGptVariations,
+} from "@/lib/campaign-api";
 import { useAuth } from "@/state/auth";
-import type { PlatformOption } from "@/types/campaign";
+import type { CampaignRenderPreviewSample, PlatformOption } from "@/types/campaign";
 import type { AccountItem } from "@/types/account";
 import { canCreateCampaign } from "@/utils/permissions";
 
@@ -49,6 +55,9 @@ export default function CampaignCreatePage() {
     { title: string; prose: string; products: string; finalText: string; note?: string }[]
   >([]);
   const [gptProductNote, setGptProductNote] = useState<string | null>(null);
+  const [samplePreviewing, setSamplePreviewing] = useState(false);
+  const [samplePreviewError, setSamplePreviewError] = useState<string | null>(null);
+  const [samplePreviews, setSamplePreviews] = useState<CampaignRenderPreviewSample[]>([]);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(true);
   const [accountsError, setAccountsError] = useState<string | null>(null);
@@ -314,6 +323,67 @@ export default function CampaignCreatePage() {
                   {feedStatus ? <p className="mmp-muted">{feedStatus}</p> : null}
                 </div>
               ) : null}
+
+              <div className="mmp-stack" style={{ gap: 8 }}>
+                <p className="mmp-muted">{t("samplePreviewHint")}</p>
+                <Button
+                  type="button"
+                  disabled={samplePreviewing || submitting || !templateText.trim()}
+                  onClick={() => {
+                    setSamplePreviewing(true);
+                    setSamplePreviewError(null);
+                    void previewCampaignRender({
+                      template_text: templateText.trim(),
+                      platform,
+                      use_gpt: useGpt,
+                      include_products: includeProducts,
+                      preview_count: 3,
+                    })
+                      .then((result) => {
+                        if (!result.ok && result.message) {
+                          setSamplePreviewError(result.message);
+                        }
+                        setSamplePreviews(result.samples || []);
+                      })
+                      .catch((err) => {
+                        setSamplePreviews([]);
+                        setSamplePreviewError(
+                          err instanceof ApiError ? err.message : t("samplePreviewFailed"),
+                        );
+                      })
+                      .finally(() => setSamplePreviewing(false));
+                  }}
+                >
+                  {samplePreviewing ? t("loading") : t("samplePreviewGenerate")}
+                </Button>
+                {samplePreviewError ? <Alert>{samplePreviewError}</Alert> : null}
+                {samplePreviews.length ? (
+                  <div className="mmp-stack" style={{ gap: 12 }}>
+                    <p>
+                      <strong>{t("samplePreviewLabel")}</strong>
+                    </p>
+                    {samplePreviews.map((sample, index) => (
+                      <Panel key={`${sample.render_batch_id}-${index}`}>
+                        <PanelContent>
+                          <strong>
+                            {t("gptPreviewSample", { n: index + 1 })} — {t("samplePreviewLabel")}
+                          </strong>
+                          <p className="mmp-muted">{sample.sample_warning}</p>
+                          <p style={{ whiteSpace: "pre-wrap" }}>{sample.final_text}</p>
+                          <p className="mmp-muted">
+                            {t("useGpt")}: {sample.use_gpt ? t("yes") : t("no")}
+                            {sample.variation_id ? ` — ${t("gptVariationId")}: ${sample.variation_id}` : ""}
+                          </p>
+                          <p className="mmp-muted">
+                            {t("includeProducts")}: {sample.include_products ? t("yes") : t("no")}
+                            {sample.include_products ? ` (${sample.product_count})` : ""}
+                          </p>
+                        </PanelContent>
+                      </Panel>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
 
               {error ? <Alert>{error}</Alert> : null}
 

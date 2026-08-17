@@ -47,6 +47,10 @@ def reset_preview_rate_guard() -> None:
     _preview_last_monotonic = 0.0
 
 
+def enforce_preview_rate_guard() -> None:
+    _preview_rate_guard()
+
+
 def set_message_variation_provider(provider: MessageVariationProvider | None) -> None:
     global _provider_override
     _provider_override = provider

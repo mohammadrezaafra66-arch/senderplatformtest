@@ -4,7 +4,9 @@ import type {
   CampaignAccountsResult,
   CampaignListItem,
   CampaignRecipientItem,
+  CampaignRenderPreview,
   CreateCampaignFromImportPayload,
+  MessageLogDetail,
 } from "@/types/campaign";
 
 export type CampaignsListResult = {
@@ -58,6 +60,14 @@ export async function fetchCampaignRecipients(
     total_count: number;
   };
   return data;
+}
+
+export async function fetchCampaignRecipientDetail(
+  campaignId: number,
+  recipientId: number,
+): Promise<MessageLogDetail> {
+  const response = await apiFetch(`/campaigns/${campaignId}/recipients/${recipientId}`);
+  return response.json() as Promise<MessageLogDetail>;
 }
 
 export async function downloadCampaignRecipientsExport(
@@ -163,4 +173,19 @@ export async function previewGptVariations(payload: {
     body: JSON.stringify(payload),
   });
   return response.json() as Promise<GptPreviewResult>;
+}
+
+export async function previewCampaignRender(payload: {
+  template_text: string;
+  platform?: string;
+  use_gpt: boolean;
+  include_products: boolean;
+  preview_count?: number;
+}): Promise<CampaignRenderPreview> {
+  const response = await apiFetch("/campaigns/render-preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return response.json() as Promise<CampaignRenderPreview>;
 }

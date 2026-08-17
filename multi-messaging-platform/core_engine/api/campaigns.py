@@ -14,7 +14,9 @@ from core_engine.api.schemas import (
     CampaignFromImportRequest,
     CampaignFromImportResponse,
     CampaignListItemResponse,
+    CampaignRecipientDetailResponse,
     CampaignRecipientsListResponse,
+    CampaignRenderPreviewRequest,
     CampaignsListResponse,
     CampaignStartResponse,
     CampaignStatsData,
@@ -46,6 +48,8 @@ from core_engine.services.campaign_recipients import (
     build_recipients_csv_bytes,
     export_filename,
     fetch_campaign_recipient_rows,
+    fetch_committed_render_samples,
+    fetch_recipient_detail,
     get_campaign_or_404,
     recipient_to_response,
 )
@@ -237,6 +241,38 @@ def gpt_preview_endpoint(
         raise HTTPException(status_code=400, detail=exc.http_detail()) from exc
 
 
+@router.post("/render-preview")
+def campaign_render_preview_endpoint(
+    payload: CampaignRenderPreviewRequest,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    """Sample composition preview using the same final-render pipeline as prepare.
+
+    Not committed. Does not accept secrets or client-authored final_text.
+    """
+    from core_engine.services.campaign_render import build_campaign_render_preview
+    from core_engine.services.message_variation.errors import GptVariationError
+    from core_engine.services.product_feed.errors import ProductFeedError
+
+    try:
+        return build_campaign_render_preview(
+            template_text=payload.template_text,
+            use_gpt=payload.use_gpt,
+            include_products=payload.include_products,
+            preview_count=payload.preview_count,
+            preview_variables=payload.preview_variables,
+            apply_gpt_rate_guard=True,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except GptVariationError as exc:
+        raise HTTPException(status_code=400, detail=exc.http_detail()) from exc
+    except ProductFeedError as exc:
+        raise HTTPException(status_code=400, detail=exc.http_detail()) from exc
+
+
 @router.get("/{campaign_id}", response_model=CampaignDetailResponse)
 def get_campaign_detail(
     campaign_id: int,
@@ -259,6 +295,9 @@ def get_campaign_detail(
     stats = CampaignStatsData(**stats_dict)
 
     senders = _sender_accounts(campaign)
+    committed_renders, latest_batch = fetch_committed_render_samples(db, campaign_id)
+    from core_engine.services.campaign_render import RENDER_VERSION
+
     return CampaignDetailResponse(
         id=campaign.id,
         name=campaign.name,
@@ -279,6 +318,9 @@ def get_campaign_detail(
         stats=stats,
         account_ids=[sender.account_id for sender in senders],
         sender_accounts=senders,
+        latest_render_batch_id=latest_batch,
+        render_version=RENDER_VERSION if committed_renders else None,
+        committed_renders=committed_renders,
     )
 
 
@@ -444,7 +486,10 @@ def list_campaign_recipients(
         offset=offset,
     )
 
-    items = [recipient_to_response(recipient, contact) for recipient, contact in rows]
+    items = [
+        recipient_to_response(recipient, contact, staged)
+        for recipient, contact, staged in rows
+    ]
 
     return CampaignRecipientsListResponse(
         campaign_id=campaign_id,
@@ -453,6 +498,23 @@ def list_campaign_recipients(
         limit=limit,
         offset=offset,
     )
+
+
+@router.get(
+    "/{campaign_id}/recipients/{recipient_id}",
+    response_model=CampaignRecipientDetailResponse,
+)
+def get_campaign_recipient_detail(
+    campaign_id: int,
+    recipient_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str],
+        Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR, RoleType.VIEWER)),
+    ] = None,
+):
+    """Full exact-text trace for one message-log row. No secrets."""
+    return fetch_recipient_detail(db, campaign_id, recipient_id)
 
 
 @router.post("/from-import", response_model=CampaignFromImportResponse)

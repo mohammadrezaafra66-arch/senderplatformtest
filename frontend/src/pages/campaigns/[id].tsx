@@ -6,6 +6,8 @@ import { useTranslation } from "react-i18next";
 
 import { Layout } from "@/components/Layout";
 import { MessageSenderCell } from "@/components/MessageSenderCell";
+import { MessageTextCell } from "@/components/MessageTextCell";
+import { MessageDetailModal } from "@/components/MessageDetailModal";
 import { CampaignSenderSelector, type SenderMode } from "@/components/CampaignSenderSelector";
 import {
   Alert,
@@ -24,13 +26,14 @@ import { campaignAccountError } from "@/lib/campaign-account-errors";
 import { getFailureReasonFa } from "@/lib/failure-reason";
 import {
   fetchCampaignDetail,
+  fetchCampaignRecipientDetail,
   fetchCampaignRecipients,
   startCampaign,
   stopCampaign,
   updateCampaignAccounts,
 } from "@/lib/campaign-api";
 import { useAuth } from "@/state/auth";
-import type { CampaignDetail, CampaignRecipientItem } from "@/types/campaign";
+import type { CampaignDetail, CampaignRecipientItem, MessageLogDetail } from "@/types/campaign";
 import type { AccountItem } from "@/types/account";
 import { campaignStatusLabel, SEND_STATUS_OPTIONS } from "@/utils/campaign-status";
 import { canControlCampaign, canViewCampaigns } from "@/utils/permissions";
@@ -60,6 +63,10 @@ export default function CampaignMonitorPage() {
   const [senderMode, setSenderMode] = useState<SenderMode>("auto");
   const [selectedAccountIds, setSelectedAccountIds] = useState<number[]>([]);
   const [senderSaving, setSenderSaving] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [detail, setDetail] = useState<MessageLogDetail | null>(null);
 
   const loadAccounts = useCallback(async () => {
     setAccountsLoading(true);
@@ -157,6 +164,22 @@ export default function CampaignMonitorPage() {
       setError(campaignAccountError(err, t));
     } finally {
       setSenderSaving(false);
+    }
+  }
+
+  async function openMessageDetail(item: CampaignRecipientItem) {
+    if (!Number.isFinite(campaignId)) return;
+    setDetailOpen(true);
+    setDetailLoading(true);
+    setDetailError(null);
+    setDetail(null);
+    try {
+      const data = await fetchCampaignRecipientDetail(campaignId, item.id);
+      setDetail(data);
+    } catch (err) {
+      setDetailError(err instanceof ApiError ? err.message : t("messageLogsLoadError"));
+    } finally {
+      setDetailLoading(false);
     }
   }
 
@@ -300,6 +323,54 @@ export default function CampaignMonitorPage() {
                 </PanelContent>
               </Panel>
 
+              <Panel title={t("campaignSettings")}>
+                <PanelContent>
+                  <div className="mmp-stack">
+                    <span>
+                      {t("useGpt")}: {campaign.use_gpt ? t("yes") : t("no")}
+                    </span>
+                    <span>
+                      {t("includeProducts")}: {campaign.include_products ? t("yes") : t("no")}
+                    </span>
+                    <span>
+                      {t("status")}: {campaignStatusLabel(campaign.status, t)}
+                    </span>
+                    <span>
+                      {t("renderBatch")}: {campaign.latest_render_batch_id ?? "—"}
+                    </span>
+                    <span>
+                      {t("renderVersion")}: {campaign.render_version ?? "—"}
+                    </span>
+                  </div>
+                </PanelContent>
+              </Panel>
+
+              <Panel title={t("committedFinalSamples")}>
+                <PanelContent>
+                  {(campaign.committed_renders ?? []).length === 0 ? (
+                    <p className="mmp-muted">{t("noCommittedFinal")}</p>
+                  ) : (
+                    <div className="mmp-stack" style={{ gap: 12 }}>
+                      <p className="mmp-muted">{t("committedFinalHint")}</p>
+                      {(campaign.committed_renders ?? []).map((sample) => (
+                        <div key={sample.rendered_message_id} className="campaign-committed-sample">
+                          <strong>{t("committedFinalLabel")}</strong>
+                          {sample.recipient_name ? (
+                            <div className="mmp-muted">{sample.recipient_name}</div>
+                          ) : null}
+                          <pre className="message-detail-text">{sample.final_text}</pre>
+                          {sample.variation_id ? (
+                            <div className="mmp-muted">
+                              {t("gptVariationId")}: {sample.variation_id}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </PanelContent>
+              </Panel>
+
               <Panel
                 title={`${t("messageLogs")} (${recipientsTotal})`}
                 headerExtra={
@@ -328,6 +399,7 @@ export default function CampaignMonitorPage() {
                         <tr>
                           <th>{t("phone")}</th>
                           <th>{t("name")}</th>
+                          <th>{t("messageText")}</th>
                           <th>render</th>
                           <th>send</th>
                           <th>{t("sender")}</th>
@@ -339,6 +411,17 @@ export default function CampaignMonitorPage() {
                             <td>{r.phone ?? "—"}</td>
                             <td>
                               {[r.first_name, r.last_name].filter(Boolean).join(" ") || "—"}
+                            </td>
+                            <td>
+                              <MessageTextCell
+                                preview={r.final_text_preview}
+                                hasMore={Boolean(
+                                  r.has_more ||
+                                    r.has_long_text ||
+                                    (r.final_text_preview && r.final_text_preview.split("\n").length > 3),
+                                )}
+                                onMore={() => void openMessageDetail(r)}
+                              />
                             </td>
                             <td>{r.render_status}</td>
                             <td>
@@ -369,6 +452,17 @@ export default function CampaignMonitorPage() {
               </Panel>
             </>
           )}
+          <MessageDetailModal
+            open={detailOpen}
+            loading={detailLoading}
+            error={detailError}
+            detail={detail}
+            onClose={() => {
+              setDetailOpen(false);
+              setDetail(null);
+              setDetailError(null);
+            }}
+          />
         </PageContent>
       </Layout>
     </>

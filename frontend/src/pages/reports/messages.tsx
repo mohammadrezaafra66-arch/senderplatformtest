@@ -5,16 +5,23 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Layout } from "@/components/Layout";
+import { MessageDetailModal } from "@/components/MessageDetailModal";
 import { MessageSenderCell } from "@/components/MessageSenderCell";
+import { MessageTextCell } from "@/components/MessageTextCell";
 import {
   Alert,
   Button,
   PageContent,
 } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { fetchCampaignRecipients, fetchCampaigns, downloadCampaignRecipientsExport } from "@/lib/campaign-api";
+import {
+  fetchCampaignRecipientDetail,
+  fetchCampaignRecipients,
+  fetchCampaigns,
+  downloadCampaignRecipientsExport,
+} from "@/lib/campaign-api";
 import { useAuth } from "@/state/auth";
-import type { CampaignListItem, CampaignRecipientItem } from "@/types/campaign";
+import type { CampaignListItem, CampaignRecipientItem, MessageLogDetail } from "@/types/campaign";
 import { SEND_STATUS_OPTIONS } from "@/utils/campaign-status";
 import { toJalaliDateTime } from "@/utils/jalali";
 import { canViewCampaigns, canViewMessageLogs } from "@/utils/permissions";
@@ -56,6 +63,10 @@ export default function MessageLogsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [detail, setDetail] = useState<MessageLogDetail | null>(null);
   const limit = 30;
 
   useEffect(() => {
@@ -142,6 +153,22 @@ export default function MessageLogsPage() {
       setError(err instanceof ApiError ? err.message : t("exportFailed"));
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function openMessageDetail(item: CampaignRecipientItem) {
+    if (selectedCampaignId == null) return;
+    setDetailOpen(true);
+    setDetailLoading(true);
+    setDetailError(null);
+    setDetail(null);
+    try {
+      const data = await fetchCampaignRecipientDetail(selectedCampaignId, item.id);
+      setDetail(data);
+    } catch (err) {
+      setDetailError(err instanceof ApiError ? err.message : t("messageLogsLoadError"));
+    } finally {
+      setDetailLoading(false);
     }
   }
 
@@ -281,6 +308,7 @@ export default function MessageLogsPage() {
                       <th style={{ padding: 8, textAlign: "right" }}>#</th>
                       <th style={{ padding: 8, textAlign: "right" }}>{t("phone")}</th>
                       <th style={{ padding: 8, textAlign: "right" }}>{t("name")}</th>
+                      <th style={{ padding: 8, textAlign: "right" }}>{t("messageText")}</th>
                       <th style={{ padding: 8, textAlign: "right" }}>render</th>
                       <th style={{ padding: 8, textAlign: "right" }}>send</th>
                       <th style={{ padding: 8, textAlign: "right" }}>{t("sender")}</th>
@@ -294,6 +322,17 @@ export default function MessageLogsPage() {
                         <td style={{ padding: 8 }}>{r.phone ?? "—"}</td>
                         <td style={{ padding: 8 }}>
                           {[r.first_name, r.last_name].filter(Boolean).join(" ") || "—"}
+                        </td>
+                        <td style={{ padding: 8 }}>
+                          <MessageTextCell
+                            preview={r.final_text_preview}
+                            hasMore={Boolean(
+                              r.has_more ||
+                                r.has_long_text ||
+                                (r.final_text_preview && r.final_text_preview.split("\n").length > 3),
+                            )}
+                            onMore={() => void openMessageDetail(r)}
+                          />
                         </td>
                         <td style={{ padding: 8 }}>{r.render_status}</td>
                         <td style={{ padding: 8, color: sendStatusColor(r.send_status) }}>
@@ -331,6 +370,17 @@ export default function MessageLogsPage() {
               {t("messageLogsHint")}
             </div>
           )}
+          <MessageDetailModal
+            open={detailOpen}
+            loading={detailLoading}
+            error={detailError}
+            detail={detail}
+            onClose={() => {
+              setDetailOpen(false);
+              setDetail(null);
+              setDetailError(null);
+            }}
+          />
         </PageContent>
       </Layout>
     </>

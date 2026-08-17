@@ -604,11 +604,68 @@ a.mmp-btn {
   color: var(--text-muted);
 }
 
-.mmp-modal__actions {
+.mmp-modal__dialog--wide {
+  width: min(100%, 720px);
+  max-height: 90vh;
+  overflow: auto;
+}
+
+.message-text-cell {
+  max-width: 280px;
+}
+
+.message-text-cell__excerpt {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+.message-text-cell__more {
+  margin-top: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.message-detail-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 8px 0 12px;
+  color: var(--text);
+  font: inherit;
+}
+
+.message-detail-meta {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.message-detail-meta__row {
   display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 12px;
   flex-wrap: wrap;
+}
+
+.message-detail-products ul {
+  margin: 8px 0 0;
+  padding-inline-start: 18px;
+}
+
+.campaign-committed-sample {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px;
 }
 
 .mmp-toast {

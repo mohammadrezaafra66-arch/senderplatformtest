@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import random
-import uuid
 
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
@@ -27,23 +26,23 @@ from core_engine.services.phase4_utils import (
     is_consent_allowed,
     normalize_consent_status,
 )
-from core_engine.services.message_variation.placeholders import (
-    TEMPLATE_PLACEHOLDER,
-    template_fingerprint,
-)
 from core_engine.services.message_variation.errors import GptVariationError
+from core_engine.services.message_variation.placeholders import template_fingerprint
 from core_engine.services.message_variation.service import (
     assign_and_log,
-    assignment_metadata,
     generate_validated_pool,
     pool_from_queue_payload,
 )
-from core_engine.services.product_feed.dto import MessageComposition
-from core_engine.services.product_feed.errors import ProductFeedError
-from core_engine.services.product_feed.service import (
-    fetch_current_advertising_products,
-    select_and_compose,
+from core_engine.services.campaign_render import (
+    FinalRenderResult,
+    build_persisted_render_metadata,
+    compose_final_render,
+    contact_template_variables,
+    new_render_batch_id,
+    substitute_placeholders,
 )
+from core_engine.services.product_feed.errors import ProductFeedError
+from core_engine.services.product_feed.service import fetch_current_advertising_products
 
 
 def build_phase4_mock_final_text(contact: Contact, campaign: Campaign) -> str:
@@ -61,27 +60,12 @@ def build_phase4_mock_final_text(contact: Contact, campaign: Campaign) -> str:
 
 def build_campaign_template_variables(contact: Contact) -> dict[str, str]:
     """متغیرهای مجاز قالب برای یک مخاطب."""
-    full_name = (
-        contact.full_name
-        or build_full_name(contact.first_name, contact.last_name)
-        or ""
-    )
-    return {
-        "first_name": (contact.first_name or "").strip(),
-        "last_name": (contact.last_name or "").strip(),
-        "full_name": full_name.strip(),
-    }
+    return contact_template_variables(contact)
 
 
 def substitute_template_variables(template: str, contact: Contact) -> str:
     """جایگزینی متغیرهای مخاطب روی یک قالب از قبل تنوع‌داده‌شده یا خام."""
-    variables = build_campaign_template_variables(contact)
-
-    def _replace(match) -> str:
-        name = match.group(1)
-        return variables.get(name, match.group(0))
-
-    return TEMPLATE_PLACEHOLDER.sub(_replace, template).strip()
+    return substitute_placeholders(template, contact_template_variables(contact))
 
 
 def render_campaign_template(contact: Contact, campaign: Campaign) -> str:
@@ -126,28 +110,8 @@ def _product_http_error(exc: ProductFeedError) -> HTTPException:
     return HTTPException(status_code=400, detail=exc.http_detail())
 
 
-def _product_metadata(composition: MessageComposition | None) -> dict | None:
-    if composition is None or composition.snapshot is None:
-        return None
-    return {
-        "frozen_product_snapshot": composition.snapshot.to_dict(),
-        "prose_text": composition.prose_text,
-        "immutable_product_block": composition.immutable_product_block,
-        "product_heading": composition.heading,
-    }
-
-
-def _render_metadata(
-    composition: MessageComposition | None,
-    gpt_meta: dict | None,
-) -> dict | None:
-    meta: dict = {}
-    if gpt_meta:
-        meta.update(gpt_meta)
-    product = _product_metadata(composition)
-    if product:
-        meta.update(product)
-    return meta or None
+def _persist_metadata(result: FinalRenderResult) -> dict:
+    return build_persisted_render_metadata(result)
 
 
 def prepare_campaign_messages(
@@ -163,7 +127,7 @@ def prepare_campaign_messages(
     used_products = False
     snapshot_id = None
     snapshot_expires_at = None
-    prepare_nonce = uuid.uuid4().hex
+    render_batch_id = new_render_batch_id()
     gpt_pool = None
     gpt_called = False
 
@@ -280,23 +244,38 @@ def prepare_campaign_messages(
     else:
         render_mode = "template"
 
-    def _render(contact: Contact) -> tuple[str, MessageComposition | None, dict | None]:
-        gpt_meta = None
+    def _render(contact: Contact, *, sender_account_id: int | None) -> FinalRenderResult:
+        assigned = None
         if request.force_mock_output:
             prose = build_phase4_mock_final_text(contact, campaign)
+            template_source = "mock"
+            substitute = False
+            use_gpt = False
         elif campaign.use_gpt:
             if gpt_pool is None:
                 raise _gpt_http_error(GptVariationError("GPT_UNAVAILABLE"))
             assigned = assign_and_log(
                 gpt_pool, campaign_id=campaign.id, contact_id=contact.id
             )
-            prose = substitute_template_variables(assigned.text, contact)
-            gpt_meta = assignment_metadata(gpt_pool, assigned)
+            prose = assigned.text
+            template_source = "gpt_variation"
+            substitute = True
+            use_gpt = True
         else:
-            prose = render_campaign_template(contact, campaign)
-        if not campaign.include_products:
-            return prose, None, gpt_meta
-        if product_feed is None:
+            prose = (campaign.template_text or "").strip()
+            if not prose:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "Campaign has no template_text; set the message text before "
+                        "preparing, or call prepare with force_mock_output=true."
+                    ),
+                )
+            template_source = "base_template"
+            substitute = True
+            use_gpt = False
+        include_products = bool(campaign.include_products)
+        if include_products and product_feed is None:
             raise HTTPException(
                 status_code=400,
                 detail={
@@ -304,162 +283,183 @@ def prepare_campaign_messages(
                     "message": "اطلاعات محصولات و قیمت‌های لحظه‌ای در دسترس نیست؛ آماده‌سازی کمپین شامل محصولات متوقف شد.",
                 },
             )
-        rng = random.Random(f"{campaign.id}:{contact.id}:{prepare_nonce}")
+        rng = (
+            random.Random(f"{campaign.id}:{contact.id}:{render_batch_id}")
+            if include_products
+            else None
+        )
         try:
-            composition = select_and_compose(prose, product_feed, rng=rng)
+            return compose_final_render(
+                prose=prose,
+                render_batch_id=render_batch_id,
+                template_source=template_source,
+                use_gpt=use_gpt,
+                include_products=include_products,
+                contact=contact,
+                substitute=substitute,
+                assigned_variation=assigned,
+                gpt_pool=gpt_pool if use_gpt else None,
+                product_feed=product_feed if include_products else None,
+                product_rng=rng,
+                campaign_id=campaign.id,
+                contact_id=contact.id,
+                sender_account_id=sender_account_id,
+                sample=False,
+            )
         except ProductFeedError as exc:
             raise _product_http_error(exc) from exc
-        return composition.final_text, composition, gpt_meta
-
-    for recipient_index, (recipient, contact) in enumerate(allowed_recipient_rows):
-        assigned_account = sender_accounts[recipient_index % len(sender_accounts)]
-        existing_item = existing_staged.get(contact.id)
-        if existing_item is not None:
-            if existing_item.status == "ready":
-                # A ready item was never handed to a worker, so refresh it when
-                # the campaign text has changed since it was staged. Items that
-                # already moved on (queued/sent) are never touched.
-                current_text, composition, gpt_meta = _render(contact)
-                product_meta = _render_metadata(composition, gpt_meta)
-                message = (
-                    existing_messages.get(recipient.final_message_id)
-                    if recipient.final_message_id is not None
-                    else None
-                )
-                if message is not None and message.account_id != assigned_account.id:
-                    db.rollback()
-                    raise HTTPException(
-                        status_code=409,
-                        detail={
-                            "code": "prepared_sender_assignment_mismatch",
-                            "message": (
-                                f"Message {message.id} has account {message.account_id}, "
-                                f"but deterministic assignment requires {assigned_account.id}."
-                            ),
-                        },
-                    )
-                if message is None:
-                    message = Message(
-                        campaign_id=campaign_id,
-                        account_id=assigned_account.id,
-                        contact_id=contact.id,
-                        rendered_text=current_text,
-                        dedupe_key=f"campaign:{campaign_id}:contact:{contact.id}",
-                    )
-                    db.add(message)
-                    db.flush()
-                    recipient.final_message_id = message.id
-                    existing_messages[message.id] = message
-                else:
-                    message.rendered_text = current_text
-
-                if existing_item.final_text != current_text:
-                    existing_item.final_text = current_text
-                existing_item.queue_payload = build_staged_queue_payload(
-                    campaign_id=campaign_id,
-                    contact_id=contact.id,
-                    rendered_message_id=existing_item.rendered_message_id,
-                    message_id=message.id,
-                    account_id=message.account_id,
-                    channel=campaign.channel,
-                    phone=contact.phone,
-                    channel_handle=contact.channel_handle,
-                    final_text=current_text,
-                    metadata=product_meta,
-                )
-                if existing_item.rendered_message_id is not None:
-                    stale_rendered = db.get(
-                        RenderedMessage, existing_item.rendered_message_id
-                    )
-                    if stale_rendered is not None:
-                        stale_rendered.final_text = current_text
-                        stale_rendered.render_mode = render_mode
-                        stale_rendered.used_products = used_products
-                        stale_rendered.queue_payload = existing_item.queue_payload
-                already_staged_count += 1
-                returned_items.append(existing_item)
-            continue
-
-        if newly_staged_count >= new_ready_slots:
-            continue
-
-        final_text, composition, gpt_meta = _render(contact)
-        product_meta = _render_metadata(composition, gpt_meta)
-
-        rendered_message = RenderedMessage(
-            campaign_id=campaign_id,
-            contact_id=contact.id,
-            channel=campaign.channel,
-            final_text=final_text,
-            render_mode=render_mode,
-            used_kb=False,
-            used_products=used_products,
-            product_snapshot_id=snapshot_id,
-            snapshot_expires_at=snapshot_expires_at,
-            ready_for_queue=True,
-            warnings=None,
-        )
-        db.add(rendered_message)
-        db.flush()
-
-        message = Message(
-            campaign_id=campaign_id,
-            account_id=assigned_account.id,
-            contact_id=contact.id,
-            rendered_text=final_text,
-            dedupe_key=f"campaign:{campaign_id}:contact:{contact.id}",
-        )
-        db.add(message)
-        db.flush()
-        recipient.final_message_id = message.id
-
-        queue_payload = build_staged_queue_payload(
-            campaign_id=campaign_id,
-            contact_id=contact.id,
-            rendered_message_id=rendered_message.id,
-            message_id=message.id,
-            account_id=message.account_id,
-            channel=campaign.channel,
-            phone=contact.phone,
-            channel_handle=contact.channel_handle,
-            final_text=final_text,
-            metadata=product_meta,
-        )
-        rendered_message.queue_payload = queue_payload
-
-        staged_item = StagedQueueItem(
-            campaign_id=campaign_id,
-            contact_id=contact.id,
-            rendered_message_id=rendered_message.id,
-            channel=campaign.channel,
-            status="ready",
-            final_text=final_text,
-            queue_payload=queue_payload,
-            skip_reason=None,
-        )
-        db.add(staged_item)
-
-        try:
-            db.flush()
-        except IntegrityError as exc:
-            db.rollback()
-            raise HTTPException(
-                status_code=409,
-                detail="Duplicate staged item detected for this campaign contact.",
-            ) from exc
-
-        existing_staged[contact.id] = staged_item
-        returned_items.append(staged_item)
-        newly_staged_count += 1
-
-    ready_count = sum(1 for item in returned_items if item.status == "ready")
-    if ready_count > 0 or existing_ready_count > 0:
-        campaign.status = CampaignStatus.PREPARED.value
 
     try:
+        for recipient_index, (recipient, contact) in enumerate(allowed_recipient_rows):
+            assigned_account = sender_accounts[recipient_index % len(sender_accounts)]
+            existing_item = existing_staged.get(contact.id)
+            if existing_item is not None:
+                if existing_item.status == "ready":
+                    # Unsent ready rows may be replaced by a new render batch.
+                    # queued/sent history is never rewritten.
+                    result = _render(contact, sender_account_id=assigned_account.id)
+                    current_text = result.final_text
+                    product_meta = _persist_metadata(result)
+                    message = (
+                        existing_messages.get(recipient.final_message_id)
+                        if recipient.final_message_id is not None
+                        else None
+                    )
+                    if message is not None and message.account_id != assigned_account.id:
+                        raise HTTPException(
+                            status_code=409,
+                            detail={
+                                "code": "prepared_sender_assignment_mismatch",
+                                "message": (
+                                    f"Message {message.id} has account {message.account_id}, "
+                                    f"but deterministic assignment requires {assigned_account.id}."
+                                ),
+                            },
+                        )
+                    if message is None:
+                        message = Message(
+                            campaign_id=campaign_id,
+                            account_id=assigned_account.id,
+                            contact_id=contact.id,
+                            rendered_text=current_text,
+                            dedupe_key=f"campaign:{campaign_id}:contact:{contact.id}",
+                        )
+                        db.add(message)
+                        db.flush()
+                        recipient.final_message_id = message.id
+                        existing_messages[message.id] = message
+                    else:
+                        message.rendered_text = current_text
+
+                    if existing_item.final_text != current_text:
+                        existing_item.final_text = current_text
+                    existing_item.queue_payload = build_staged_queue_payload(
+                        campaign_id=campaign_id,
+                        contact_id=contact.id,
+                        rendered_message_id=existing_item.rendered_message_id,
+                        message_id=message.id,
+                        account_id=message.account_id,
+                        channel=campaign.channel,
+                        phone=contact.phone,
+                        channel_handle=contact.channel_handle,
+                        final_text=current_text,
+                        metadata=product_meta,
+                    )
+                    if existing_item.rendered_message_id is not None:
+                        stale_rendered = db.get(
+                            RenderedMessage, existing_item.rendered_message_id
+                        )
+                        if stale_rendered is not None:
+                            stale_rendered.final_text = current_text
+                            stale_rendered.render_mode = render_mode
+                            stale_rendered.used_products = used_products
+                            stale_rendered.queue_payload = existing_item.queue_payload
+                    already_staged_count += 1
+                    returned_items.append(existing_item)
+                continue
+
+            if newly_staged_count >= new_ready_slots:
+                continue
+
+            result = _render(contact, sender_account_id=assigned_account.id)
+            final_text = result.final_text
+            product_meta = _persist_metadata(result)
+
+            rendered_message = RenderedMessage(
+                campaign_id=campaign_id,
+                contact_id=contact.id,
+                channel=campaign.channel,
+                final_text=final_text,
+                render_mode=render_mode,
+                used_kb=False,
+                used_products=used_products,
+                product_snapshot_id=snapshot_id,
+                snapshot_expires_at=snapshot_expires_at,
+                ready_for_queue=True,
+                warnings=None,
+            )
+            db.add(rendered_message)
+            db.flush()
+
+            message = Message(
+                campaign_id=campaign_id,
+                account_id=assigned_account.id,
+                contact_id=contact.id,
+                rendered_text=final_text,
+                dedupe_key=f"campaign:{campaign_id}:contact:{contact.id}",
+            )
+            db.add(message)
+            db.flush()
+            recipient.final_message_id = message.id
+
+            queue_payload = build_staged_queue_payload(
+                campaign_id=campaign_id,
+                contact_id=contact.id,
+                rendered_message_id=rendered_message.id,
+                message_id=message.id,
+                account_id=message.account_id,
+                channel=campaign.channel,
+                phone=contact.phone,
+                channel_handle=contact.channel_handle,
+                final_text=final_text,
+                metadata=product_meta,
+            )
+            rendered_message.queue_payload = queue_payload
+
+            staged_item = StagedQueueItem(
+                campaign_id=campaign_id,
+                contact_id=contact.id,
+                rendered_message_id=rendered_message.id,
+                channel=campaign.channel,
+                status="ready",
+                final_text=final_text,
+                queue_payload=queue_payload,
+                skip_reason=None,
+            )
+            db.add(staged_item)
+
+            try:
+                db.flush()
+            except IntegrityError as exc:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Duplicate staged item detected for this campaign contact.",
+                ) from exc
+
+            existing_staged[contact.id] = staged_item
+            returned_items.append(staged_item)
+            newly_staged_count += 1
+
+        ready_count = sum(1 for item in returned_items if item.status == "ready")
+        if ready_count > 0 or existing_ready_count > 0:
+            campaign.status = CampaignStatus.PREPARED.value
+
         db.commit()
         for item in returned_items:
             db.refresh(item)
+    except HTTPException:
+        db.rollback()
+        raise
     except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
