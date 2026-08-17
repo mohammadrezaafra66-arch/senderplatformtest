@@ -20,7 +20,7 @@ import {
 import { ApiError } from "@/lib/api";
 import { fetchAccounts } from "@/lib/accounts-api";
 import { campaignAccountError } from "@/lib/campaign-account-errors";
-import { createCampaignFromImport } from "@/lib/campaign-api";
+import { createCampaignFromImport, fetchProductFeedStatus } from "@/lib/campaign-api";
 import { useAuth } from "@/state/auth";
 import type { PlatformOption } from "@/types/campaign";
 import type { AccountItem } from "@/types/account";
@@ -40,6 +40,8 @@ export default function CampaignCreatePage() {
   const [includeProducts, setIncludeProducts] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [feedStatus, setFeedStatus] = useState<string | null>(null);
+  const [feedChecking, setFeedChecking] = useState(false);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(true);
   const [accountsError, setAccountsError] = useState<string | null>(null);
@@ -201,6 +203,36 @@ export default function CampaignCreatePage() {
                 />
                 <span>{t("includeProducts")}</span>
               </label>
+              <p className="mmp-muted">{t("includeProductsHint")}</p>
+              {includeProducts ? (
+                <div className="mmp-stack" style={{ gap: 8 }}>
+                  <Button
+                    type="button"
+                    disabled={feedChecking || submitting}
+                    onClick={() => {
+                      setFeedChecking(true);
+                      setFeedStatus(null);
+                      void fetchProductFeedStatus()
+                        .then((result) => {
+                          setFeedStatus(
+                            result.ok
+                              ? t("productFeedReady", { count: result.eligible_count })
+                              : result.message || t("productFeedFailed"),
+                          );
+                        })
+                        .catch((err) => {
+                          setFeedStatus(
+                            err instanceof ApiError ? err.message : t("productFeedFailed"),
+                          );
+                        })
+                        .finally(() => setFeedChecking(false));
+                    }}
+                  >
+                    {feedChecking ? t("loading") : t("productFeedCheck")}
+                  </Button>
+                  {feedStatus ? <p className="mmp-muted">{feedStatus}</p> : null}
+                </div>
+              ) : null}
 
               {error ? <Alert>{error}</Alert> : null}
 

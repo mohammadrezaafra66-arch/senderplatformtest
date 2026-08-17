@@ -190,6 +190,18 @@ def list_campaigns(
     )
 
 
+@router.get("/product-feed/status")
+def product_feed_status_endpoint(
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    """Operator preflight for advertising products. Never exposes API tokens."""
+    from core_engine.services.product_feed.service import product_feed_status
+
+    return product_feed_status()
+
+
 @router.get("/{campaign_id}", response_model=CampaignDetailResponse)
 def get_campaign_detail(
     campaign_id: int,

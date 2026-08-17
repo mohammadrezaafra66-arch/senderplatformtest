@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import random
 import re
-from datetime import datetime
+import uuid
 
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
@@ -16,20 +17,23 @@ from core_engine.models import (
     CampaignStatus,
     Contact,
     Message,
-    ProductSnapshot,
     RenderedMessage,
     StagedQueueItem,
 )
 from core_engine.schemas.phase4 import PrepareMessagesRequest, PrepareMessagesResultResponse
 from core_engine.services.campaign_sender_assignment import resolve_campaign_sender_accounts
-from core_engine.services.gpt_orchestrator import build_product_context
 from core_engine.services.phase4_utils import (
     build_full_name,
     build_staged_queue_payload,
     is_consent_allowed,
     normalize_consent_status,
 )
-from core_engine.services.product_snapshot import get_latest_valid_product_snapshot
+from core_engine.services.product_feed.dto import MessageComposition
+from core_engine.services.product_feed.errors import ProductFeedError
+from core_engine.services.product_feed.service import (
+    fetch_current_advertising_products,
+    select_and_compose,
+)
 
 
 def build_phase4_mock_final_text(contact: Contact, campaign: Campaign) -> str:
@@ -86,17 +90,6 @@ def render_campaign_template(contact: Contact, campaign: Campaign) -> str:
     return _TEMPLATE_VARIABLE.sub(_replace, template).strip()
 
 
-def _parse_snapshot_expires_at(value: str | datetime | None) -> datetime | None:
-    if value is None:
-        return None
-    if isinstance(value, datetime):
-        return value
-    try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).replace(tzinfo=None)
-    except ValueError:
-        return None
-
-
 def _compute_effective_limit(
     *,
     allowed_contacts: int,
@@ -114,6 +107,21 @@ def _compute_effective_limit(
     return min(limits)
 
 
+def _product_http_error(exc: ProductFeedError) -> HTTPException:
+    return HTTPException(status_code=400, detail=exc.http_detail())
+
+
+def _product_metadata(composition: MessageComposition | None) -> dict | None:
+    if composition is None or composition.snapshot is None:
+        return None
+    return {
+        "frozen_product_snapshot": composition.snapshot.to_dict(),
+        "prose_text": composition.prose_text,
+        "immutable_product_block": composition.immutable_product_block,
+        "product_heading": composition.heading,
+    }
+
+
 def prepare_campaign_messages(
     db: Session,
     campaign_id: int,
@@ -123,33 +131,17 @@ def prepare_campaign_messages(
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found.")
 
-    snapshot_meta = get_latest_valid_product_snapshot(db) if campaign.include_products else {"found": True, "snapshot_id": 0}
-    if campaign.include_products and not snapshot_meta.get("found"):
-        raise HTTPException(
-            status_code=400,
-            detail=snapshot_meta.get("reason") or "No valid product snapshot found",
-        )
-
+    product_feed = None
+    used_products = False
+    snapshot_id = None
+    snapshot_expires_at = None
+    prepare_nonce = uuid.uuid4().hex
     if campaign.include_products:
-        snapshot_id = int(snapshot_meta["snapshot_id"])
-        snapshot = (
-            db.query(ProductSnapshot)
-            .filter(ProductSnapshot.id == snapshot_id)
-            .first()
-        )
-        if snapshot is None:
-            raise HTTPException(status_code=400, detail="No valid product snapshot found")
-        product_context = build_product_context(db, include_products=True, max_products=3)
-        used_products = bool(product_context.get("enabled"))
-        snapshot_expires_at = _parse_snapshot_expires_at(
-            product_context.get("snapshot_expires_at") or snapshot.expires_at
-        )
-    else:
-        snapshot_id = None
-        snapshot = None
-        product_context = {"enabled": False}
-        used_products = False
-        snapshot_expires_at = None
+        try:
+            product_feed = fetch_current_advertising_products()
+        except ProductFeedError as exc:
+            raise _product_http_error(exc) from exc
+        used_products = True
 
     # Contacts are attached to a campaign through campaign_recipients (see the
     # POST /campaigns handler); Contact.campaign_id is left NULL by the importer.
@@ -225,10 +217,27 @@ def prepare_campaign_messages(
 
     render_mode = "mock" if request.force_mock_output else "template"
 
-    def _render(contact: Contact) -> str:
+    def _render(contact: Contact) -> tuple[str, MessageComposition | None]:
         if request.force_mock_output:
-            return build_phase4_mock_final_text(contact, campaign)
-        return render_campaign_template(contact, campaign)
+            prose = build_phase4_mock_final_text(contact, campaign)
+        else:
+            prose = render_campaign_template(contact, campaign)
+        if not campaign.include_products:
+            return prose, None
+        if product_feed is None:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "PRODUCT_FEED_UNAVAILABLE",
+                    "message": "اطلاعات محصولات و قیمت‌های لحظه‌ای در دسترس نیست؛ آماده‌سازی کمپین شامل محصولات متوقف شد.",
+                },
+            )
+        rng = random.Random(f"{campaign.id}:{contact.id}:{prepare_nonce}")
+        try:
+            composition = select_and_compose(prose, product_feed, rng=rng)
+        except ProductFeedError as exc:
+            raise _product_http_error(exc) from exc
+        return composition.final_text, composition
 
     for recipient_index, (recipient, contact) in enumerate(allowed_recipient_rows):
         assigned_account = sender_accounts[recipient_index % len(sender_accounts)]
@@ -238,7 +247,8 @@ def prepare_campaign_messages(
                 # A ready item was never handed to a worker, so refresh it when
                 # the campaign text has changed since it was staged. Items that
                 # already moved on (queued/sent) are never touched.
-                current_text = _render(contact)
+                current_text, composition = _render(contact)
+                product_meta = _product_metadata(composition)
                 message = (
                     existing_messages.get(recipient.final_message_id)
                     if recipient.final_message_id is not None
@@ -283,6 +293,7 @@ def prepare_campaign_messages(
                     phone=contact.phone,
                     channel_handle=contact.channel_handle,
                     final_text=current_text,
+                    metadata=product_meta,
                 )
                 if existing_item.rendered_message_id is not None:
                     stale_rendered = db.get(
@@ -291,6 +302,7 @@ def prepare_campaign_messages(
                     if stale_rendered is not None:
                         stale_rendered.final_text = current_text
                         stale_rendered.render_mode = render_mode
+                        stale_rendered.used_products = used_products
                         stale_rendered.queue_payload = existing_item.queue_payload
                 already_staged_count += 1
                 returned_items.append(existing_item)
@@ -299,7 +311,8 @@ def prepare_campaign_messages(
         if newly_staged_count >= new_ready_slots:
             continue
 
-        final_text = _render(contact)
+        final_text, composition = _render(contact)
+        product_meta = _product_metadata(composition)
 
         rendered_message = RenderedMessage(
             campaign_id=campaign_id,
@@ -338,6 +351,7 @@ def prepare_campaign_messages(
             phone=contact.phone,
             channel_handle=contact.channel_handle,
             final_text=final_text,
+            metadata=product_meta,
         )
         rendered_message.queue_payload = queue_payload
 
@@ -401,7 +415,7 @@ def prepare_campaign_messages(
         already_staged_count=already_staged_count,
         limit_applied=effective_limit if limit_was_applied else None,
         product_snapshot_id=snapshot_id,
-        product_snapshot_valid=True,
+        product_snapshot_valid=bool(used_products or not campaign.include_products),
         force_mock_output=request.force_mock_output,
         real_gpt_called=False,
         real_queue_push_enabled=settings.REAL_QUEUE_PUSH_ENABLED,

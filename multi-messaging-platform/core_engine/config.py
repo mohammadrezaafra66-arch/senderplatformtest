@@ -50,6 +50,16 @@ class Settings(BaseSettings):
     PRICING_PLAYWRIGHT_MAX_PAGES: int = 20
     PRICING_PLAYWRIGHT_PAGE_WAIT_MS: int = 1500
 
+    # Phase 5.5 — AfraKala advertising product feed.
+    # BASE_URL must be the complete endpoint; this codebase does not invent REST paths.
+    # Empty BASE_URL → LIVE_AFRAKALA_BINDING = CONFIG_PENDING.
+    AFRAKALA_PRODUCT_API_BASE_URL: str = ""
+    AFRAKALA_PRODUCT_API_TOKEN: str = ""
+    AFRAKALA_PRODUCT_API_TIMEOUT_SECONDS: int = 8
+    AFRAKALA_PRODUCT_MAX_STALENESS_SECONDS: int = 300
+    AFRAKALA_PRODUCT_PRICE_CURRENCY: str = "IRR"
+    AFRAKALA_PRODUCT_PRICE_DISPLAY_UNIT: str = "ریال"
+
     # Phase 4 safety gates — defaults must remain dry-run safe.
     REAL_QUEUE_PUSH_ENABLED: bool = False
     REAL_MESSAGE_SENDING_ENABLED: bool = False

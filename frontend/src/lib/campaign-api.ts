@@ -103,3 +103,18 @@ export async function updateCampaignAccounts(
   });
   return response.json() as Promise<CampaignAccountsResult>;
 }
+
+export type ProductFeedStatus = {
+  ok: boolean;
+  code: string;
+  eligible_count: number;
+  fetched_at: string | null;
+  source_updated_at: string | null;
+  message: string;
+  live_binding?: string;
+};
+
+export async function fetchProductFeedStatus(): Promise<ProductFeedStatus> {
+  const response = await apiFetch("/campaigns/product-feed/status");
+  return response.json() as Promise<ProductFeedStatus>;
+}

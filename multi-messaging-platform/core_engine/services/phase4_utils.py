@@ -126,10 +126,11 @@ def build_staged_queue_payload(
     phone: str,
     channel_handle: str | None,
     final_text: str,
+    metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a pure dict for DB staging — never pushes to Redis or workers."""
     settings = get_settings()
-    return {
+    payload: dict[str, Any] = {
         "campaign_id": campaign_id,
         "contact_id": contact_id,
         "rendered_message_id": rendered_message_id,
@@ -144,3 +145,6 @@ def build_staged_queue_payload(
         "ready_for_queue": True,
         "safety_note": "DB staging only. Not pushed to Redis.",
     }
+    if metadata:
+        payload["metadata"] = metadata
+    return payload

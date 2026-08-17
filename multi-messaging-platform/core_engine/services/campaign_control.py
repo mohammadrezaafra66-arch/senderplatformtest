@@ -68,10 +68,10 @@ def _auto_prepare(db: Session, campaign_id: int) -> None:
     never substitute the placeholder dry-run text for what the operator wrote.
     Ready-but-unsent items are refreshed if the text changed since staging.
 
-    It raises ``HTTPException`` for the ordinary not-ready-yet cases (no
-    contacts attached to the campaign, no message text set, no valid product
-    snapshot when the campaign wants products). Starting is still valid then —
-    the campaign just has nothing new to stage — so those are swallowed.
+    Ordinary not-ready-yet cases (no contacts, no template text) are swallowed
+    so start can still flip the campaign. Product-feed failures for
+    ``include_products`` campaigns are re-raised: start must not silently
+    queue text-only messages when live advertising prices are unavailable.
     """
     try:
         result = prepare_campaign_messages(
@@ -89,6 +89,14 @@ def _auto_prepare(db: Session, campaign_id: int) -> None:
             "campaign_sender_platform_mismatch",
             "campaign_sender_missing",
             "prepared_sender_assignment_mismatch",
+            "PRODUCT_FEED_UNAVAILABLE",
+            "PRODUCT_FEED_TIMEOUT",
+            "PRODUCT_FEED_INVALID_RESPONSE",
+            "PRODUCT_FEED_STALE",
+            "PRODUCT_FEED_EMPTY",
+            "PRODUCT_PRICE_INVALID",
+            "INSUFFICIENT_ADVERTISING_PRODUCTS",
+            "CONFIG_PENDING",
         }:
             raise
         logger.info(
