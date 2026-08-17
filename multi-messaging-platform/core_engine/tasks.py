@@ -76,7 +76,7 @@ def push_ready_staged_items_task():
 
     session = SessionLocal()
     try:
-        result = asyncio.run(push_staged_items_to_worker_queue(session, batch_size=500))
+        result = asyncio.run(push_staged_items_to_worker_queue(session, batch_size=None))
         return result
     except Exception as exc:
         logger.exception("push_ready_staged_items_task failed: %s", exc)

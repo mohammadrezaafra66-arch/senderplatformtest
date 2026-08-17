@@ -199,6 +199,33 @@ def _campaign_impact(db: Session, *, quarantined_ids: list[int], circuit_open: b
     pending_blocked = 0
     retryable_blocked = 0
     circuit_waiting = 0
+    running = (
+        db.query(func.count(Campaign.id))
+        .filter(
+            Campaign.platform == PlatformType.RUBIKA,
+            Campaign.status == CampaignStatus.RUNNING.value,
+        )
+        .scalar()
+        or 0
+    )
+    paused_by_circuit = int(running) if circuit_open else 0
+    pending_rubika = (
+        db.query(func.count(CampaignRecipient.id))
+        .join(Campaign, Campaign.id == CampaignRecipient.campaign_id)
+        .filter(
+            Campaign.platform == PlatformType.RUBIKA,
+            CampaignRecipient.send_status.in_(
+                (
+                    SendStatus.PENDING,
+                    SendStatus.QUEUED,
+                    SendStatus.PROCESSING,
+                    SendStatus.FAILED_RETRYABLE,
+                )
+            ),
+        )
+        .scalar()
+        or 0
+    )
 
     if quarantined_ids:
         campaigns_quarantined = (
@@ -266,6 +293,9 @@ def _campaign_impact(db: Session, *, quarantined_ids: list[int], circuit_open: b
         "pending_messages_blocked": int(pending_blocked),
         "retryable_blocked_messages": int(retryable_blocked),
         "messages_waiting_circuit_open": int(circuit_waiting),
+        "running_campaigns": int(running),
+        "campaigns_paused_by_circuit": int(paused_by_circuit),
+        "pending_rubika_messages": int(pending_rubika),
     }
 
 

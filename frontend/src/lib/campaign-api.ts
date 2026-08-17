@@ -3,6 +3,7 @@ import type {
   CampaignDetail,
   CampaignAccountsResult,
   CampaignListItem,
+  CampaignPreflight,
   CampaignRecipientItem,
   CampaignRenderPreview,
   CreateCampaignFromImportPayload,
@@ -33,6 +34,11 @@ export async function fetchCampaigns(params: {
 export async function fetchCampaignDetail(campaignId: number): Promise<CampaignDetail> {
   const response = await apiFetch(`/campaigns/${campaignId}`);
   return response.json() as Promise<CampaignDetail>;
+}
+
+export async function fetchCampaignPreflight(campaignId: number): Promise<CampaignPreflight> {
+  const response = await apiFetch(`/campaigns/${campaignId}/preflight`);
+  return response.json() as Promise<CampaignPreflight>;
 }
 
 export async function startCampaign(campaignId: number): Promise<{ message: string }> {

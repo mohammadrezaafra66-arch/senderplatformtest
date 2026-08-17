@@ -429,6 +429,18 @@ export function RubikaProtectionCenter({ canManage }: Props) {
                 label={t("rubikaImpactCircuit")}
                 value={data.campaign_impact.messages_waiting_circuit_open}
               />
+              <StatCard
+                label={t("rubikaImpactRunning")}
+                value={data.campaign_impact.running_campaigns ?? 0}
+              />
+              <StatCard
+                label={t("rubikaImpactPausedCircuit")}
+                value={data.campaign_impact.campaigns_paused_by_circuit ?? 0}
+              />
+              <StatCard
+                label={t("rubikaImpactPendingRubika")}
+                value={data.campaign_impact.pending_rubika_messages ?? 0}
+              />
             </div>
           </section>
 

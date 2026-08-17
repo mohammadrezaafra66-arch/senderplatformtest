@@ -8,11 +8,18 @@ from typing import Any
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from core_engine.models import Campaign, CampaignStatus
+from core_engine.models import Campaign, CampaignStatus, PlatformType
 from core_engine.schemas.phase4 import PrepareMessagesRequest
+from core_engine.services.campaign_preflight import (
+    CAMPAIGN_CAPACITY_UNKNOWN,
+    CAMPAIGN_DEPENDENCY_ERROR,
+    evaluate_campaign_send_preflight,
+    log_campaign_safety_event,
+)
 from core_engine.services.phase4_prepare import prepare_campaign_messages
 from core_engine.services.queue_bridge import push_staged_items_to_worker_queue
 from core_engine.services.redis_client import get_redis_client, ping_redis
+from core_engine.config import get_settings
 from workers.redis_keys import campaign_pause_key
 
 logger = logging.getLogger(__name__)
@@ -139,6 +146,47 @@ async def start_campaign(
     # the queue bridge only claims items whose campaign is already RUNNING.
     _auto_prepare(db, campaign.id)
 
+    preflight_payload: dict[str, Any] | None = None
+    if campaign.platform == PlatformType.RUBIKA:
+        try:
+            preflight = await evaluate_campaign_send_preflight(db, campaign.id)
+        except Exception as exc:
+            db.rollback()
+            log_campaign_safety_event(
+                "campaign_preflight_blocked",
+                campaign_id=campaign.id,
+                code=CAMPAIGN_DEPENDENCY_ERROR,
+                extra={"error": type(exc).__name__},
+            )
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "code": CAMPAIGN_DEPENDENCY_ERROR,
+                    "message": "خطای وابستگی سیستمی؛ وضعیت کمپین تغییر نکرد.",
+                },
+            ) from exc
+        preflight_payload = preflight.to_dict()
+        if not preflight.allowed_to_start:
+            status_code = 503 if preflight.code in {
+                CAMPAIGN_CAPACITY_UNKNOWN,
+                CAMPAIGN_DEPENDENCY_ERROR,
+            } else 409
+            log_campaign_safety_event(
+                "campaign_preflight_blocked",
+                campaign_id=campaign.id,
+                code=preflight.code,
+            )
+            raise HTTPException(
+                status_code=status_code,
+                detail={
+                    "code": preflight.code,
+                    "message": preflight.message,
+                    "blockers": preflight.blockers,
+                    "warnings": preflight.warnings,
+                    "execution_safety_state": preflight.execution_safety_state,
+                },
+            )
+
     campaign.status = CampaignStatus.RUNNING.value
     db.flush()
 
@@ -148,17 +196,43 @@ async def start_campaign(
         db.rollback()
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
+    if campaign.platform == PlatformType.RUBIKA:
+        try:
+            from core_engine.services.campaign_inflight import clear_campaign_safety_pause
+
+            await clear_campaign_safety_pause(get_redis_client(), campaign.id)
+        except Exception:
+            pass
+
     bridge_result: dict[str, Any] | None = None
     if trigger_bridge:
-        bridge_result = await push_staged_items_to_worker_queue(db, batch_size=500)
+        settings = get_settings()
+        batch = int(getattr(settings, "CAMPAIGN_DISPATCH_BATCH_SIZE", 50) or 50)
+        bridge_result = await push_staged_items_to_worker_queue(db, batch_size=batch)
 
     message = "Campaign is already running." if already_running else "Campaign started successfully."
-    return {
+    result: dict[str, Any] = {
         "status": "running",
         "campaign_id": campaign.id,
         "message": message,
         "bridge_result": bridge_result,
     }
+    if preflight_payload is not None:
+        result["preflight"] = {
+            "code": preflight_payload.get("code"),
+            "allowed_to_start": preflight_payload.get("allowed_to_start"),
+            "warnings": preflight_payload.get("warnings") or [],
+            "execution_safety_state": preflight_payload.get("execution_safety_state"),
+            "estimated_completion_at": preflight_payload.get("estimated_completion_at"),
+            "estimated_today_capacity": preflight_payload.get("estimated_today_capacity"),
+        }
+        if preflight_payload.get("warnings"):
+            log_campaign_safety_event(
+                "campaign_capacity_warning",
+                campaign_id=campaign.id,
+                code=str(preflight_payload.get("code")),
+            )
+    return result
 
 
 async def stop_campaign(db: Session, campaign: Campaign) -> dict[str, Any]:

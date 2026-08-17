@@ -8,12 +8,41 @@ from typing import Any
 from workers.payloads import WorkerPayload, WorkerResult
 
 
-def compute_retry_delay_seconds(attempt: int, base_delay_seconds: float) -> float:
-    """Exponential backoff based on the next attempt number."""
-    if base_delay_seconds <= 0:
-        return 0.0
-    exponent = max(attempt, 1) - 1
-    return base_delay_seconds * (2**exponent)
+def compute_retry_delay_seconds(
+    attempt: int,
+    base_delay_seconds: float,
+    *,
+    error_code: str | None = None,
+    details: dict[str, Any] | None = None,
+) -> float:
+    """Exponential backoff, or policy-aware delay when error_code is known."""
+    from core_engine.services.campaign_retry_schedule import compute_policy_retry_delay_seconds
+
+    delay, _delayed = compute_policy_retry_delay_seconds(
+        attempt,
+        base_delay_seconds,
+        error_code=error_code,
+        details=details,
+    )
+    return delay
+
+
+def retry_should_use_delayed_queue(
+    attempt: int,
+    base_delay_seconds: float,
+    *,
+    error_code: str | None = None,
+    details: dict[str, Any] | None = None,
+) -> bool:
+    from core_engine.services.campaign_retry_schedule import compute_policy_retry_delay_seconds
+
+    _delay, delayed = compute_policy_retry_delay_seconds(
+        attempt,
+        base_delay_seconds,
+        error_code=error_code,
+        details=details,
+    )
+    return delayed
 
 
 def should_schedule_retry(
@@ -30,7 +59,7 @@ def should_schedule_retry(
 
 
 def build_retry_queue_payload(raw_payload: str, payload: WorkerPayload) -> str:
-    """Return queue JSON with incremented attempt counter."""
+    """Return queue JSON with incremented attempt counter. Frozen text is copied as-is."""
     data: dict[str, Any] = json.loads(raw_payload)
     data["attempt"] = payload.attempt + 1
     return json.dumps(data, ensure_ascii=False)

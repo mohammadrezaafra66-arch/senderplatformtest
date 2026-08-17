@@ -280,6 +280,9 @@ export type RubikaProtectionOverview = {
     pending_messages_blocked: number;
     retryable_blocked_messages: number;
     messages_waiting_circuit_open: number;
+    running_campaigns?: number;
+    campaigns_paused_by_circuit?: number;
+    pending_rubika_messages?: number;
   };
   events: Array<{
     time: string | null;

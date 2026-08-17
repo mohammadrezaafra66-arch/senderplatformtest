@@ -22,6 +22,7 @@ from workers.redis_keys import (
 from workers.retry import (
     build_retry_queue_payload,
     compute_retry_delay_seconds,
+    retry_should_use_delayed_queue,
     should_schedule_retry,
 )
 from workers.worker_runtime import is_redis_truthy, validate_worker_payload
@@ -216,6 +217,20 @@ class MultiAccountWorker(ABC):
             success=result.success,
         )
 
+        if str(self.platform).strip().lower() == "rubika":
+            try:
+                from core_engine.services.campaign_inflight import (
+                    release_account_inflight,
+                    release_send_lease,
+                )
+
+                await release_account_inflight(
+                    self.redis, int(payload.account_id), payload.message_id
+                )
+                await release_send_lease(self.redis, payload.message_id)
+            except Exception:
+                pass
+
         if (
             raw_payload is not None
             and account_id is not None
@@ -225,7 +240,12 @@ class MultiAccountWorker(ABC):
                 max_retry_attempts=self._max_retry_attempts,
             )
         ):
-            await self._schedule_retry(raw_payload, payload, account_id=account_id)
+            await self._schedule_retry(
+                raw_payload,
+                payload,
+                account_id=account_id,
+                error_code=result.error_code,
+            )
 
     async def _schedule_retry(
         self,
@@ -233,16 +253,34 @@ class MultiAccountWorker(ABC):
         payload: WorkerPayload,
         *,
         account_id: int | str,
+        error_code: str | None = None,
     ) -> None:
         delay_seconds = compute_retry_delay_seconds(
             payload.attempt + 1,
             self._retry_base_delay_seconds,
+            error_code=error_code,
         )
-        if delay_seconds > 0:
-            await asyncio.sleep(delay_seconds)
-
+        use_delayed = retry_should_use_delayed_queue(
+            payload.attempt + 1,
+            self._retry_base_delay_seconds,
+            error_code=error_code,
+        )
         retry_payload = build_retry_queue_payload(raw_payload, payload)
-        await self.redis.rpush(self.queue_key_for(account_id), retry_payload)
+        if use_delayed and str(self.platform).strip().lower() == "rubika":
+            from datetime import datetime, timedelta, timezone
+
+            from core_engine.services.campaign_inflight import enqueue_delayed_retry
+
+            retry_at = datetime.now(timezone.utc) + timedelta(seconds=float(delay_seconds))
+            await enqueue_delayed_retry(
+                self.redis,
+                payload_json=retry_payload,
+                retry_at_unix=retry_at.timestamp(),
+            )
+        else:
+            if delay_seconds > 0:
+                await asyncio.sleep(min(float(delay_seconds), 15.0))
+            await self.redis.rpush(self.queue_key_for(account_id), retry_payload)
         log_worker_event(
             self.logger,
             event="message_retry_scheduled",

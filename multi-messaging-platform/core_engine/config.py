@@ -65,6 +65,14 @@ class Settings(BaseSettings):
     AFRAKALA_PRODUCT_PRICE_CURRENCY: str = "IRR"
     AFRAKALA_PRODUCT_PRICE_DISPLAY_UNIT: str = "ریال"
 
+    # Phase 6 — campaign dispatch pacing (not per-account send quota).
+    CAMPAIGN_DISPATCH_BATCH_SIZE: int = 50
+    CAMPAIGN_DISPATCH_MAX_IN_FLIGHT: int = 200
+    CAMPAIGN_DISPATCH_PER_CAMPAIGN_BATCH: int = 25
+    CAMPAIGN_DISPATCH_INTERVAL_MS: int = 0
+    RUBIKA_MAX_IN_FLIGHT_PER_ACCOUNT: int = 8
+    RUBIKA_INFLIGHT_TTL_SECONDS: int = 180
+
     # Phase 4 safety gates — defaults must remain dry-run safe.
     REAL_QUEUE_PUSH_ENABLED: bool = False
     REAL_MESSAGE_SENDING_ENABLED: bool = False

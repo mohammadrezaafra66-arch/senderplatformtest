@@ -30,8 +30,28 @@ from core_engine.services.campaign_render import (
     RenderContentMismatchError,
     verify_render_content,
 )
+from core_engine.services.campaign_dispatch import (
+    blocked_rubika_account_ids,
+    claim_ready_items,
+    count_in_flight,
+    dispatch_settings,
+    maybe_safety_pause_running_campaigns,
+    payload_is_rubika,
+    rotate_campaign_ids,
+    running_campaign_ids_with_ready_items,
+)
+from core_engine.services.campaign_inflight import (
+    acquire_send_lease,
+    flush_due_delayed_retries,
+    reserve_account_inflight,
+)
+from core_engine.services.campaign_preflight import (
+    CAMPAIGN_CIRCUIT_OPEN,
+    load_send_windows,
+    log_campaign_safety_event,
+)
 from core_engine.services.redis_client import get_redis_client
-from workers.redis_keys import queue_key
+from workers.redis_keys import campaign_dispatch_fairness_key, queue_key
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +62,7 @@ def _is_baileys_mode() -> bool:
 
 async def push_staged_items_to_worker_queue(
     db: Session,
-    batch_size: int = 100,
+    batch_size: int | None = None,
 ) -> dict[str, int]:
     settings = get_settings()
     if not settings.REAL_QUEUE_PUSH_ENABLED:
@@ -52,13 +72,17 @@ async def push_staged_items_to_worker_queue(
             "skipped_no_account": 0,
             "skipped_invalid": 0,
             "failed": 0,
+            "deferred_backpressure": 0,
         }
 
+    cfg = dispatch_settings(settings)
+    effective_batch = int(batch_size) if batch_size is not None else int(cfg["batch_size"])
     pushed = 0
     skipped_consent = 0
     skipped_no_account = 0
     skipped_invalid = 0
     failed = 0
+    deferred_backpressure = 0
 
     # (a) Claim items using row-level locking and SKIP LOCKED.
     # Items staged outside the normal prepare path have no rendered_message_id.
@@ -81,18 +105,109 @@ async def push_staged_items_to_worker_queue(
             incomplete_items,
         )
 
-    claimed_items = (
-        db.query(StagedQueueItem)
-        .join(Campaign, StagedQueueItem.campaign_id == Campaign.id)
-        .filter(
-            StagedQueueItem.status == StagedQueueItemStatus.READY.value,
-            Campaign.status == CampaignStatus.RUNNING.value,
-            StagedQueueItem.rendered_message_id.isnot(None),
+    redis = get_redis_client()
+    try:
+        from datetime import datetime, timezone
+
+        await flush_due_delayed_retries(redis, now_unix=datetime.now(timezone.utc).timestamp())
+    except Exception:
+        pass
+
+    campaign_ids = running_campaign_ids_with_ready_items(db)
+    cursor = 0
+    try:
+        cursor = int(await redis.incr(campaign_dispatch_fairness_key()))
+    except Exception:
+        cursor = 0
+    ordered_ids = rotate_campaign_ids(campaign_ids, cursor)
+
+    in_flight = count_in_flight(db, ordered_ids)
+    max_in_flight = int(cfg["max_in_flight"])
+    if in_flight >= max_in_flight:
+        log_campaign_safety_event(
+            "campaign_dispatch_backpressure",
+            campaign_id=ordered_ids[0] if ordered_ids else 0,
+            code="MAX_IN_FLIGHT",
+            extra={"in_flight": in_flight, "max": max_in_flight},
         )
-        .order_by(StagedQueueItem.id.asc())
-        .limit(batch_size)
-        .with_for_update(skip_locked=True)
-        .all()
+        return {
+            "pushed": 0,
+            "skipped_consent": 0,
+            "skipped_no_account": 0,
+            "skipped_invalid": 0,
+            "failed": 0,
+            "deferred_backpressure": 0,
+        }
+
+    room = max(0, max_in_flight - in_flight)
+    effective_batch = min(effective_batch, room)
+    per_campaign = int(cfg["per_campaign"])
+    if len(ordered_ids) <= 1:
+        per_campaign = effective_batch
+    else:
+        per_campaign = max(
+            1,
+            min(per_campaign, max(1, effective_batch // len(ordered_ids))),
+        )
+
+    circuit_open = False
+    circuit_unknown = False
+    windows = []
+    try:
+        from core_engine.services.rubika_circuit import get_circuit_snapshot
+        from workers.config import get_worker_settings
+
+        await redis.ping()
+        wsettings = get_worker_settings()
+        snap = await get_circuit_snapshot(
+            redis,
+            probe_budget=int(wsettings.RUBIKA_CIRCUIT_PROBE_BUDGET),
+            window_seconds=int(wsettings.RUBIKA_CIRCUIT_WINDOW_SECONDS),
+        )
+        circuit_open = snap.state == "open"
+        windows = load_send_windows(db)
+        if circuit_open:
+            await maybe_safety_pause_running_campaigns(db, redis, circuit_open=True)
+    except Exception:
+        circuit_unknown = True
+
+    blocked_accounts: set[int] = set()
+    if circuit_unknown:
+        # Fail closed for Rubika: do not claim Rubika rows when circuit/quota
+        # state cannot be evaluated. Other platforms still dispatch.
+        rubika_running = (
+            db.query(Campaign.id)
+            .filter(
+                Campaign.id.in_(ordered_ids or [0]),
+                Campaign.platform == PlatformType.RUBIKA,
+            )
+            .all()
+        )
+        ordered_ids = [
+            cid for cid in ordered_ids if cid not in {int(row[0]) for row in rubika_running}
+        ]
+    else:
+        try:
+            blocked_accounts = await blocked_rubika_account_ids(
+                db,
+                redis,
+                ordered_ids,
+                circuit_open=circuit_open,
+                windows=windows,
+            )
+        except Exception:
+            blocked_accounts = set()
+            if circuit_open:
+                blocked_accounts = await blocked_rubika_account_ids(
+                    db, redis, ordered_ids, circuit_open=True, windows=windows
+                )
+
+    claimed_items = claim_ready_items(
+        db,
+        campaign_ids=ordered_ids,
+        batch_size=effective_batch,
+        per_campaign=per_campaign,
+        blocked_account_ids=blocked_accounts,
     )
 
     if not claimed_items:
@@ -102,6 +217,7 @@ async def push_staged_items_to_worker_queue(
             "skipped_no_account": 0,
             "skipped_invalid": 0,
             "failed": 0,
+            "deferred_backpressure": 0,
         }
 
     for item in claimed_items:
@@ -110,7 +226,6 @@ async def push_staged_items_to_worker_queue(
     # Commit early to release locks quickly.
     db.commit()
 
-    redis = get_redis_client()
     message_ids = {
         int(item.queue_payload["message_id"])
         for item in claimed_items
@@ -231,6 +346,49 @@ async def push_staged_items_to_worker_queue(
                 db.commit()
                 continue
 
+            if payload_is_rubika(item) and (circuit_open or circuit_unknown):
+                item.status = StagedQueueItemStatus.READY.value
+                item.skip_reason = (
+                    CAMPAIGN_CIRCUIT_OPEN if circuit_open else "CAMPAIGN_CAPACITY_UNKNOWN"
+                )
+                deferred_backpressure += 1
+                db.commit()
+                continue
+
+            if payload_is_rubika(item):
+                lease_ok = True
+                inflight_ok = True
+                try:
+                    lease_ok = await acquire_send_lease(
+                        redis,
+                        message_id,
+                        token=f"bridge:{item.id}",
+                        ttl_seconds=int(cfg["inflight_ttl"]),
+                    )
+                    if lease_ok:
+                        inflight_ok = await reserve_account_inflight(
+                            redis,
+                            payload_account_id,
+                            message_id,
+                            max_in_flight=int(cfg["per_account"]),
+                            ttl_seconds=int(cfg["inflight_ttl"]),
+                        )
+                except Exception:
+                    lease_ok = False
+                    inflight_ok = False
+                if not lease_ok or not inflight_ok:
+                    item.status = StagedQueueItemStatus.READY.value
+                    item.skip_reason = None
+                    deferred_backpressure += 1
+                    log_campaign_safety_event(
+                        "campaign_dispatch_backpressure",
+                        campaign_id=int(item.campaign_id),
+                        code="ACCOUNT_IN_FLIGHT" if lease_ok else "DUPLICATE_LEASE",
+                        extra={"account_id": payload_account_id, "message_id": message_id},
+                    )
+                    db.commit()
+                    continue
+
             if platform_enum == PlatformType.WHATSAPP and _is_baileys_mode():
                 from core_engine.services.baileys_queue import enqueue_baileys_from_worker_payload
 
@@ -239,7 +397,6 @@ async def push_staged_items_to_worker_queue(
                 key = queue_key(platform_enum.value, message.account_id)
                 raw_payload = json.dumps(payload, ensure_ascii=False)
                 await redis.rpush(key, raw_payload)
-
 
             item.status = StagedQueueItemStatus.QUEUED.value
             item.skip_reason = None
@@ -258,5 +415,6 @@ async def push_staged_items_to_worker_queue(
         "skipped_no_account": skipped_no_account,
         "skipped_invalid": skipped_invalid,
         "failed": failed,
+        "deferred_backpressure": deferred_backpressure,
     }
 

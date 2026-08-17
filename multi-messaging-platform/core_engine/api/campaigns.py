@@ -14,6 +14,7 @@ from core_engine.api.schemas import (
     CampaignFromImportRequest,
     CampaignFromImportResponse,
     CampaignListItemResponse,
+    CampaignPreflightResponse,
     CampaignRecipientDetailResponse,
     CampaignRecipientsListResponse,
     CampaignRenderPreviewRequest,
@@ -271,6 +272,38 @@ def campaign_render_preview_endpoint(
         raise HTTPException(status_code=400, detail=exc.http_detail()) from exc
     except ProductFeedError as exc:
         raise HTTPException(status_code=400, detail=exc.http_detail()) from exc
+
+
+@router.get("/{campaign_id}/preflight", response_model=CampaignPreflightResponse)
+async def get_campaign_preflight(
+    campaign_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str],
+        Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR, RoleType.VIEWER)),
+    ] = None,
+):
+    """Read-only campaign capacity / safety preflight. No mutation."""
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found.")
+    from core_engine.services.campaign_preflight import (
+        CAMPAIGN_CAPACITY_UNKNOWN,
+        CAMPAIGN_DEPENDENCY_ERROR,
+        evaluate_campaign_send_preflight,
+    )
+
+    result = await evaluate_campaign_send_preflight(db, campaign_id)
+    if result.code == CAMPAIGN_DEPENDENCY_ERROR:
+        raise HTTPException(
+            status_code=503,
+            detail={"code": result.code, "message": result.message},
+        )
+    if result.code == CAMPAIGN_CAPACITY_UNKNOWN and not result.redis_ok:
+        # Still return structured body so the UI can show the blocker; 200 with
+        # allowed_to_start=false is the planning contract (start remains 503).
+        pass
+    return CampaignPreflightResponse(**result.to_dict())
 
 
 @router.get("/{campaign_id}", response_model=CampaignDetailResponse)

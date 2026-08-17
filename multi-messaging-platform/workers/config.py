@@ -63,6 +63,13 @@ class WorkerSettings(BaseSettings):
     RUBIKA_CIRCUIT_OPEN_SECONDS: int = 120
     RUBIKA_CIRCUIT_PROBE_BUDGET: int = 1
     RUBIKA_CIRCUIT_HALF_OPEN_SUCCESS_TO_CLOSE: int = 1
+    # Phase 6 — concurrency backpressure (not a sending quota).
+    RUBIKA_MAX_IN_FLIGHT_PER_ACCOUNT: int = 8
+    RUBIKA_INFLIGHT_TTL_SECONDS: int = 180
+    CAMPAIGN_DISPATCH_BATCH_SIZE: int = 50
+    CAMPAIGN_DISPATCH_MAX_IN_FLIGHT: int = 200
+    CAMPAIGN_DISPATCH_PER_CAMPAIGN_BATCH: int = 25
+    CAMPAIGN_DISPATCH_INTERVAL_MS: int = 0
 
     WHATSAPP_API_BASE_URL: str = "https://graph.facebook.com/v21.0"
     WHATSAPP_API_TIMEOUT_SECONDS: float = 30.0

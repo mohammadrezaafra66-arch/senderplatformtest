@@ -26,6 +26,7 @@ import { campaignAccountError } from "@/lib/campaign-account-errors";
 import { getFailureReasonFa } from "@/lib/failure-reason";
 import {
   fetchCampaignDetail,
+  fetchCampaignPreflight,
   fetchCampaignRecipientDetail,
   fetchCampaignRecipients,
   startCampaign,
@@ -33,7 +34,12 @@ import {
   updateCampaignAccounts,
 } from "@/lib/campaign-api";
 import { useAuth } from "@/state/auth";
-import type { CampaignDetail, CampaignRecipientItem, MessageLogDetail } from "@/types/campaign";
+import type {
+  CampaignDetail,
+  CampaignPreflight,
+  CampaignRecipientItem,
+  MessageLogDetail,
+} from "@/types/campaign";
 import type { AccountItem } from "@/types/account";
 import { campaignStatusLabel, SEND_STATUS_OPTIONS } from "@/utils/campaign-status";
 import { canControlCampaign, canViewCampaigns } from "@/utils/permissions";
@@ -67,6 +73,8 @@ export default function CampaignMonitorPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [detail, setDetail] = useState<MessageLogDetail | null>(null);
+  const [preflight, setPreflight] = useState<CampaignPreflight | null>(null);
+  const [preflightError, setPreflightError] = useState<string | null>(null);
 
   const loadAccounts = useCallback(async () => {
     setAccountsLoading(true);
@@ -91,11 +99,15 @@ export default function CampaignMonitorPage() {
     setLoading(true);
     setError(null);
     try {
-      const [detail, recip] = await Promise.all([
+      const [detail, recip, pf] = await Promise.all([
         fetchCampaignDetail(campaignId),
         fetchCampaignRecipients(campaignId, {
           limit: 50,
           send_status: sendStatusFilter || undefined,
+        }),
+        fetchCampaignPreflight(campaignId).catch((err: unknown) => {
+          setPreflightError(err instanceof ApiError ? err.message : t("campaignsLoadError"));
+          return null;
         }),
       ]);
       setCampaign(detail);
@@ -104,6 +116,8 @@ export default function CampaignMonitorPage() {
       setSelectedAccountIds(ids);
       setRecipients(recip.items);
       setRecipientsTotal(recip.total_count);
+      setPreflight(pf);
+      if (pf) setPreflightError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("campaignsLoadError"));
     } finally {
@@ -116,6 +130,16 @@ export default function CampaignMonitorPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial and filter-driven remote data load
     void loadCampaign();
   }, [router.isReady, loadCampaign]);
+
+  const startBlocked = Boolean(preflight && !preflight.allowed_to_start);
+  const safetyLabel = (() => {
+    const state = preflight?.execution_safety_state;
+    if (state === "BLOCKED" || state === "PAUSED_SAFETY") return t("campaignSafetyBlocked");
+    if (state === "CAPACITY_WARNING" || state === "WAITING_WINDOW" || state === "WAITING_CAPACITY") {
+      return t("campaignSafetyWarning");
+    }
+    return t("campaignSafetyReady");
+  })();
 
   async function handleStart() {
     if (!canControl || !Number.isFinite(campaignId)) return;
@@ -238,7 +262,7 @@ export default function CampaignMonitorPage() {
                 <Button
                   type="button"
                   variant="primary"
-                  disabled={!canControl || actionLoading}
+                  disabled={!canControl || actionLoading || startBlocked}
                   onClick={() => void handleStart()}
                 >
                   {t("start")}
@@ -251,6 +275,104 @@ export default function CampaignMonitorPage() {
                   {t("stop")}
                 </Button>
               </div>
+
+              {preflightError ? <Alert>{preflightError}</Alert> : null}
+              {startBlocked && preflight ? (
+                <Alert>
+                  {preflight.blockers[0]?.message || preflight.message || t("campaignStartBlocked")}
+                </Alert>
+              ) : null}
+              {preflight && preflight.warnings.length > 0 ? (
+                <Alert>
+                  {preflight.warnings.map((item) => item.message).join(" ")}
+                </Alert>
+              ) : null}
+
+              {preflight ? (
+                <Panel title={t("campaignCapacityTitle")}>
+                  <PanelContent>
+                    <div className="mmp-stack">
+                      <div>
+                        {t("campaignReadinessTitle")}: {safetyLabel}
+                        {preflight.execution_safety_state ? ` (${preflight.execution_safety_state})` : ""}
+                      </div>
+                      <div>
+                        {t("campaignRemainingMessages")}:{" "}
+                        {preflight.progress.pending ?? preflight.total_messages}
+                      </div>
+                      <div>
+                        {t("campaignAssignedAccounts")}: {preflight.assigned_accounts}
+                      </div>
+                      <div>
+                        {t("campaignUsableAccounts")}: {preflight.usable_accounts}/{preflight.assigned_accounts}
+                      </div>
+                      <div>
+                        {t("campaignBlockedAccounts")}: {preflight.blocked_accounts}
+                      </div>
+                      <div>
+                        {t("campaignTodayCapacity")}: {preflight.estimated_today_capacity ?? t("nA")}
+                      </div>
+                      <div>
+                        {t("campaignHourlyCapacity")}: {preflight.estimated_hourly_capacity ?? t("nA")}
+                      </div>
+                      <div>
+                        {t("campaignImmediateCapacity")}: {preflight.immediate_capacity ?? t("nA")}
+                      </div>
+                      <div>
+                        {t("campaignCircuitState")}: {preflight.circuit_state ?? t("nA")}
+                      </div>
+                      <div>
+                        {t("campaignCapacityForecast")}:{" "}
+                        {preflight.estimated_completion_at
+                          ? new Date(preflight.estimated_completion_at).toLocaleString("fa-IR")
+                          : t("nA")}
+                      </div>
+                      <div className="mmp-muted">{t("campaignEstimateNote")}</div>
+                    </div>
+                    {preflight.accounts.length > 0 ? (
+                      <TableWrap>
+                        <table className={tableClassName}>
+                          <thead>
+                            <tr>
+                              <th>{t("campaignCapacityTableSender")}</th>
+                              <th>{t("campaignCapacityTableAssigned")}</th>
+                              <th>{t("campaignCapacityTableHealth")}</th>
+                              <th>{t("campaignCapacityTableReady")}</th>
+                              <th>{t("campaignCapacityTableDaily")}</th>
+                              <th>{t("campaignCapacityTableHourly")}</th>
+                              <th>{t("campaignCapacityTableNext")}</th>
+                              <th>{t("campaignCapacityTableStatus")}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {preflight.accounts.map((row) => (
+                              <tr key={row.account_id}>
+                                <td>{row.label || `#${row.account_id}`}</td>
+                                <td>{row.assigned}</td>
+                                <td>{row.health ?? "—"}</td>
+                                <td>{row.readiness ?? "—"}</td>
+                                <td>{row.daily_remaining ?? "—"}</td>
+                                <td>{row.hourly_remaining ?? "—"}</td>
+                                <td>
+                                  {row.next_allowed_at
+                                    ? new Date(row.next_allowed_at).toLocaleString("fa-IR")
+                                    : "—"}
+                                </td>
+                                <td>
+                                  {row.eligible_now
+                                    ? t("campaignSafetyReady")
+                                    : row.block_code || t("campaignSafetyBlocked")}
+                                  {row.bottleneck ? ` · ${t("campaignBottlenecks")}` : ""}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </TableWrap>
+                    ) : null}
+                  </PanelContent>
+                </Panel>
+              ) : null}
 
               <Panel title={t("campaignProgress")}>
                 <PanelContent>

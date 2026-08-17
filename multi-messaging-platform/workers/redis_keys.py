@@ -123,3 +123,31 @@ def rubika_alert_key(dedupe: str) -> str:
 
 def rubika_alert_index_key() -> str:
     return "rubika:alerts:open"
+
+
+def rubika_inflight_count_key(account_id: int | str) -> str:
+    return f"rubika:inflight:count:{account_id}"
+
+
+def rubika_inflight_member_key(account_id: int | str, message_id: int | str) -> str:
+    return f"rubika:inflight:msg:{account_id}:{message_id}"
+
+
+def rubika_send_lease_key(message_id: int | str) -> str:
+    return f"rubika:send:lease:{message_id}"
+
+
+def rubika_delayed_retry_key() -> str:
+    return "rubika:retry:delayed"
+
+
+def campaign_safety_pause_key(campaign_id: int | str) -> str:
+    return f"campaign:{campaign_id}:safety_pause"
+
+
+def campaign_dispatch_fairness_key() -> str:
+    return "campaign:dispatch:fairness:cursor"
+
+
+def campaign_account_skip_key(account_id: int | str) -> str:
+    return f"campaign:dispatch:skip_account:{account_id}"

@@ -189,6 +189,42 @@ class CampaignStartResponse(BaseModel):
     campaign_id: int
     message: str
     bridge_result: dict[str, int | str] | None = None
+    preflight: dict | None = None
+
+
+class CampaignPreflightResponse(BaseModel):
+    allowed_to_start: bool
+    code: str
+    message: str
+    campaign_id: int
+    execution_safety_state: str
+    total_messages: int
+    ready_messages: int
+    blocked_messages: int
+    assigned_accounts: int
+    usable_accounts: int
+    blocked_accounts: int
+    temporary_accounts: int = 0
+    immediate_capacity: int | None = None
+    estimated_today_capacity: int | None = None
+    estimated_hourly_capacity: int | None = None
+    estimated_completion_at: str | None = None
+    estimated_duration_seconds: int | None = None
+    timezone: str = "Asia/Tehran"
+    warnings: list[dict] = Field(default_factory=list)
+    blockers: list[dict] = Field(default_factory=list)
+    accounts: list[dict] = Field(default_factory=list)
+    progress: dict[str, int] = Field(default_factory=dict)
+    sender_selection_mode: str = "automatic"
+    delivery_mode: str | None = None
+    circuit_state: str | None = None
+    next_window_start: str | None = None
+    resume_policy: str = "operator"
+    ready_to_resume: bool = False
+    capacity_confidence: str | None = None
+    limitations: list[str] = Field(default_factory=list)
+    evaluated_at: str = ""
+    redis_ok: bool = True
 
 
 class CampaignStopResponse(BaseModel):

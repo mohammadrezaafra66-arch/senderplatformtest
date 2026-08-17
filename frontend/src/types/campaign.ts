@@ -193,6 +193,65 @@ export type MessageSenderAccount = {
 
 export type PlatformOption = "bale" | "telegram" | "whatsapp" | "rubika";
 
+export type CampaignPreflightAccount = {
+  account_id: number;
+  label: string | null;
+  health: string | null;
+  readiness: string | null;
+  lifecycle: string | null;
+  assigned: number;
+  daily_remaining: number | null;
+  hourly_remaining: number | null;
+  next_allowed_at: string | null;
+  window_state: string | null;
+  cooldown_until: string | null;
+  eligible_now: boolean;
+  block_code: string | null;
+  bottleneck: boolean;
+  reason: string | null;
+};
+
+export type CampaignPreflightIssue = {
+  code: string;
+  message: string;
+  account_id?: number | null;
+};
+
+export type CampaignPreflight = {
+  allowed_to_start: boolean;
+  code: string;
+  message: string;
+  campaign_id: number;
+  execution_safety_state: string;
+  total_messages: number;
+  ready_messages: number;
+  blocked_messages: number;
+  assigned_accounts: number;
+  usable_accounts: number;
+  blocked_accounts: number;
+  temporary_accounts: number;
+  immediate_capacity: number | null;
+  estimated_today_capacity: number | null;
+  estimated_hourly_capacity: number | null;
+  estimated_completion_at: string | null;
+  estimated_duration_seconds: number | null;
+  timezone: string;
+  warnings: CampaignPreflightIssue[];
+  blockers: CampaignPreflightIssue[];
+  accounts: CampaignPreflightAccount[];
+  progress: Record<string, number>;
+  sender_selection_mode: string;
+  delivery_mode: string | null;
+  circuit_state: string | null;
+  next_window_start: string | null;
+  resume_policy: string;
+  ready_to_resume: boolean;
+  capacity_confidence: string | null;
+  limitations: string[];
+  evaluated_at: string;
+  redis_ok: boolean;
+};
+
 export type CreateCampaignFromImportPayload = {
   import_batch_id: number;
   title: string;
