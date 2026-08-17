@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o-mini"
     OPENAI_TIMEOUT_SECONDS: int = 30
     OPENAI_MAX_RETRIES: int = 3
+    OPENAI_VARIATION_COUNT: int = 5
+    OPENAI_MAX_OUTPUT_TOKENS: int = 1200
+    OPENAI_VARIATION_MIN_CHARS: int = 12
+    OPENAI_VARIATION_MAX_CHARS: int = 800
+    OPENAI_VARIATION_MAX_ATTEMPTS: int = 2
 
     PRICING_API_URL: str = "http://192.168.170.10:3000/pricing/amin-hozoor-board"
     PRICING_CACHE_TTL_SECONDS: int = 300

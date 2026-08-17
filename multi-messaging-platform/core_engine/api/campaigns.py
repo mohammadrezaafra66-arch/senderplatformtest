@@ -19,6 +19,7 @@ from core_engine.api.schemas import (
     CampaignStartResponse,
     CampaignStatsData,
     CampaignStopResponse,
+    GptPreviewRequest,
     SenderAccountResponse,
 )
 from core_engine.database import get_db
@@ -200,6 +201,40 @@ def product_feed_status_endpoint(
     from core_engine.services.product_feed.service import product_feed_status
 
     return product_feed_status()
+
+
+@router.get("/gpt-status")
+def gpt_status_endpoint(
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    """Boolean GPT readiness. Never exposes API keys or authorization headers."""
+    from core_engine.services.message_variation.service import gpt_status
+
+    return gpt_status()
+
+
+@router.post("/gpt-preview")
+def gpt_preview_endpoint(
+    payload: GptPreviewRequest,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    """Generate a bounded GPT preview using the same provider/validator as prepare."""
+    from core_engine.services.message_variation.errors import GptVariationError
+    from core_engine.services.message_variation.service import build_gpt_preview
+
+    try:
+        return build_gpt_preview(
+            template_text=payload.template_text,
+            include_products=payload.include_products,
+            requested_count=payload.requested_count,
+            apply_rate_guard=True,
+        )
+    except GptVariationError as exc:
+        raise HTTPException(status_code=400, detail=exc.http_detail()) from exc
 
 
 @router.get("/{campaign_id}", response_model=CampaignDetailResponse)

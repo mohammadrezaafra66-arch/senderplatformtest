@@ -118,3 +118,49 @@ export async function fetchProductFeedStatus(): Promise<ProductFeedStatus> {
   const response = await apiFetch("/campaigns/product-feed/status");
   return response.json() as Promise<ProductFeedStatus>;
 }
+
+export type GptStatus = {
+  ok: boolean;
+  configured: boolean;
+  live_binding?: string;
+  message: string;
+};
+
+export type GptPreviewSample = {
+  variation_id: string;
+  label: string;
+  prose_text: string;
+  immutable_product_block: string;
+  final_text: string;
+  heading: string;
+};
+
+export type GptPreviewResult = {
+  ok: boolean;
+  code?: string | null;
+  configured: boolean;
+  live_binding?: string;
+  provider?: string;
+  samples: GptPreviewSample[];
+  product_preview_note?: string | null;
+  product_error?: { code?: string; message?: string } | null;
+  message: string;
+};
+
+export async function fetchGptStatus(): Promise<GptStatus> {
+  const response = await apiFetch("/campaigns/gpt-status");
+  return response.json() as Promise<GptStatus>;
+}
+
+export async function previewGptVariations(payload: {
+  template_text: string;
+  include_products: boolean;
+  requested_count?: number;
+}): Promise<GptPreviewResult> {
+  const response = await apiFetch("/campaigns/gpt-preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return response.json() as Promise<GptPreviewResult>;
+}

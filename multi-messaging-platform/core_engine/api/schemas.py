@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field, PositiveInt, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PositiveInt, model_validator
 
 from core_engine.models import AccountStatus, PlatformType
 
@@ -40,6 +40,16 @@ class CampaignFromImportRequest(BaseModel):
         if self.account_ids is not None:
             object.__setattr__(self, "account_ids", list(dict.fromkeys(self.account_ids)))
         return self
+
+
+class GptPreviewRequest(BaseModel):
+    """Operator GPT preview. Provider secrets are never accepted from the client."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    template_text: str
+    include_products: bool = False
+    requested_count: int | None = Field(default=None, ge=1, le=3)
 
 
 class SenderAccountResponse(BaseModel):

@@ -69,9 +69,9 @@ def _auto_prepare(db: Session, campaign_id: int) -> None:
     Ready-but-unsent items are refreshed if the text changed since staging.
 
     Ordinary not-ready-yet cases (no contacts, no template text) are swallowed
-    so start can still flip the campaign. Product-feed failures for
-    ``include_products`` campaigns are re-raised: start must not silently
-    queue text-only messages when live advertising prices are unavailable.
+    so start can still flip the campaign. Product-feed and GPT-variation
+    failures for include_products / use_gpt campaigns are re-raised: start
+    must not silently queue text-only or unvaried messages.
     """
     try:
         result = prepare_campaign_messages(
@@ -97,6 +97,13 @@ def _auto_prepare(db: Session, campaign_id: int) -> None:
             "PRODUCT_PRICE_INVALID",
             "INSUFFICIENT_ADVERTISING_PRODUCTS",
             "CONFIG_PENDING",
+            "GPT_NOT_CONFIGURED",
+            "GPT_UNAVAILABLE",
+            "GPT_TIMEOUT",
+            "GPT_RATE_LIMITED",
+            "GPT_INVALID_RESPONSE",
+            "GPT_VARIATION_INVALID",
+            "GPT_INSUFFICIENT_VARIATIONS",
         }:
             raise
         logger.info(

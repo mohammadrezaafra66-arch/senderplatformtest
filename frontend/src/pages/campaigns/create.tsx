@@ -20,7 +20,7 @@ import {
 import { ApiError } from "@/lib/api";
 import { fetchAccounts } from "@/lib/accounts-api";
 import { campaignAccountError } from "@/lib/campaign-account-errors";
-import { createCampaignFromImport, fetchProductFeedStatus } from "@/lib/campaign-api";
+import { createCampaignFromImport, fetchGptStatus, fetchProductFeedStatus, previewGptVariations } from "@/lib/campaign-api";
 import { useAuth } from "@/state/auth";
 import type { PlatformOption } from "@/types/campaign";
 import type { AccountItem } from "@/types/account";
@@ -42,6 +42,13 @@ export default function CampaignCreatePage() {
   const [error, setError] = useState<string | null>(null);
   const [feedStatus, setFeedStatus] = useState<string | null>(null);
   const [feedChecking, setFeedChecking] = useState(false);
+  const [gptStatus, setGptStatus] = useState<string | null>(null);
+  const [gptPreviewing, setGptPreviewing] = useState(false);
+  const [gptPreviewError, setGptPreviewError] = useState<string | null>(null);
+  const [gptSamples, setGptSamples] = useState<
+    { title: string; prose: string; products: string; finalText: string; note?: string }[]
+  >([]);
+  const [gptProductNote, setGptProductNote] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(true);
   const [accountsError, setAccountsError] = useState<string | null>(null);
@@ -190,10 +197,84 @@ export default function CampaignCreatePage() {
                 <input
                   type="checkbox"
                   checked={useGpt}
-                  onChange={(e) => setUseGpt(e.target.checked)}
+                  onChange={(e) => {
+                    const enabled = e.target.checked;
+                    setUseGpt(enabled);
+                    if (!enabled) {
+                      setGptSamples([]);
+                      setGptPreviewError(null);
+                      setGptProductNote(null);
+                    } else {
+                      setGptStatus(null);
+                      void fetchGptStatus()
+                        .then((result) => setGptStatus(result.message))
+                        .catch(() => setGptStatus(t("gptNotConfigured")));
+                    }
+                  }}
                 />
                 <span>{t("useGpt")}</span>
               </label>
+              {useGpt ? (
+                <div className="mmp-stack" style={{ gap: 8 }}>
+                  <p className="mmp-muted">{t("gptPreviewSection")}</p>
+                  {gptStatus ? <p className="mmp-muted">{gptStatus}</p> : null}
+                  <Button
+                    type="button"
+                    disabled={gptPreviewing || submitting || !templateText.trim()}
+                    onClick={() => {
+                      setGptPreviewing(true);
+                      setGptPreviewError(null);
+                      void previewGptVariations({
+                        template_text: templateText.trim(),
+                        include_products: includeProducts,
+                        requested_count: 3,
+                      })
+                        .then((result) => {
+                          setGptProductNote(result.product_preview_note || null);
+                          if (!result.ok && result.message) {
+                            setGptPreviewError(result.message);
+                          }
+                          setGptSamples(
+                            (result.samples || []).map((sample, index) => ({
+                              title: t("gptPreviewSample", { n: index + 1 }),
+                              prose: sample.prose_text,
+                              products: sample.immutable_product_block,
+                              finalText: sample.final_text,
+                            })),
+                          );
+                        })
+                        .catch((err) => {
+                          setGptSamples([]);
+                          setGptPreviewError(
+                            err instanceof ApiError ? err.message : t("gptPreviewFailed"),
+                          );
+                        })
+                        .finally(() => setGptPreviewing(false));
+                    }}
+                  >
+                    {gptPreviewing
+                      ? t("loading")
+                      : gptSamples.length
+                        ? t("gptPreviewRegenerate")
+                        : t("gptPreviewGenerate")}
+                  </Button>
+                  {gptPreviewError ? <Alert>{gptPreviewError}</Alert> : null}
+                  {gptSamples.length ? (
+                    <div className="mmp-stack" style={{ gap: 12 }}>
+                      <p>{t("gptPreviewTitle")}</p>
+                      {gptProductNote ? <p className="mmp-muted">{gptProductNote}</p> : null}
+                      {gptSamples.map((sample) => (
+                        <Panel key={sample.title}>
+                          <PanelContent>
+                            <strong>{sample.title}</strong>
+                            <p style={{ whiteSpace: "pre-wrap" }}>{sample.finalText}</p>
+                          </PanelContent>
+                        </Panel>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
 
               <label className="mmp-stack">
                 <input

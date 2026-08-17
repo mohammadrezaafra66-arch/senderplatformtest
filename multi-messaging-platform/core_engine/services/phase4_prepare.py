@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import random
-import re
 import uuid
 
 from fastapi import HTTPException
@@ -28,6 +27,17 @@ from core_engine.services.phase4_utils import (
     is_consent_allowed,
     normalize_consent_status,
 )
+from core_engine.services.message_variation.placeholders import (
+    TEMPLATE_PLACEHOLDER,
+    template_fingerprint,
+)
+from core_engine.services.message_variation.errors import GptVariationError
+from core_engine.services.message_variation.service import (
+    assign_and_log,
+    assignment_metadata,
+    generate_validated_pool,
+    pool_from_queue_payload,
+)
 from core_engine.services.product_feed.dto import MessageComposition
 from core_engine.services.product_feed.errors import ProductFeedError
 from core_engine.services.product_feed.service import (
@@ -49,9 +59,6 @@ def build_phase4_mock_final_text(contact: Contact, campaign: Campaign) -> str:
     )
 
 
-_TEMPLATE_VARIABLE = re.compile(r"\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}")
-
-
 def build_campaign_template_variables(contact: Contact) -> dict[str, str]:
     """متغیرهای مجاز قالب برای یک مخاطب."""
     full_name = (
@@ -64,6 +71,17 @@ def build_campaign_template_variables(contact: Contact) -> dict[str, str]:
         "last_name": (contact.last_name or "").strip(),
         "full_name": full_name.strip(),
     }
+
+
+def substitute_template_variables(template: str, contact: Contact) -> str:
+    """جایگزینی متغیرهای مخاطب روی یک قالب از قبل تنوع‌داده‌شده یا خام."""
+    variables = build_campaign_template_variables(contact)
+
+    def _replace(match) -> str:
+        name = match.group(1)
+        return variables.get(name, match.group(0))
+
+    return TEMPLATE_PLACEHOLDER.sub(_replace, template).strip()
 
 
 def render_campaign_template(contact: Contact, campaign: Campaign) -> str:
@@ -80,14 +98,7 @@ def render_campaign_template(contact: Contact, campaign: Campaign) -> str:
                 "preparing, or call prepare with force_mock_output=true."
             ),
         )
-
-    variables = build_campaign_template_variables(contact)
-
-    def _replace(match: re.Match[str]) -> str:
-        name = match.group(1)
-        return variables.get(name, match.group(0))
-
-    return _TEMPLATE_VARIABLE.sub(_replace, template).strip()
+    return substitute_template_variables(template, contact)
 
 
 def _compute_effective_limit(
@@ -107,6 +118,10 @@ def _compute_effective_limit(
     return min(limits)
 
 
+def _gpt_http_error(exc: GptVariationError) -> HTTPException:
+    return HTTPException(status_code=400, detail=exc.http_detail())
+
+
 def _product_http_error(exc: ProductFeedError) -> HTTPException:
     return HTTPException(status_code=400, detail=exc.http_detail())
 
@@ -120,6 +135,19 @@ def _product_metadata(composition: MessageComposition | None) -> dict | None:
         "immutable_product_block": composition.immutable_product_block,
         "product_heading": composition.heading,
     }
+
+
+def _render_metadata(
+    composition: MessageComposition | None,
+    gpt_meta: dict | None,
+) -> dict | None:
+    meta: dict = {}
+    if gpt_meta:
+        meta.update(gpt_meta)
+    product = _product_metadata(composition)
+    if product:
+        meta.update(product)
+    return meta or None
 
 
 def prepare_campaign_messages(
@@ -136,12 +164,8 @@ def prepare_campaign_messages(
     snapshot_id = None
     snapshot_expires_at = None
     prepare_nonce = uuid.uuid4().hex
-    if campaign.include_products:
-        try:
-            product_feed = fetch_current_advertising_products()
-        except ProductFeedError as exc:
-            raise _product_http_error(exc) from exc
-        used_products = True
+    gpt_pool = None
+    gpt_called = False
 
     # Contacts are attached to a campaign through campaign_recipients (see the
     # POST /campaigns handler); Contact.campaign_id is left NULL by the importer.
@@ -210,20 +234,68 @@ def prepare_campaign_messages(
         1 for item in existing_staged.values() if item.status == "ready"
     )
     new_ready_slots = max(0, effective_limit - existing_ready_count)
+    unstaged_allowed = sum(
+        1 for _recipient, contact in allowed_recipient_rows if contact.id not in existing_staged
+    )
+    will_render = (existing_ready_count > 0) or (
+        new_ready_slots > 0 and unstaged_allowed > 0
+    )
+
+    if (
+        campaign.use_gpt
+        and not request.force_mock_output
+        and will_render
+    ):
+        fingerprint = template_fingerprint(campaign.template_text or "")
+        for item in existing_staged.values():
+            existing_pool = pool_from_queue_payload(item.queue_payload)
+            if (
+                existing_pool is not None
+                and existing_pool.template_fingerprint == fingerprint
+            ):
+                gpt_pool = existing_pool
+                break
+        if gpt_pool is None:
+            try:
+                gpt_pool = generate_validated_pool(campaign.template_text or "")
+            except GptVariationError as exc:
+                raise _gpt_http_error(exc) from exc
+            gpt_called = True
+
+    if campaign.include_products and will_render:
+        try:
+            product_feed = fetch_current_advertising_products()
+        except ProductFeedError as exc:
+            raise _product_http_error(exc) from exc
+        used_products = True
 
     returned_items: list[StagedQueueItem] = []
     already_staged_count = 0
     newly_staged_count = 0
 
-    render_mode = "mock" if request.force_mock_output else "template"
+    if request.force_mock_output:
+        render_mode = "mock"
+    elif campaign.use_gpt:
+        render_mode = "gpt"
+    else:
+        render_mode = "template"
 
-    def _render(contact: Contact) -> tuple[str, MessageComposition | None]:
+    def _render(contact: Contact) -> tuple[str, MessageComposition | None, dict | None]:
+        gpt_meta = None
         if request.force_mock_output:
             prose = build_phase4_mock_final_text(contact, campaign)
+        elif campaign.use_gpt:
+            if gpt_pool is None:
+                raise _gpt_http_error(GptVariationError("GPT_UNAVAILABLE"))
+            assigned = assign_and_log(
+                gpt_pool, campaign_id=campaign.id, contact_id=contact.id
+            )
+            prose = substitute_template_variables(assigned.text, contact)
+            gpt_meta = assignment_metadata(gpt_pool, assigned)
         else:
             prose = render_campaign_template(contact, campaign)
         if not campaign.include_products:
-            return prose, None
+            return prose, None, gpt_meta
         if product_feed is None:
             raise HTTPException(
                 status_code=400,
@@ -237,7 +309,7 @@ def prepare_campaign_messages(
             composition = select_and_compose(prose, product_feed, rng=rng)
         except ProductFeedError as exc:
             raise _product_http_error(exc) from exc
-        return composition.final_text, composition
+        return composition.final_text, composition, gpt_meta
 
     for recipient_index, (recipient, contact) in enumerate(allowed_recipient_rows):
         assigned_account = sender_accounts[recipient_index % len(sender_accounts)]
@@ -247,8 +319,8 @@ def prepare_campaign_messages(
                 # A ready item was never handed to a worker, so refresh it when
                 # the campaign text has changed since it was staged. Items that
                 # already moved on (queued/sent) are never touched.
-                current_text, composition = _render(contact)
-                product_meta = _product_metadata(composition)
+                current_text, composition, gpt_meta = _render(contact)
+                product_meta = _render_metadata(composition, gpt_meta)
                 message = (
                     existing_messages.get(recipient.final_message_id)
                     if recipient.final_message_id is not None
@@ -311,8 +383,8 @@ def prepare_campaign_messages(
         if newly_staged_count >= new_ready_slots:
             continue
 
-        final_text, composition = _render(contact)
-        product_meta = _product_metadata(composition)
+        final_text, composition, gpt_meta = _render(contact)
+        product_meta = _render_metadata(composition, gpt_meta)
 
         rendered_message = RenderedMessage(
             campaign_id=campaign_id,
@@ -417,7 +489,7 @@ def prepare_campaign_messages(
         product_snapshot_id=snapshot_id,
         product_snapshot_valid=bool(used_products or not campaign.include_products),
         force_mock_output=request.force_mock_output,
-        real_gpt_called=False,
+        real_gpt_called=gpt_called,
         real_queue_push_enabled=settings.REAL_QUEUE_PUSH_ENABLED,
         redis_queue_pushed=False,
         items=[StagedQueueItemResponse.model_validate(item) for item in returned_items],
