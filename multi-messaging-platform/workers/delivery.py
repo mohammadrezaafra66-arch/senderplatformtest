@@ -51,6 +51,7 @@ async def deliver_platform_message(
             retryable=False,
         )
 
+    # Canonical transport kill switch (Phase 7). OFF → connectors never run.
     if not settings.REAL_MESSAGE_SENDING_ENABLED:
         return WorkerResult(
             success=False,

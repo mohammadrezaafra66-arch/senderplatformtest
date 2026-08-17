@@ -60,4 +60,11 @@ jobs:
           SECRET_KEY: test-secret-key
           DATABASE_URL: postgresql://mmp_user:mmp_pass@localhost:5432/mmp_db
           REDIS_URL: redis://localhost:6379/0
-        run: pytest -m "not stress and not chaos"
+          # Phase 7 — CI must never enable real transport or live vendor APIs.
+          REAL_MESSAGE_SENDING_ENABLED: "false"
+          CHANNEL_CONNECTORS_ENABLED: "false"
+          REAL_QUEUE_PUSH_ENABLED: "false"
+          OPS_LIVE_SEND_API_ENABLED: "false"
+          DRY_RUN: "false"
+          SHADOW_MODE: "false"
+        run: pytest -m "not stress and not chaos and not manual_live"

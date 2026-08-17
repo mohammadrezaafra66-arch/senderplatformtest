@@ -25,7 +25,7 @@ class WorkerSettings(BaseSettings):
     DRY_RUN: bool = False
     SHADOW_MODE: bool = False
     SHADOW_PHONE_NUMBER: str = ""
-    REAL_MESSAGE_SENDING_ENABLED: bool = False
+    REAL_MESSAGE_SENDING_ENABLED: bool = False  # Phase 7 canonical kill switch
     CHANNEL_CONNECTORS_ENABLED: bool = False
 
     BALE_API_BASE_URL: str = "https://tapi.bale.ai"

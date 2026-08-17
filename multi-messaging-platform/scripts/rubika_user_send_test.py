@@ -23,14 +23,21 @@ import sys
 
 from core_engine.database import SessionLocal
 from core_engine.models import Account, Campaign, Contact, PlatformType
+from core_engine.services.pilot_profiles import require_manual_live_confirmation
 from workers.config import get_worker_settings
-from workers.connectors.rubika_user import deliver_rubika_user_live
+from workers.delivery import deliver_platform_message
 from workers.payloads import WorkerPayload
 
 
 async def main() -> int:
     if len(sys.argv) < 3:
         print("usage: rubika_user_send_test.py <account_id> <phone> [text] [media_url] [--keep]")
+        print("requires: MANUAL_LIVE_TEST=1 PILOT_CONFIRM=SEND and live kill-switch ON")
+        return 2
+    try:
+        require_manual_live_confirmation()
+    except RuntimeError as exc:
+        print(f"REFUSED {exc}")
         return 2
 
     account_id = int(sys.argv[1])
@@ -83,10 +90,21 @@ async def main() -> int:
         settings = get_worker_settings()
         print(
             f"RUBIKA_DELIVERY_MODE={settings.RUBIKA_DELIVERY_MODE} "
-            f"RUBIKA_USER_ACCOUNT_ENABLED={settings.RUBIKA_USER_ACCOUNT_ENABLED}"
+            f"RUBIKA_USER_ACCOUNT_ENABLED={settings.RUBIKA_USER_ACCOUNT_ENABLED} "
+            f"REAL_MESSAGE_SENDING_ENABLED={settings.REAL_MESSAGE_SENDING_ENABLED}"
         )
+        if not settings.REAL_MESSAGE_SENDING_ENABLED:
+            print("REFUSED canonical kill switch REAL_MESSAGE_SENDING_ENABLED=false")
+            return 2
+        if settings.DRY_RUN or settings.SHADOW_MODE:
+            print("REFUSED DRY_RUN/SHADOW_MODE blocks live transport")
+            return 2
+        if not settings.CHANNEL_CONNECTORS_ENABLED:
+            print("REFUSED CHANNEL_CONNECTORS_ENABLED=false")
+            return 2
 
-        result = await deliver_rubika_user_live(payload, settings)
+        # Must go through the worker router so kill switches cannot be skipped.
+        result = await deliver_platform_message("rubika", payload, settings)
         print("RESULT", result.model_dump())
 
         if not keep:

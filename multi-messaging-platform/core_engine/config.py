@@ -75,6 +75,7 @@ class Settings(BaseSettings):
 
     # Phase 4 safety gates — defaults must remain dry-run safe.
     REAL_QUEUE_PUSH_ENABLED: bool = False
+    # Phase 7 — canonical transport kill switch (OFF → connectors never run).
     REAL_MESSAGE_SENDING_ENABLED: bool = False
     WORKER_EXECUTION_ENABLED: bool = False
     CHANNEL_CONNECTORS_ENABLED: bool = False
