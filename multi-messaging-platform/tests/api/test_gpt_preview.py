@@ -21,7 +21,28 @@ def _variations():
     ]
 
 
-def test_gpt_status_config_pending(client, admin_auth):
+def test_gpt_status_config_pending(client, admin_auth, monkeypatch):
+    from core_engine.config import get_settings
+
+    # Host environments may provide a real OPENAI_API_KEY. Force GPT to appear
+    # unconfigured for this test by clearing the API key and resetting caches.
+    # Production configuration checks must remain intact.
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    get_settings.cache_clear()
+
+    # Extra safety: even if a bug bypasses the unconfigured check, fail fast.
+    import core_engine.services.message_variation.openai_provider as oai_mod
+
+    def _raise_if_openai_called(*_a, **_k):
+        raise AssertionError("OpenAI provider must not be called")
+
+    monkeypatch.setattr(
+        oai_mod.OpenAIMessageVariationProvider,
+        "generate_variations",
+        _raise_if_openai_called,
+        raising=True,
+    )
+
     set_message_variation_provider(None)
     response = client.get("/campaigns/gpt-status", headers=AUTH_HEADERS)
     assert response.status_code == 200
@@ -60,8 +81,28 @@ def test_gpt_preview_rejects_client_secrets(client, admin_auth):
     assert response.status_code == 422
 
 
-def test_gpt_preview_unavailable(client, admin_auth):
+def test_gpt_preview_unavailable(client, admin_auth, monkeypatch):
     reset_preview_rate_guard()
+
+    # Force unconfigured state regardless of host OPENAI env.
+    from core_engine.config import get_settings
+
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    get_settings.cache_clear()
+
+    # Extra safety: prevent any network call by failing if OpenAI generation is ever invoked.
+    import core_engine.services.message_variation.openai_provider as oai_mod
+
+    def _raise_if_openai_called(*_a, **_k):
+        raise AssertionError("OpenAI provider must not be called")
+
+    monkeypatch.setattr(
+        oai_mod.OpenAIMessageVariationProvider,
+        "generate_variations",
+        _raise_if_openai_called,
+        raising=True,
+    )
+
     set_message_variation_provider(None)
     response = client.post(
         "/campaigns/gpt-preview",

@@ -389,14 +389,39 @@ def test_mode_b_gpt_only_privacy_and_no_products(pg_session_factory):
     assert contacts[0].phone not in captured
     assert str(contacts[0].id) not in captured
     rows = session.query(RenderedMessage).filter_by(campaign_id=campaign.id).all()
-    texts = {row.final_text for row in rows}
-    assert len(texts) > 1
-    variation_ids = {
-        (row.queue_payload or {}).get("metadata", {}).get("gpt_variation", {}).get("variation_id")
-        for row in rows
-    }
-    assert None not in variation_ids
-    assert len(variation_ids) > 1
+
+    # Deterministic GPT variation assignment: for each recipient, variation_id must
+    # equal assign_variation_index(...)+frozen pool index.
+    assert rows
+    generation_batch_id = (
+        (rows[0].queue_payload or {})
+        .get("metadata", {})
+        .get("gpt_variation", {})
+        .get("generation_batch_id")
+    )
+    assert generation_batch_id
+
+    pool_size = len(_variations())
+
+    for row in rows:
+        meta = (row.queue_payload or {}).get("metadata", {})
+        gpt_meta = meta.get("gpt_variation") or {}
+        assert gpt_meta.get("variation_id"), "missing gpt_variation.variation_id"
+        assert (
+            gpt_meta.get("generation_batch_id") == generation_batch_id
+        ), "generation_batch_id mismatch"
+        assert row.contact_id is not None
+        idx = assign_variation_index(
+            campaign_id=campaign.id,
+            contact_id=int(row.contact_id),
+            generation_batch_id=generation_batch_id,
+            pool_size=pool_size,
+        )
+        expected_variation_id = f"{generation_batch_id}:{idx + 1}"
+        assert (
+            gpt_meta["variation_id"] == expected_variation_id
+        ), "variation_id not deterministically assigned"
+
     session.close()
 
 
