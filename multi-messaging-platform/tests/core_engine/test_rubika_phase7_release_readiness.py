@@ -22,6 +22,7 @@ from core_engine.models import (
     Message,
     PlatformType,
     RenderedMessage,
+    StagedQueueItem,
     SessionType,
 )
 from core_engine.schemas.phase4 import PrepareMessagesRequest
@@ -55,6 +56,78 @@ def _secrets(monkeypatch):
     yield
     get_settings.cache_clear()
     get_worker_settings.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_db(pg_session_factory):
+    """Prevent the shadow pilot campaign test rows from leaking into sender assignment tests."""
+
+    yield
+
+    session = pg_session_factory()
+    try:
+        campaign_ids = [
+            row_id
+            for (row_id,) in session.query(Campaign.id)
+            .filter(Campaign.title == "p7-shadow")
+            .all()
+        ]
+        if not campaign_ids:
+            return
+
+        account_ids = [
+            row_id
+            for (row_id,) in session.query(Account.id)
+            .filter(Account.label == "p7-shadow")
+            .all()
+        ]
+
+        contact_ids = [
+            row_id
+            for (row_id,) in session.query(Contact.id)
+            .filter(Contact.campaign_id.in_(campaign_ids))
+            .all()
+        ]
+
+        session.query(StagedQueueItem).filter(
+            StagedQueueItem.campaign_id.in_(campaign_ids)
+        ).delete(synchronize_session=False)
+        session.query(RenderedMessage).filter(
+            RenderedMessage.campaign_id.in_(campaign_ids)
+        ).delete(synchronize_session=False)
+        session.query(Message).filter(
+            Message.campaign_id.in_(campaign_ids)
+        ).delete(synchronize_session=False)
+
+        session.query(CampaignRecipient).filter(
+            CampaignRecipient.campaign_id.in_(campaign_ids)
+        ).delete(synchronize_session=False)
+        session.query(CampaignAccount).filter(
+            CampaignAccount.campaign_id.in_(campaign_ids)
+        ).delete(synchronize_session=False)
+        session.query(Campaign).filter(Campaign.id.in_(campaign_ids)).delete(
+            synchronize_session=False
+        )
+
+        if contact_ids:
+            session.query(Contact).filter(Contact.id.in_(contact_ids)).delete(
+                synchronize_session=False
+            )
+
+        # Shadow pilot accounts have channel sessions stored.
+        if account_ids:
+            from core_engine.models import ChannelSession
+
+            session.query(ChannelSession).filter(
+                ChannelSession.account_id.in_(account_ids)
+            ).delete(synchronize_session=False)
+            session.query(Account).filter(Account.id.in_(account_ids)).delete(
+                synchronize_session=False
+            )
+
+        session.commit()
+    finally:
+        session.close()
 
 
 def _rubika_payload() -> WorkerPayload:

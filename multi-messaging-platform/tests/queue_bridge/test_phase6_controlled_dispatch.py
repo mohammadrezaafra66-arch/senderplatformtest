@@ -22,9 +22,12 @@ from core_engine.models import (
     Account,
     AccountStatus,
     Campaign,
+    CampaignAccount,
     CampaignStatus,
     Contact,
+    CampaignRecipient,
     Message,
+    MessageAttempt,
     PlatformType,
     RenderedMessage,
     StagedQueueItem,
@@ -66,6 +69,77 @@ def pg_engine():
 def pg_session_factory(pg_engine):
     Base.metadata.create_all(pg_engine)
     return sessionmaker(autocommit=False, autoflush=False, bind=pg_engine)
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_db(pg_session_factory):
+    """Remove Postgres rows created by this file to keep other phases hermetic."""
+
+    yield
+
+    session = pg_session_factory()
+    try:
+        campaign_ids = [
+            row_id
+            for (row_id,) in session.query(Campaign.id)
+            .filter(Campaign.title == "p6d")
+            .all()
+        ]
+        if not campaign_ids:
+            return
+
+        contact_ids = [
+            row_id
+            for (row_id,) in session.query(StagedQueueItem.contact_id)
+            .filter(StagedQueueItem.campaign_id.in_(campaign_ids))
+            .distinct()
+            .all()
+        ]
+        account_ids = [
+            row_id
+            for (row_id,) in session.query(Message.account_id)
+            .filter(Message.campaign_id.in_(campaign_ids))
+            .distinct()
+            .all()
+        ]
+
+        session.query(StagedQueueItem).filter(
+            StagedQueueItem.campaign_id.in_(campaign_ids)
+        ).delete(synchronize_session=False)
+        session.query(RenderedMessage).filter(
+            RenderedMessage.campaign_id.in_(campaign_ids)
+        ).delete(synchronize_session=False)
+
+        session.query(CampaignRecipient).filter(
+            CampaignRecipient.campaign_id.in_(campaign_ids)
+        ).delete(synchronize_session=False)
+        session.query(CampaignAccount).filter(
+            CampaignAccount.campaign_id.in_(campaign_ids)
+        ).delete(synchronize_session=False)
+
+        session.query(MessageAttempt).join(Message).filter(
+            Message.campaign_id.in_(campaign_ids)
+        ).delete(synchronize_session=False)
+        session.query(Message).filter(Message.campaign_id.in_(campaign_ids)).delete(
+            synchronize_session=False
+        )
+
+        session.query(Campaign).filter(Campaign.id.in_(campaign_ids)).delete(
+            synchronize_session=False
+        )
+
+        if contact_ids:
+            session.query(Contact).filter(Contact.id.in_(contact_ids)).delete(
+                synchronize_session=False
+            )
+        if account_ids:
+            session.query(Account).filter(Account.id.in_(account_ids)).delete(
+                synchronize_session=False
+            )
+
+        session.commit()
+    finally:
+        session.close()
 
 
 class BridgeRedis:

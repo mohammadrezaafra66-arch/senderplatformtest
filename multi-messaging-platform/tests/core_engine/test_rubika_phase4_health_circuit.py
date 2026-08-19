@@ -12,7 +12,17 @@ import pytest
 from cryptography.fernet import Fernet
 
 from core_engine.config import get_settings
-from core_engine.models import Account, AccountStatus, PlatformType, SessionType
+from core_engine.models import (
+    Account,
+    AccountSendSettings,
+    AccountStatus,
+    AuditLog,
+    ChannelSession,
+    Message,
+    MessageAttempt,
+    PlatformType,
+    SessionType,
+)
 from core_engine.services.rubika_circuit import (
     RubikaCircuitState,
     assert_circuit_allows_send,
@@ -67,28 +77,82 @@ def _secrets(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _reset_redis():
-    import subprocess
-
     from core_engine.services.redis_client import reset_redis_client
+    from core_engine.config import get_settings
+    import redis
+
+    settings = get_settings()
+    redis_url = settings.REDIS_URL
+
+    # Keep this delete set tight: only keys that Rubika circuit/health/incident
+    # tests and their quota helpers may touch.
+    _patterns: tuple[str, ...] = (
+        "rubika:*",  # circuit/health/incidents/quarantine/throttle/cooldown, etc
+        "rate:*",  # rubika quota counters are stored under rate:* keys
+        "config:delay:*",  # rubika min-interval delay uses config:delay:* keys
+        "lock:rubika:*",  # best-effort: avoid stale quota/session locks
+    )
 
     def _flush() -> None:
-        script = (
-            "python3 - <<'PY'\n"
-            "import redis\n"
-            "r=redis.Redis.from_url('redis://localhost:6379/0')\n"
-            "keys=list(r.scan_iter('rubika:*', count=200))\n"
-            "if keys:\n"
-            "    r.delete(*keys)\n"
-            "r.delete('rubika:circuit:state','rubika:circuit:meta','rubika:circuit:probe')\n"
-            "PY"
-        )
-        subprocess.run(["bash", "-lc", script], check=False, capture_output=True)
+        client = redis.Redis.from_url(redis_url, decode_responses=True)
+        for pattern in _patterns:
+            keys = list(client.scan_iter(match=pattern, count=200))
+            if keys:
+                client.delete(*keys)
+        # Extra belt-and-suspenders: these keys are not only under rubika:*.
+        for key in ("rubika:circuit:state", "rubika:circuit:meta", "rubika:circuit:probe"):
+            client.delete(key)
 
     reset_redis_client()
     _flush()
     yield
     _flush()
     reset_redis_client()
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_db(pg_session_factory):
+    """Prevent Accounts created in these Redis circuit tests from leaking."""
+
+    yield
+
+    session = pg_session_factory()
+    try:
+        # Phase 4 test accounts always use a 98914* phone prefix.
+        account_ids = [
+            row_id
+            for (row_id,) in session.query(Account.id)
+            .filter(
+                Account.platform == PlatformType.RUBIKA,
+                Account.phone_number.like("98914%"),
+            )
+            .all()
+        ]
+        if not account_ids:
+            return
+
+        session.query(MessageAttempt).join(Message).filter(
+            Message.account_id.in_(account_ids)
+        ).delete(synchronize_session=False)
+        session.query(Message).filter(Message.account_id.in_(account_ids)).delete(
+            synchronize_session=False
+        )
+        session.query(ChannelSession).filter(
+            ChannelSession.account_id.in_(account_ids)
+        ).delete(synchronize_session=False)
+        session.query(AccountSendSettings).filter(
+            AccountSendSettings.account_id.in_(account_ids)
+        ).delete(synchronize_session=False)
+        session.query(AuditLog).filter(
+            AuditLog.resource_type == "account",
+            AuditLog.resource_id.in_([str(i) for i in account_ids]),
+        ).delete(synchronize_session=False)
+        session.query(Account).filter(Account.id.in_(account_ids)).delete(
+            synchronize_session=False
+        )
+        session.commit()
+    finally:
+        session.close()
 
 
 def _account(session, *, label="p4", status=AccountStatus.ACTIVE):
