@@ -126,9 +126,16 @@ def _cleanup_created_entities(
         ).delete(synchronize_session=False)
 
         if campaign_ids:
-            session.query(MessageAttempt).join(Message).filter(
-                Message.campaign_id.in_(campaign_ids)
-            ).delete(synchronize_session=False)
+            message_ids = [
+                row_id
+                for (row_id,) in session.query(Message.id)
+                .filter(Message.campaign_id.in_(campaign_ids))
+                .all()
+            ]
+            if message_ids:
+                session.query(MessageAttempt).filter(
+                    MessageAttempt.message_id.in_(message_ids)
+                ).delete(synchronize_session=False)
             session.query(Message).filter(
                 Message.campaign_id.in_(campaign_ids)
             ).delete(synchronize_session=False)

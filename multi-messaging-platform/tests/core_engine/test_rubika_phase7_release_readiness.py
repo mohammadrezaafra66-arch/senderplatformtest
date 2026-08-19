@@ -20,6 +20,7 @@ from core_engine.models import (
     CampaignStatus,
     Contact,
     Message,
+    MessageAttempt,
     PlatformType,
     RenderedMessage,
     StagedQueueItem,
@@ -95,16 +96,30 @@ def _cleanup_db(pg_session_factory):
         session.query(RenderedMessage).filter(
             RenderedMessage.campaign_id.in_(campaign_ids)
         ).delete(synchronize_session=False)
-        session.query(Message).filter(
-            Message.campaign_id.in_(campaign_ids)
-        ).delete(synchronize_session=False)
 
+        # FK-safe order:
+        # CampaignRecipient.final_message_id → Message.id
         session.query(CampaignRecipient).filter(
             CampaignRecipient.campaign_id.in_(campaign_ids)
         ).delete(synchronize_session=False)
         session.query(CampaignAccount).filter(
             CampaignAccount.campaign_id.in_(campaign_ids)
         ).delete(synchronize_session=False)
+
+        message_ids = [
+            row_id
+            for (row_id,) in session.query(Message.id)
+            .filter(Message.campaign_id.in_(campaign_ids))
+            .all()
+        ]
+        if message_ids:
+            session.query(MessageAttempt).filter(
+                MessageAttempt.message_id.in_(message_ids)
+            ).delete(synchronize_session=False)
+
+        session.query(Message).filter(Message.campaign_id.in_(campaign_ids)).delete(
+            synchronize_session=False
+        )
         session.query(Campaign).filter(Campaign.id.in_(campaign_ids)).delete(
             synchronize_session=False
         )

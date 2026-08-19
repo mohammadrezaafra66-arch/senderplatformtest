@@ -131,9 +131,16 @@ def _cleanup_db(pg_session_factory):
         if not account_ids:
             return
 
-        session.query(MessageAttempt).join(Message).filter(
-            Message.account_id.in_(account_ids)
-        ).delete(synchronize_session=False)
+        message_ids = [
+            row_id
+            for (row_id,) in session.query(Message.id)
+            .filter(Message.account_id.in_(account_ids))
+            .all()
+        ]
+        if message_ids:
+            session.query(MessageAttempt).filter(
+                MessageAttempt.message_id.in_(message_ids)
+            ).delete(synchronize_session=False)
         session.query(Message).filter(Message.account_id.in_(account_ids)).delete(
             synchronize_session=False
         )
