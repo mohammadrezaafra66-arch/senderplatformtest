@@ -120,14 +120,16 @@ def _cleanup_db(pg_session_factory):
         session.query(Message).filter(Message.campaign_id.in_(campaign_ids)).delete(
             synchronize_session=False
         )
-        session.query(Campaign).filter(Campaign.id.in_(campaign_ids)).delete(
-            synchronize_session=False
-        )
 
         if contact_ids:
             session.query(Contact).filter(Contact.id.in_(contact_ids)).delete(
                 synchronize_session=False
             )
+
+        # Contact.campaign_id → Campaign.id
+        session.query(Campaign).filter(Campaign.id.in_(campaign_ids)).delete(
+            synchronize_session=False
+        )
 
         # Shadow pilot accounts have channel sessions stored.
         if account_ids:
@@ -141,6 +143,11 @@ def _cleanup_db(pg_session_factory):
             )
 
         session.commit()
+    except Exception:
+        # If any FK-sensitive delete fails, roll back first so we don't cascade
+        # into PendingRollbackError during teardown.
+        session.rollback()
+        raise
     finally:
         session.close()
 
