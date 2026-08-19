@@ -12,7 +12,17 @@ import pytest
 from cryptography.fernet import Fernet
 
 from core_engine.config import get_settings
-from core_engine.models import Account, AccountStatus, AuditLog, PlatformType, SessionType
+from core_engine.models import (
+    Account,
+    AccountSendSettings,
+    AccountStatus,
+    AuditLog,
+    ChannelSession,
+    Message,
+    MessageAttempt,
+    PlatformType,
+    SessionType,
+)
 from core_engine.services.redis_client import get_redis_client, reset_redis_client
 from core_engine.services.rubika_alerts import (
     RubikaAlertType,
@@ -44,25 +54,87 @@ def _secrets(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _reset_redis():
-    import subprocess
-
     def _flush() -> None:
-        script = (
-            "python3 - <<'PY'\n"
-            "import redis\n"
-            "r=redis.Redis.from_url('redis://localhost:6379/0')\n"
-            "keys=list(r.scan_iter('rubika:*', count=200))\n"
-            "if keys:\n"
-            "    r.delete(*keys)\n"
-            "PY"
+        import redis
+
+        settings = get_settings()
+        redis_url = settings.REDIS_URL
+
+        _patterns: tuple[str, ...] = (
+            "rubika:*",  # health/circuit/quarantine/incidents/alerts/etc
+            "rate:*",  # rubika quota counters
+            "config:delay:*",  # rubika min-interval delay
+            "lock:rubika:*",  # best-effort: avoid stale quota/session locks
         )
-        subprocess.run(["bash", "-lc", script], check=False, capture_output=True)
+
+        client = redis.Redis.from_url(redis_url, decode_responses=True)
+        for pattern in _patterns:
+            keys = list(client.scan_iter(match=pattern, count=200))
+            if keys:
+                client.delete(*keys)
+
+        # Extra belt-and-suspenders: these keys are not only under rubika:*.
+        for key in ("rubika:circuit:state", "rubika:circuit:meta", "rubika:circuit:probe"):
+            client.delete(key)
 
     reset_redis_client()
     _flush()
     yield
     _flush()
     reset_redis_client()
+
+
+@pytest.fixture(autouse=True)
+def _cleanup_db(pg_session_factory):
+    """Prevent Accounts created in these Redis incident/alerts tests from leaking."""
+
+    yield
+
+    session = pg_session_factory()
+    try:
+        account_ids = [
+            row_id
+            for (row_id,) in session.query(Account.id)
+            .filter(
+                Account.platform == PlatformType.RUBIKA,
+                Account.phone_number.like("98915%"),
+            )
+            .all()
+        ]
+        if not account_ids:
+            return
+
+        # Best-effort cleanup of any message attempts created during protection restore flows.
+        message_ids = [
+            row_id
+            for (row_id,) in session.query(Message.id)
+            .filter(Message.account_id.in_(account_ids))
+            .all()
+        ]
+        if message_ids:
+            session.query(MessageAttempt).filter(
+                MessageAttempt.message_id.in_(message_ids)
+            ).delete(synchronize_session=False)
+        session.query(Message).filter(Message.account_id.in_(account_ids)).delete(
+            synchronize_session=False
+        )
+
+        session.query(ChannelSession).filter(
+            ChannelSession.account_id.in_(account_ids)
+        ).delete(synchronize_session=False)
+        session.query(AccountSendSettings).filter(
+            AccountSendSettings.account_id.in_(account_ids)
+        ).delete(synchronize_session=False)
+        session.query(AuditLog).filter(
+            AuditLog.resource_type == "account",
+            AuditLog.resource_id.in_([str(i) for i in account_ids]),
+        ).delete(synchronize_session=False)
+        session.query(Account).filter(Account.id.in_(account_ids)).delete(
+            synchronize_session=False
+        )
+        session.commit()
+    finally:
+        session.close()
 
 
 def _account(session, *, label="p5", status=AccountStatus.ACTIVE):

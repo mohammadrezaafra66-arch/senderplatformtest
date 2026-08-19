@@ -42,6 +42,62 @@ class CampaignFromImportRequest(BaseModel):
         return self
 
 
+class CampaignFromContactsRequest(BaseModel):
+    contact_ids: list[PositiveInt] = Field(..., min_length=1)
+    title: str
+    platform: PlatformType
+    template_text: str
+    use_gpt: bool = False
+    include_products: bool = False
+    account_ids: list[PositiveInt] | None = None
+
+    @model_validator(mode="after")
+    def deduplicate_contacts_and_accounts(self) -> "CampaignFromContactsRequest":
+        # Deterministic de-dupe for contacts.
+        object.__setattr__(self, "contact_ids", sorted(set(self.contact_ids)))
+
+        # Keep "first occurrence" order for sender account lists.
+        if self.account_ids is not None:
+            object.__setattr__(self, "account_ids", list(dict.fromkeys(self.account_ids)))
+
+        return self
+
+
+class CampaignSkippedContactInfo(BaseModel):
+    contact_id: int
+    reason_code: str
+
+
+class CampaignFromContactsResponse(BaseModel):
+    status: str
+    campaign_id: int
+    contacts_attached_count: int
+    skipped_contacts_count: int
+    message: str
+    account_ids: list[int] = Field(default_factory=list)
+    sender_accounts: list["SenderAccountResponse"] = Field(default_factory=list)
+    skipped_contacts: list[CampaignSkippedContactInfo] = Field(default_factory=list)
+
+
+class ContactSearchItemResponse(BaseModel):
+    contact_id: int
+    first_name: str | None = None
+    last_name: str | None = None
+    full_name: str | None = None
+    phone: str
+    consent_status: str
+    blacklisted: bool
+    eligible: bool
+    ineligible_reason: str | None = None
+
+
+class ContactsSearchResponse(BaseModel):
+    items: list[ContactSearchItemResponse]
+    total_count: int
+    limit: int
+    offset: int
+
+
 class GptPreviewRequest(BaseModel):
     """Operator GPT preview. Provider secrets are never accepted from the client."""
 
