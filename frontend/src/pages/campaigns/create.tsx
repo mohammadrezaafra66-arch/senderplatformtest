@@ -22,14 +22,17 @@ import { fetchAccounts } from "@/lib/accounts-api";
 import { campaignAccountError } from "@/lib/campaign-account-errors";
 import {
   createCampaignFromImport,
+  createCampaignFromContacts,
   fetchGptStatus,
   fetchProductFeedStatus,
   previewCampaignRender,
   previewGptVariations,
 } from "@/lib/campaign-api";
+import { searchContacts } from "@/lib/contacts-api";
 import { useAuth } from "@/state/auth";
 import type { CampaignRenderPreviewSample, PlatformOption } from "@/types/campaign";
 import type { AccountItem } from "@/types/account";
+import type { ContactSearchItem } from "@/types/contacts";
 import { canCreateCampaign } from "@/utils/permissions";
 
 export default function CampaignCreatePage() {
@@ -39,6 +42,14 @@ export default function CampaignCreatePage() {
   const canCreate = canCreateCampaign(role);
 
   const [importBatchId, setImportBatchId] = useState("");
+  const [recipientSource, setRecipientSource] = useState<"import" | "existing">("import");
+
+  const [contactsQuery, setContactsQuery] = useState("");
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [contactsError, setContactsError] = useState<string | null>(null);
+  const [contacts, setContacts] = useState<ContactSearchItem[]>([]);
+  const [selectedContactIds, setSelectedContactIds] = useState<number[]>([]);
+
   const [title, setTitle] = useState("");
   const [platform, setPlatform] = useState<PlatformOption>("bale");
   const [templateText, setTemplateText] = useState("سلام {{first_name}}، پیام تست کمپین.");
@@ -77,6 +88,25 @@ export default function CampaignCreatePage() {
     }
   }, [t]);
 
+  const searchExistingContacts = useCallback(async () => {
+    const q = contactsQuery.trim();
+    if (!q) {
+      setContacts([]);
+      setContactsError(null);
+      return;
+    }
+    setContactsLoading(true);
+    setContactsError(null);
+    try {
+      const result = await searchContacts({ q, limit: 50, offset: 0 });
+      setContacts(result.items);
+    } catch (err) {
+      setContactsError(err instanceof ApiError ? err.message : t("actionFailed"));
+    } finally {
+      setContactsLoading(false);
+    }
+  }, [contactsQuery, t]);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial remote data load
     void loadAccounts();
@@ -95,11 +125,6 @@ export default function CampaignCreatePage() {
     e.preventDefault();
     if (!canCreate) return;
 
-    const batchId = Number.parseInt(importBatchId, 10);
-    if (!Number.isFinite(batchId) || batchId < 1) {
-      setError(t("invalidImportBatchId"));
-      return;
-    }
     if (!title.trim() || !templateText.trim()) {
       setError(t("requiredFields"));
       return;
@@ -109,11 +134,43 @@ export default function CampaignCreatePage() {
       return;
     }
 
+    if (recipientSource === "import") {
+      const batchId = Number.parseInt(importBatchId, 10);
+      if (!Number.isFinite(batchId) || batchId < 1) {
+        setError(t("invalidImportBatchId"));
+        return;
+      }
+
+      setSubmitting(true);
+      setError(null);
+      try {
+        const result = await createCampaignFromImport({
+          import_batch_id: batchId,
+          title: title.trim(),
+          platform,
+          template_text: templateText.trim(),
+          use_gpt: useGpt,
+          include_products: includeProducts,
+          account_ids: senderMode === "auto" ? [] : selectedAccountIds,
+        });
+        void router.push(`/campaigns/${result.campaign_id}`);
+      } catch (err) {
+        setError(campaignAccountError(err, t));
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    if (selectedContactIds.length === 0) {
+      setError("حداقل یک مخاطب را انتخاب کنید.");
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     try {
-      const result = await createCampaignFromImport({
-        import_batch_id: batchId,
+      const result = await createCampaignFromContacts({
+        contact_ids: selectedContactIds,
         title: title.trim(),
         platform,
         template_text: templateText.trim(),
@@ -143,16 +200,123 @@ export default function CampaignCreatePage() {
             <form className="mmp-form-grid" onSubmit={(e) => void handleSubmit(e)}>
               <p className="mmp-muted">{t("createCampaignHint")}</p>
 
-              <FormField label={t("importBatchId")}>
-                <input
-                  type="number"
-                  min={1}
-                  className={inputClassName}
-                  value={importBatchId}
-                  onChange={(e) => setImportBatchId(e.target.value)}
-                  required
-                />
+              <FormField label="منبع گیرنده">
+                <select
+                  className={selectClassName}
+                  value={recipientSource}
+                  onChange={(e) => {
+                    const next = e.target.value as "import" | "existing";
+                    setRecipientSource(next);
+                    setSelectedContactIds([]);
+                    setContacts([]);
+                    setContactsQuery("");
+                    setContactsError(null);
+                    setError(null);
+                  }}
+                  disabled={submitting}
+                >
+                  <option value="import">از فایل / دسته import</option>
+                  <option value="existing">از مخاطبان موجود</option>
+                </select>
               </FormField>
+
+              {recipientSource === "import" ? (
+                <FormField label={t("importBatchId")}>
+                  <input
+                    type="number"
+                    min={1}
+                    className={inputClassName}
+                    value={importBatchId}
+                    onChange={(e) => setImportBatchId(e.target.value)}
+                    required
+                  />
+                </FormField>
+              ) : (
+                <>
+                  <FormField label="جستجوی مخاطب">
+                    <input
+                      className={inputClassName}
+                      value={contactsQuery}
+                      onChange={(e) => setContactsQuery(e.target.value)}
+                      placeholder="نام یا شماره تلفن..."
+                      disabled={submitting}
+                    />
+                  </FormField>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <Button
+                      type="button"
+                      disabled={submitting || contactsLoading || !contactsQuery.trim()}
+                      onClick={() => void searchExistingContacts()}
+                    >
+                      {t("search")}
+                    </Button>
+                    <div className="mmp-muted" style={{ fontSize: 13 }}>
+                      انتخاب‌شده: <strong>{selectedContactIds.length}</strong>
+                    </div>
+                  </div>
+                  {contactsError ? (
+                    <p style={{ color: "crimson", margin: 0 }}>{contactsError}</p>
+                  ) : null}
+
+                  <div style={{ marginTop: 12, display: "grid", gap: 8 }}>
+                    {contactsLoading ? <p className="mmp-muted">در حال جستجو...</p> : null}
+
+                    {contacts.length === 0 && !contactsLoading ? (
+                      <p className="mmp-muted">نتیجه‌ای یافت نشد.</p>
+                    ) : null}
+
+                    {contacts.map((c) => {
+                      const selected = selectedContactIds.includes(c.contact_id);
+                      const displayName =
+                        c.full_name ||
+                        [c.first_name, c.last_name].filter(Boolean).join(" ") ||
+                        `#${c.contact_id}`;
+                      return (
+                        <label
+                          key={c.contact_id}
+                          style={{
+                            display: "flex",
+                            gap: 10,
+                            alignItems: "flex-start",
+                            opacity: c.eligible ? 1 : 0.55,
+                            border: "1px solid rgba(0,0,0,0.08)",
+                            borderRadius: 10,
+                            padding: "10px 12px",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            disabled={!c.eligible || submitting}
+                            onChange={() => {
+                              setSelectedContactIds((prev) => {
+                                if (prev.includes(c.contact_id)) {
+                                  return prev.filter((id) => id !== c.contact_id);
+                                }
+                                return [...prev, c.contact_id];
+                              });
+                            }}
+                          />
+                          <div style={{ display: "grid", gap: 4 }}>
+                            <div style={{ fontWeight: 700 }}>{displayName}</div>
+                            <div className="mmp-muted" style={{ fontSize: 13 }}>
+                              {c.phone}
+                            </div>
+                            {!c.eligible ? (
+                              <div
+                                className="mmp-muted"
+                                style={{ fontSize: 13, color: "crimson" }}
+                              >
+                                {c.ineligible_reason}
+                              </div>
+                            ) : null}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
 
               <FormField label={t("campaignTitle")}>
                 <input

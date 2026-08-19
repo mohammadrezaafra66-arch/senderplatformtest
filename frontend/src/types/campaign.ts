@@ -262,6 +262,16 @@ export type CreateCampaignFromImportPayload = {
   account_ids: number[];
 };
 
+export type CreateCampaignFromContactsPayload = {
+  contact_ids: number[];
+  title: string;
+  platform: PlatformOption;
+  template_text: string;
+  use_gpt: boolean;
+  include_products: boolean;
+  account_ids: number[];
+};
+
 export type CampaignAccountsResult = {
   campaign_id: number;
   account_ids: number[];

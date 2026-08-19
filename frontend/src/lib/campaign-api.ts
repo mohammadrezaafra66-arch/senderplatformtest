@@ -7,6 +7,7 @@ import type {
   CampaignRecipientItem,
   CampaignRenderPreview,
   CreateCampaignFromImportPayload,
+  CreateCampaignFromContactsPayload,
   MessageLogDetail,
 } from "@/types/campaign";
 
@@ -101,6 +102,17 @@ export async function createCampaignFromImport(
   payload: CreateCampaignFromImportPayload,
 ): Promise<{ campaign_id: number; message: string }> {
   const response = await apiFetch("/campaigns/from-import", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return response.json() as Promise<{ campaign_id: number; message: string }>;
+}
+
+export async function createCampaignFromContacts(
+  payload: CreateCampaignFromContactsPayload,
+): Promise<{ campaign_id: number; message: string }> {
+  const response = await apiFetch("/campaigns/from-contacts", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

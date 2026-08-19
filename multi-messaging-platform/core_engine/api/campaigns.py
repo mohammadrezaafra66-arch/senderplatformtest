@@ -10,6 +10,8 @@ from sqlalchemy.orm import Session, selectinload
 from core_engine.api.schemas import (
     CampaignAccountsResponse,
     CampaignAccountsUpdateRequest,
+    CampaignFromContactsRequest,
+    CampaignFromContactsResponse,
     CampaignDetailResponse,
     CampaignFromImportRequest,
     CampaignFromImportResponse,
@@ -58,6 +60,105 @@ from core_engine.services.dashboard import get_campaign_stats
 from core_engine.services.rbac import requires_role
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
+
+
+def _create_campaign_draft_from_eligible_contacts(
+    db: Session,
+    current_user: dict[str, str],
+    *,
+    title: str,
+    platform: PlatformType,
+    template_text: str,
+    use_gpt: bool,
+    include_products: bool,
+    account_ids: list[int] | None,
+    eligible_contacts: list[Contact],
+    skipped_contacts_count: int,
+    audit_source: str,
+    audit_extra_details: dict[str, object] | None = None,
+) -> tuple[Campaign, int, list[SenderAccountResponse]]:
+    """Shared helper for:
+    - Campaign construction (DRAFT)
+    - Manual sender account validation/sync
+    - CampaignRecipient creation from eligible Contact rows
+    - Audit logging
+    """
+
+    validated_accounts = None
+    if account_ids is not None:
+        validated_accounts = _validate_accounts(db, account_ids, platform)
+
+    campaign = Campaign(
+        name=title,
+        channel=platform.value,
+        title=title,
+        platform=platform,
+        status=CampaignStatus.DRAFT.value,
+        template_text=template_text,
+        use_gpt=use_gpt,
+        include_products=include_products,
+    )
+    db.add(campaign)
+    db.flush()
+
+    if account_ids is not None:
+        _sync_campaign_accounts(
+            db,
+            campaign,
+            account_ids,
+            validated_accounts=validated_accounts,
+        )
+
+    contacts_attached_count = 0
+    for contact in eligible_contacts:
+        # Defensive check: keep semantics consistent with from-import.
+        existing_recipient = (
+            db.query(CampaignRecipient)
+            .filter(
+                CampaignRecipient.campaign_id == campaign.id,
+                CampaignRecipient.contact_id == contact.id,
+            )
+            .first()
+        )
+        if existing_recipient:
+            continue
+
+        db.add(
+            CampaignRecipient(
+                campaign_id=campaign.id,
+                contact_id=contact.id,
+                render_status=RenderStatus.PENDING,
+                send_status=SendStatus.PENDING,
+            )
+        )
+        contacts_attached_count += 1
+
+    record_audit(
+        db,
+        current_user["username"],
+        "create_campaign",
+        "campaign",
+        str(campaign.id),
+        {
+            "source": audit_source,
+            **(audit_extra_details or {}),
+            "contacts_attached_count": contacts_attached_count,
+            "skipped_contacts_count": skipped_contacts_count,
+        },
+    )
+
+    db.commit()
+
+    campaign = (
+        db.query(Campaign)
+        .options(
+            selectinload(Campaign.campaign_accounts).selectinload(CampaignAccount.account)
+        )
+        .filter(Campaign.id == campaign.id)
+        .one()
+    )
+    senders = _sender_accounts(campaign)
+    return campaign, contacts_attached_count, senders
 
 
 def _sender_accounts(campaign: Campaign) -> list[SenderAccountResponse]:
@@ -592,80 +693,22 @@ def create_campaign_from_import(
     skipped_contacts_count = len(all_import_contacts) - len(eligible_contacts)
 
     try:
-        validated_accounts = None
-        if payload.account_ids is not None:
-            validated_accounts = _validate_accounts(
-                db, payload.account_ids, payload.platform
+        campaign, contacts_attached_count, senders = (
+            _create_campaign_draft_from_eligible_contacts(
+                db=db,
+                current_user=current_user,
+                title=payload.title,
+                platform=payload.platform,
+                template_text=payload.template_text,
+                use_gpt=payload.use_gpt,
+                include_products=payload.include_products,
+                account_ids=payload.account_ids,
+                eligible_contacts=eligible_contacts,
+                skipped_contacts_count=skipped_contacts_count,
+                audit_source="import_batch",
+                audit_extra_details={"import_batch_id": payload.import_batch_id},
             )
-        campaign = Campaign(
-            name=payload.title,
-            channel=payload.platform.value,
-            title=payload.title,
-            platform=payload.platform,
-            status=CampaignStatus.DRAFT.value,
-            template_text=payload.template_text,
-            use_gpt=payload.use_gpt,
-            include_products=payload.include_products,
         )
-        db.add(campaign)
-        db.flush()
-
-        if payload.account_ids is not None:
-            _sync_campaign_accounts(
-                db,
-                campaign,
-                payload.account_ids,
-                validated_accounts=validated_accounts,
-            )
-
-        contacts_attached_count = 0
-        for contact in eligible_contacts:
-            existing_recipient = (
-                db.query(CampaignRecipient)
-                .filter(
-                    CampaignRecipient.campaign_id == campaign.id,
-                    CampaignRecipient.contact_id == contact.id,
-                )
-                .first()
-            )
-            if existing_recipient:
-                continue
-
-            recipient = CampaignRecipient(
-                campaign_id=campaign.id,
-                contact_id=contact.id,
-                render_status=RenderStatus.PENDING,
-                send_status=SendStatus.PENDING,
-            )
-            db.add(recipient)
-            contacts_attached_count += 1
-
-        db.commit()
-        db.refresh(campaign)
-
-        record_audit(
-            db,
-            current_user["username"],
-            "create_campaign",
-            "campaign",
-            str(campaign.id),
-            {
-                "import_batch_id": payload.import_batch_id,
-                "contacts_attached_count": contacts_attached_count,
-                "skipped_contacts_count": skipped_contacts_count,
-            },
-        )
-        db.commit()
-
-        campaign = (
-            db.query(Campaign)
-            .options(
-                selectinload(Campaign.campaign_accounts).selectinload(CampaignAccount.account)
-            )
-            .filter(Campaign.id == campaign.id)
-            .one()
-        )
-        senders = _sender_accounts(campaign)
         return CampaignFromImportResponse(
             status="draft_created",
             campaign_id=campaign.id,
@@ -684,4 +727,91 @@ def create_campaign_from_import(
         raise HTTPException(
             status_code=500,
             detail="Failed to create campaign from import.",
+        ) from exc
+
+
+@router.post("/from-contacts", response_model=CampaignFromContactsResponse)
+def create_campaign_from_contacts(
+    payload: CampaignFromContactsRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))],
+):
+    contact_ids = payload.contact_ids
+
+    found_contacts = db.query(Contact).filter(Contact.id.in_(contact_ids)).all()
+    by_id = {c.id: c for c in found_contacts}
+
+    missing_contact_ids = [cid for cid in contact_ids if cid not in by_id]
+    if missing_contact_ids:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "code": "contact_not_found",
+                "message": "One or more contacts were not found.",
+                "missing_contact_ids": missing_contact_ids,
+            },
+        )
+
+    eligible_contacts: list[Contact] = []
+    skipped_contacts: list[dict[str, object]] = []
+    for cid in contact_ids:
+        contact = by_id[cid]
+        if contact.blacklisted:
+            skipped_contacts.append(
+                {"contact_id": cid, "reason_code": "blacklisted"}
+            )
+            continue
+        if contact.consent_status == ConsentStatus.BLOCKED.value:
+            skipped_contacts.append(
+                {"contact_id": cid, "reason_code": "consent_blocked"}
+            )
+            continue
+        eligible_contacts.append(contact)
+
+    skipped_contacts_count = len(contact_ids) - len(eligible_contacts)
+    if not eligible_contacts:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "no_eligible_contacts",
+                "message": "No eligible contacts found for this request.",
+            },
+        )
+
+    try:
+        campaign, contacts_attached_count, senders = (
+            _create_campaign_draft_from_eligible_contacts(
+                db=db,
+                current_user=current_user,
+                title=payload.title,
+                platform=payload.platform,
+                template_text=payload.template_text,
+                use_gpt=payload.use_gpt,
+                include_products=payload.include_products,
+                account_ids=payload.account_ids,
+                eligible_contacts=eligible_contacts,
+                skipped_contacts_count=skipped_contacts_count,
+                audit_source="existing_contacts",
+                audit_extra_details={"contact_ids": contact_ids},
+            )
+        )
+
+        return CampaignFromContactsResponse(
+            status="draft_created",
+            campaign_id=campaign.id,
+            contacts_attached_count=contacts_attached_count,
+            skipped_contacts_count=skipped_contacts_count,
+            message="Campaign draft created from existing contacts successfully",
+            account_ids=[sender.account_id for sender in senders],
+            sender_accounts=senders,
+            skipped_contacts=skipped_contacts,  # type: ignore[arg-type]
+        )
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to create campaign from existing contacts.",
         ) from exc

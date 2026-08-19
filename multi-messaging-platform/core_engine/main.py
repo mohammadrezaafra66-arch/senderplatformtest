@@ -17,6 +17,7 @@ from core_engine.api.dashboard import router as dashboard_router
 from core_engine.api.dashboard_ws import router as dashboard_ws_router
 from core_engine.api.debug_campaigns import router as debug_campaigns_router
 from core_engine.api.debug_contacts import router as debug_contacts_router
+from core_engine.api.contacts import router as contacts_router
 from core_engine.api.debug_prepare import router as debug_prepare_router
 from core_engine.api.debug_staging import router as debug_staging_router
 from core_engine.api.dev_pricing import router as dev_pricing_router
@@ -101,6 +102,7 @@ app.include_router(dashboard_router)
 app.include_router(dashboard_ws_router)
 app.include_router(debug_campaigns_router)
 app.include_router(debug_contacts_router)
+app.include_router(contacts_router)
 app.include_router(debug_prepare_router)
 app.include_router(debug_staging_router)
 app.include_router(dev_pricing_router)
