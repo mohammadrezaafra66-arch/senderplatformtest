@@ -13,6 +13,7 @@ from core_engine.models import (
     CampaignStatus,
     Contact,
     Message,
+    MessageAttempt,
     PlatformType,
     RenderedMessage,
     StagedQueueItem,
@@ -25,12 +26,89 @@ from core_engine.services.phase4_prepare import prepare_campaign_messages
 from core_engine.services import campaign_control
 
 
+def _count_auto_eligible_senders(session, platform: PlatformType) -> int:
+    """Mirror production auto-mode eligibility: ACTIVE + matching platform."""
+    return (
+        session.query(Account)
+        .filter(
+            Account.status == AccountStatus.ACTIVE,
+            Account.platform == platform,
+        )
+        .count()
+    )
+
+
+def _teardown_created_entities(
+    session,
+    *,
+    campaign_ids: list[int],
+    contact_ids: list[int],
+    account_ids: list[int],
+) -> None:
+    """FK-safe removal of rows created by sender_env helpers."""
+    if campaign_ids:
+        session.query(StagedQueueItem).filter(
+            StagedQueueItem.campaign_id.in_(campaign_ids)
+        ).delete(synchronize_session=False)
+        session.query(RenderedMessage).filter(
+            RenderedMessage.campaign_id.in_(campaign_ids)
+        ).delete(synchronize_session=False)
+        session.query(CampaignRecipient).filter(
+            CampaignRecipient.campaign_id.in_(campaign_ids)
+        ).delete(synchronize_session=False)
+
+        message_ids = [
+            row_id
+            for (row_id,) in session.query(Message.id)
+            .filter(Message.campaign_id.in_(campaign_ids))
+            .all()
+        ]
+        if message_ids:
+            session.query(MessageAttempt).filter(
+                MessageAttempt.message_id.in_(message_ids)
+            ).delete(synchronize_session=False)
+        session.query(Message).filter(Message.campaign_id.in_(campaign_ids)).delete(
+            synchronize_session=False
+        )
+        session.query(CampaignAccount).filter(
+            CampaignAccount.campaign_id.in_(campaign_ids)
+        ).delete(synchronize_session=False)
+        session.query(Campaign).filter(Campaign.id.in_(campaign_ids)).delete(
+            synchronize_session=False
+        )
+
+    if contact_ids:
+        session.query(Contact).filter(Contact.id.in_(contact_ids)).delete(
+            synchronize_session=False
+        )
+    if account_ids:
+        session.query(Account).filter(Account.id.in_(account_ids)).delete(
+            synchronize_session=False
+        )
+
+
 @pytest.fixture
 def sender_env(pg_session_factory):
     session = pg_session_factory()
     campaign_ids: list[int] = []
     contact_ids: list[int] = []
     account_ids: list[int] = []
+
+    # Auto-assignment tests default to BALE. Mask every pre-existing ACTIVE BALE
+    # account so leaked rows from earlier full-suite tests cannot participate.
+    auto_platform = PlatformType.BALE
+    preexisting_status: dict[int, AccountStatus] = {}
+    for row in (
+        session.query(Account)
+        .filter(
+            Account.platform == auto_platform,
+            Account.status == AccountStatus.ACTIVE,
+        )
+        .all()
+    ):
+        preexisting_status[row.id] = row.status
+        row.status = AccountStatus.RESTING
+    session.commit()
 
     def campaign(contact_count=4, platform=PlatformType.BALE):
         row = Campaign(
@@ -66,36 +144,26 @@ def sender_env(pg_session_factory):
 
     yield session, campaign, account
 
-    session.rollback()
-    if campaign_ids:
-        session.query(StagedQueueItem).filter(
-            StagedQueueItem.campaign_id.in_(campaign_ids)
-        ).delete(synchronize_session=False)
-        session.query(RenderedMessage).filter(
-            RenderedMessage.campaign_id.in_(campaign_ids)
-        ).delete(synchronize_session=False)
-        session.query(CampaignRecipient).filter(
-            CampaignRecipient.campaign_id.in_(campaign_ids)
-        ).delete(synchronize_session=False)
-        session.query(Message).filter(Message.campaign_id.in_(campaign_ids)).delete(
-            synchronize_session=False
+    try:
+        session.rollback()
+        _teardown_created_entities(
+            session,
+            campaign_ids=campaign_ids,
+            contact_ids=contact_ids,
+            account_ids=account_ids,
         )
-        session.query(CampaignAccount).filter(
-            CampaignAccount.campaign_id.in_(campaign_ids)
-        ).delete(synchronize_session=False)
-        session.query(Campaign).filter(Campaign.id.in_(campaign_ids)).delete(
-            synchronize_session=False
-        )
-    if contact_ids:
-        session.query(Contact).filter(Contact.id.in_(contact_ids)).delete(
-            synchronize_session=False
-        )
-    if account_ids:
-        session.query(Account).filter(Account.id.in_(account_ids)).delete(
-            synchronize_session=False
-        )
-    session.commit()
-    session.close()
+        for acct_id, original_status in preexisting_status.items():
+            if acct_id not in account_ids:
+                session.query(Account).filter(Account.id == acct_id).update(
+                    {Account.status: original_status},
+                    synchronize_session=False,
+                )
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
+    finally:
+        session.close()
 
 
 def _assignments(session, campaign_id):
@@ -179,6 +247,8 @@ def test_auto_round_robin_filters_status_and_platform(sender_env):
 def test_sender_validation_fails_before_writes(sender_env, case, code):
     session, make_campaign, make_account = sender_env
     campaign = make_campaign(contact_count=2)
+    if case == "auto_empty":
+        assert _count_auto_eligible_senders(session, campaign.platform) == 0
     if case == "manual_disabled":
         account = make_account()
         session.add(CampaignAccount(campaign_id=campaign.id, account_id=account.id, enabled=False))
