@@ -20,7 +20,9 @@ from core_engine.services.product_feed.errors import (
     PRODUCT_FEED_STALE,
     ProductFeedError,
 )
-from core_engine.services.product_feed.http_provider import HttpJsonProductFeedProvider
+from core_engine.services.product_feed.afrakala_public_bot_provider import (
+    AfraKalaPublicBotProductFeedProvider,
+)
 from core_engine.services.product_feed.provider import ProductFeedProvider
 from core_engine.services.product_feed.selection import (
     MAX_PRODUCTS,
@@ -41,7 +43,7 @@ def set_product_feed_provider(provider: ProductFeedProvider | None) -> None:
 def get_product_feed_provider() -> ProductFeedProvider:
     if _provider_override is not None:
         return _provider_override
-    return HttpJsonProductFeedProvider.from_settings()
+    return AfraKalaPublicBotProductFeedProvider.from_settings()
 
 
 def _now(clock: datetime | None) -> datetime:
