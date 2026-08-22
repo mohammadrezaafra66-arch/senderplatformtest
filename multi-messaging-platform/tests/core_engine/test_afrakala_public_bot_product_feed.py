@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from decimal import Decimal
 
 import httpx
@@ -34,6 +34,12 @@ from core_engine.services.product_feed.errors import (
 )
 from core_engine.services.product_feed.service import fetch_current_advertising_products
 
+# Fixed timeline for hermetic freshness tests (fixture data at 10:00Z).
+FIXTURE_SOURCE_TS = "2026-08-22T10:00:00+00:00"
+FRESH_CLOCK = datetime(2026, 8, 22, 10, 1, 0, tzinfo=timezone.utc)
+STALE_REFERENCE_TS = "2026-08-22T08:00:00+00:00"
+STALE_CHECK_CLOCK = datetime(2026, 8, 22, 10, 1, 0, tzinfo=timezone.utc)
+
 
 def _cash_price(
     *,
@@ -59,7 +65,7 @@ def _product(
     labels: list | None = None,
     prices: list | None = None,
     stock_status: str = "available",
-    updated_at: str = "2026-08-22T10:00:00+00:00",
+    updated_at: str = FIXTURE_SOURCE_TS,
 ) -> dict:
     return {
         "id": product_id,
@@ -73,7 +79,7 @@ def _product(
         else [{"title": "تبلیغات"}, {"title": "پیشنهاد"}],
         "prices": prices
         if prices is not None
-        else [_cash_price(amount=28_500_000, computed_at="2026-08-22T10:00:00+00:00")],
+        else [_cash_price(amount=28_500_000, computed_at=FIXTURE_SOURCE_TS)],
         "updated_at": updated_at,
     }
 
@@ -174,14 +180,13 @@ def test_available_stock_retained():
 
 
 def test_canonical_maps_eligible_product_fields():
-    now = datetime.now(timezone.utc)
     raw = _product(product_id=99, sku="TV-X", name="تلویزیون X")
     flat, _ = normalize_public_bot_product(raw, default_currency="IRR")
     product, reason = canonicalize_product_row(
         flat,
         default_currency="IRR",
         default_source=SOURCE_PUBLIC_BOT_API,
-        fetched_at=now,
+        fetched_at=FRESH_CLOCK,
     )
     assert reason is None
     assert product is not None
@@ -256,9 +261,7 @@ def test_pagination_across_multiple_pages(monkeypatch):
         token="secret-token",
         page_size=100,
     )
-    result = provider.fetch_advertising_products(
-        clock=datetime(2026, 8, 22, 10, 0, tzinfo=timezone.utc)
-    )
+    result = provider.fetch_advertising_products(clock=FRESH_CLOCK)
     assert len(result.products) == 2
     assert calls[0].endswith("/api/public/bot/products?page=1&page_size=100")
     assert calls[1].endswith("/api/public/bot/products?page=2&page_size=100")
@@ -276,9 +279,7 @@ def test_duplicate_product_id_deduped(monkeypatch):
 
     _install_client(monkeypatch, handler)
     provider = AfraKalaPublicBotProductFeedProvider(base_url="https://afrakala.example")
-    result = provider.fetch_advertising_products(
-        clock=datetime(2026, 8, 22, 10, 0, tzinfo=timezone.utc)
-    )
+    result = provider.fetch_advertising_products(clock=FRESH_CLOCK)
     assert len(result.products) == 1
 
 
@@ -293,9 +294,7 @@ def test_no_advertising_products_eligible(monkeypatch):
 
     _install_client(monkeypatch, handler)
     provider = AfraKalaPublicBotProductFeedProvider(base_url="https://afrakala.example")
-    result = provider.fetch_advertising_products(
-        clock=datetime(2026, 8, 22, 10, 0, tzinfo=timezone.utc)
-    )
+    result = provider.fetch_advertising_products(clock=FRESH_CLOCK)
     assert result.products == ()
     assert result.discarded_invalid >= 1
     assert "not_advertising" in result.diagnostics
@@ -383,20 +382,19 @@ def test_token_not_logged(caplog, monkeypatch):
         base_url="https://afrakala.example",
         token="secret-live-token",
     )
-    provider.fetch_advertising_products(clock=datetime(2026, 8, 22, 10, 0, tzinfo=timezone.utc))
+    provider.fetch_advertising_products(clock=FRESH_CLOCK)
     combined = caplog.text.lower()
     assert "secret-live-token" not in combined
     assert "authorization: bearer" not in combined
 
 
 def test_stale_source_updated_at(monkeypatch):
-    old = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
     rows = [
         _product(
             product_id=i,
             sku=f"S{i}",
-            updated_at=old,
-            prices=[_cash_price(amount=10_000_000 + i, computed_at=old)],
+            updated_at=STALE_REFERENCE_TS,
+            prices=[_cash_price(amount=10_000_000 + i, computed_at=STALE_REFERENCE_TS)],
         )
         for i in range(1, 4)
     ]
@@ -411,7 +409,7 @@ def test_stale_source_updated_at(monkeypatch):
         lambda: 60,
     )
     with pytest.raises(ProductFeedError) as exc:
-        fetch_current_advertising_products(provider=provider)
+        fetch_current_advertising_products(provider=provider, clock=STALE_CHECK_CLOCK)
     assert exc.value.code == PRODUCT_FEED_STALE
 
 
@@ -423,7 +421,7 @@ def test_fetch_minimum_three_eligible(monkeypatch):
 
     _install_client(monkeypatch, handler)
     provider = AfraKalaPublicBotProductFeedProvider(base_url="https://afrakala.example")
-    result = fetch_current_advertising_products(provider=provider)
+    result = fetch_current_advertising_products(provider=provider, clock=FRESH_CLOCK)
     assert len(result.products) == 3
     assert all(p.advertising for p in result.products)
     assert all(p.source == SOURCE_PUBLIC_BOT_API for p in result.products)
@@ -438,5 +436,5 @@ def test_insufficient_eligible_raises(monkeypatch):
     _install_client(monkeypatch, handler)
     provider = AfraKalaPublicBotProductFeedProvider(base_url="https://afrakala.example")
     with pytest.raises(ProductFeedError) as exc:
-        fetch_current_advertising_products(provider=provider)
+        fetch_current_advertising_products(provider=provider, clock=FRESH_CLOCK)
     assert exc.value.code == INSUFFICIENT_ADVERTISING_PRODUCTS
