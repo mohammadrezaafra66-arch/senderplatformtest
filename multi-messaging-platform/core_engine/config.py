@@ -58,6 +58,8 @@ class Settings(BaseSettings):
     # Phase 5.5 / 12 — AfraKala public bot advertising product feed.
     # BASE_URL is the host root (no token); provider calls /api/public/bot/products.
     # Empty BASE_URL → LIVE_AFRAKALA_BINDING = CONFIG_PENDING.
+    # MAX_STALENESS applies to cached/reused API fetch timestamps for the live provider,
+    # not to per-product price.computed_at age (authoritative at fetch time).
     AFRAKALA_PRODUCT_API_BASE_URL: str = ""
     AFRAKALA_PRODUCT_API_TOKEN: str = ""
     AFRAKALA_PRODUCT_API_TIMEOUT_SECONDS: int = 8

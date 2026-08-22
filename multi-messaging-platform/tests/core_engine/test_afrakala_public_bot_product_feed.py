@@ -27,7 +27,6 @@ from core_engine.services.product_feed.errors import (
     CONFIG_PENDING,
     INSUFFICIENT_ADVERTISING_PRODUCTS,
     PRODUCT_FEED_INVALID_RESPONSE,
-    PRODUCT_FEED_STALE,
     PRODUCT_FEED_TIMEOUT,
     PRODUCT_FEED_UNAVAILABLE,
     ProductFeedError,
@@ -388,7 +387,7 @@ def test_token_not_logged(caplog, monkeypatch):
     assert "authorization: bearer" not in combined
 
 
-def test_stale_source_updated_at(monkeypatch):
+def test_old_computed_at_remains_eligible_after_live_fetch(monkeypatch):
     rows = [
         _product(
             product_id=i,
@@ -408,9 +407,12 @@ def test_stale_source_updated_at(monkeypatch):
         "core_engine.services.product_feed.service._max_staleness_seconds",
         lambda: 60,
     )
-    with pytest.raises(ProductFeedError) as exc:
-        fetch_current_advertising_products(provider=provider, clock=STALE_CHECK_CLOCK)
-    assert exc.value.code == PRODUCT_FEED_STALE
+    result = fetch_current_advertising_products(
+        provider=provider,
+        clock=STALE_CHECK_CLOCK,
+    )
+    assert len(result.products) == 3
+    assert all(p.source == SOURCE_PUBLIC_BOT_API for p in result.products)
 
 
 def test_fetch_minimum_three_eligible(monkeypatch):

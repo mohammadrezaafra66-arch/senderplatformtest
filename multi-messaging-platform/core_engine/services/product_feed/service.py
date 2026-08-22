@@ -36,8 +36,10 @@ logger = logging.getLogger("core_engine.services.product_feed")
 
 _provider_override: ProductFeedProvider | None = None
 
-_LIVE_TIMESTAMP_SOURCES = frozenset({"afrakala_public_bot_api"})
-_LIVE_TIMESTAMP_PROVIDERS = frozenset({"afrakala_public_bot_api"})
+# Live AfraKala Public Bot API: price.computed_at is last-calculation metadata,
+# not an expiry signal. Campaign eligibility follows the live API response.
+_AFRAKALA_PUBLIC_BOT_PROVIDER = "afrakala_public_bot_api"
+_LIVE_API_FETCH_PROVIDERS = frozenset({_AFRAKALA_PUBLIC_BOT_PROVIDER})
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +50,9 @@ class FreshnessFilterStats:
     missing_timestamp_discarded: int
     invalid_discarded: int
     limit_seconds: int
+    fetch_age_seconds: int | None = None
+    oldest_price_age_seconds: int | None = None
+    newest_price_age_seconds: int | None = None
 
     @property
     def stale_discarded_total(self) -> int:
@@ -90,11 +95,9 @@ def _normalize_product_dt(value: datetime | None) -> datetime | None:
     return value.astimezone(timezone.utc)
 
 
-def _requires_source_timestamp(product: AdvertisingProduct, provider: str) -> bool:
-    return (
-        product.source in _LIVE_TIMESTAMP_SOURCES
-        or provider in _LIVE_TIMESTAMP_PROVIDERS
-    )
+def _uses_price_age_campaign_gate(provider: str) -> bool:
+    """Legacy providers may reject products by source_updated_at age."""
+    return provider not in _LIVE_API_FETCH_PROVIDERS
 
 
 def _product_freshness_age_seconds(product: AdvertisingProduct, *, now: datetime) -> float | None:
@@ -104,26 +107,82 @@ def _product_freshness_age_seconds(product: AdvertisingProduct, *, now: datetime
     return (now - reference).total_seconds()
 
 
-def _is_product_fresh(
+def _price_age_diagnostics(
+    products: tuple[AdvertisingProduct, ...],
+    *,
+    now: datetime,
+) -> tuple[int | None, int | None]:
+    ages = [
+        int(_product_freshness_age_seconds(product, now=now))
+        for product in products
+        if _product_freshness_age_seconds(product, now=now) is not None
+    ]
+    if not ages:
+        return None, None
+    return max(ages), min(ages)
+
+
+def _fetch_age_seconds(result: ProductFeedResult, *, now: datetime) -> int:
+    fetched = _normalize_product_dt(result.fetched_at)
+    if fetched is None:
+        return 0
+    return int((now - fetched).total_seconds())
+
+
+def _is_product_fresh_by_price_age(
     product: AdvertisingProduct,
     *,
     now: datetime,
     limit_seconds: int,
     provider: str,
 ) -> tuple[bool, str | None]:
-    """Return (is_fresh, discard_reason). Fresh when age_seconds <= limit_seconds."""
+    """Legacy path: reject when source_updated_at age exceeds limit."""
     reference = product.source_updated_at
     if reference is None:
-        if _requires_source_timestamp(product, provider):
-            return False, "missing_source_updated_at"
-        # Legacy/fake providers may omit authoritative timestamps (test contracts).
         return True, None
     age = _product_freshness_age_seconds(product, now=now)
     if age is None:
-        return False, "missing_source_updated_at"
+        return True, None
     if age <= limit_seconds:
         return True, None
     return False, "stale_source_updated_at"
+
+
+def _filter_afrakala_public_bot_products(
+    result: ProductFeedResult,
+    *,
+    now: datetime,
+    limit_seconds: int,
+) -> tuple[ProductFeedResult, FreshnessFilterStats]:
+    """Live API products are authoritative at fetch time; price age is diagnostic only."""
+    products = tuple(result.products)
+    oldest_age, newest_age = _price_age_diagnostics(products, now=now)
+    stamps = [
+        _normalize_product_dt(product.source_updated_at)
+        for product in products
+        if product.source_updated_at is not None
+    ]
+    source_updated = max(stamps) if stamps else None
+    filtered = ProductFeedResult(
+        products=products,
+        fetched_at=result.fetched_at,
+        provider=result.provider,
+        discarded_invalid=result.discarded_invalid,
+        source_updated_at=source_updated,
+        diagnostics=result.diagnostics,
+    )
+    stats = FreshnessFilterStats(
+        eligible_before_freshness=len(products),
+        fresh_eligible=len(products),
+        stale_discarded=0,
+        missing_timestamp_discarded=0,
+        invalid_discarded=result.discarded_invalid,
+        limit_seconds=limit_seconds,
+        fetch_age_seconds=_fetch_age_seconds(result, now=now),
+        oldest_price_age_seconds=oldest_age,
+        newest_price_age_seconds=newest_age,
+    )
+    return filtered, stats
 
 
 def filter_fresh_products(
@@ -132,20 +191,32 @@ def filter_fresh_products(
     clock: datetime | None = None,
     limit_seconds: int | None = None,
 ) -> tuple[ProductFeedResult, FreshnessFilterStats]:
-    """Derive selectable products by per-product source_updated_at freshness.
+    """Apply provider-specific freshness rules.
 
-    Feed-level source_updated_at on the returned result is the max timestamp among
-    the surviving fresh products only.
+    AfraKala Public Bot API: all advertising-eligible products from a successful
+    fetch remain selectable; source_updated_at records last price/product update age
+    for diagnostics only.
+
+    Legacy providers: per-product source_updated_at age may reject products when
+    older than AFRAKALA_PRODUCT_MAX_STALENESS_SECONDS.
     """
     now = _now(clock)
     limit = _max_staleness_seconds() if limit_seconds is None else int(limit_seconds)
+
+    if not _uses_price_age_campaign_gate(result.provider):
+        return _filter_afrakala_public_bot_products(
+            result,
+            now=now,
+            limit_seconds=limit,
+        )
+
     fresh_products: list[AdvertisingProduct] = []
     stale_discarded = 0
     missing_discarded = 0
     stale_diagnostics: list[str] = []
 
     for product in result.products:
-        is_fresh, reason = _is_product_fresh(
+        is_fresh, reason = _is_product_fresh_by_price_age(
             product,
             now=now,
             limit_seconds=limit,
@@ -185,12 +256,15 @@ def filter_fresh_products(
         missing_timestamp_discarded=missing_discarded,
         invalid_discarded=result.discarded_invalid,
         limit_seconds=limit,
+        fetch_age_seconds=_fetch_age_seconds(result, now=now),
+        oldest_price_age_seconds=_price_age_diagnostics(tuple(fresh_products), now=now)[0],
+        newest_price_age_seconds=_price_age_diagnostics(tuple(fresh_products), now=now)[1],
     )
     return filtered, stats
 
 
 def _freshness_error_details(stats: FreshnessFilterStats) -> dict[str, int]:
-    return {
+    payload: dict[str, int] = {
         "eligible_before_freshness": stats.eligible_before_freshness,
         "fresh_eligible": stats.fresh_eligible,
         "stale_discarded": stats.stale_discarded_total,
@@ -198,23 +272,58 @@ def _freshness_error_details(stats: FreshnessFilterStats) -> dict[str, int]:
         "required": MIN_PRODUCTS,
         "limit_seconds": stats.limit_seconds,
     }
+    if stats.fetch_age_seconds is not None:
+        payload["fetch_age_seconds"] = stats.fetch_age_seconds
+    if stats.oldest_price_age_seconds is not None:
+        payload["oldest_price_age_seconds"] = stats.oldest_price_age_seconds
+    if stats.newest_price_age_seconds is not None:
+        payload["newest_price_age_seconds"] = stats.newest_price_age_seconds
+    return payload
+
+
+def _enforce_fetch_freshness(result: ProductFeedResult, *, clock: datetime | None) -> None:
+    """Reject reused/cached live API responses when fetched_at is too old."""
+    if result.provider not in _LIVE_API_FETCH_PROVIDERS:
+        return
+    now = _now(clock)
+    fetch_age = _fetch_age_seconds(result, now=now)
+    limit = _max_staleness_seconds()
+    if fetch_age > limit:
+        logger.warning(
+            "event=product_feed_fetch_stale provider=%s fetch_age_seconds=%s limit=%s",
+            result.provider,
+            fetch_age,
+            limit,
+        )
+        raise ProductFeedError(
+            PRODUCT_FEED_STALE,
+            details={
+                "fetch_age_seconds": fetch_age,
+                "limit_seconds": limit,
+                "eligible_before_freshness": len(result.products),
+                "fresh_eligible": len(result.products),
+            },
+        )
 
 
 def _enforce_freshness_minimum(
     stats: FreshnessFilterStats,
     *,
     require_minimum: bool,
+    provider: str,
 ) -> None:
-    if stats.eligible_before_freshness > 0 and stats.fresh_eligible == 0:
-        logger.warning(
-            "event=product_feed_stale provider=all_products_stale eligible=%s limit=%s",
-            stats.eligible_before_freshness,
-            stats.limit_seconds,
-        )
-        raise ProductFeedError(
-            PRODUCT_FEED_STALE,
-            details=_freshness_error_details(stats),
-        )
+    if _uses_price_age_campaign_gate(provider):
+        if stats.eligible_before_freshness > 0 and stats.fresh_eligible == 0:
+            logger.warning(
+                "event=product_feed_stale provider=%s eligible=%s limit=%s",
+                provider,
+                stats.eligible_before_freshness,
+                stats.limit_seconds,
+            )
+            raise ProductFeedError(
+                PRODUCT_FEED_STALE,
+                details=_freshness_error_details(stats),
+            )
     if not require_minimum:
         return
     if stats.fresh_eligible < MIN_PRODUCTS:
@@ -240,22 +349,33 @@ def fetch_current_advertising_products(
 ) -> ProductFeedResult:
     active = provider or get_product_feed_provider()
     result = active.fetch_advertising_products(clock=clock)
+    _enforce_fetch_freshness(result, clock=clock)
     filtered, stats = filter_fresh_products(result, clock=clock)
-    _enforce_freshness_minimum(stats, require_minimum=require_minimum)
+    _enforce_freshness_minimum(
+        stats,
+        require_minimum=require_minimum,
+        provider=result.provider,
+    )
     return filtered
+
+
+def _freshness_basis(provider: str) -> str:
+    if provider in _LIVE_API_FETCH_PROVIDERS:
+        return "api_fetch_fetched_at"
+    return "per_product_source_updated_at"
 
 
 def _status_payload_from_result(
     result: ProductFeedResult,
     stats: FreshnessFilterStats,
 ) -> dict[str, Any]:
-    fresh_count = stats.fresh_eligible
-    return {
-        "ok": fresh_count >= MIN_PRODUCTS,
-        "code": "OK" if fresh_count >= MIN_PRODUCTS else INSUFFICIENT_ADVERTISING_PRODUCTS,
-        "eligible_count": fresh_count,
+    eligible_count = stats.fresh_eligible
+    payload: dict[str, Any] = {
+        "ok": eligible_count >= MIN_PRODUCTS,
+        "code": "OK" if eligible_count >= MIN_PRODUCTS else INSUFFICIENT_ADVERTISING_PRODUCTS,
+        "eligible_count": eligible_count,
         "advertising_eligible_count": stats.eligible_before_freshness,
-        "fresh_eligible_count": fresh_count,
+        "fresh_eligible_count": eligible_count,
         "stale_discarded": stats.stale_discarded_total,
         "invalid_discarded": stats.invalid_discarded,
         "discarded_invalid": result.discarded_invalid,
@@ -271,14 +391,21 @@ def _status_payload_from_result(
             if (getattr(get_settings(), "AFRAKALA_PRODUCT_API_BASE_URL", "") or "").strip()
             else "CONFIG_PENDING"
         ),
-        "freshness_basis": "per_product_source_updated_at",
+        "freshness_basis": _freshness_basis(result.provider),
         "freshness_limit_seconds": stats.limit_seconds,
         "message": (
-            f"{fresh_count} محصول تبلیغاتی تازه آماده"
-            if fresh_count >= MIN_PRODUCTS
-            else "محصولات تبلیغاتی تازه کافی نیست."
+            f"{eligible_count} محصول تبلیغاتی آماده"
+            if eligible_count >= MIN_PRODUCTS
+            else "محصولات تبلیغاتی کافی نیست."
         ),
     }
+    if stats.fetch_age_seconds is not None:
+        payload["fetch_age_seconds"] = stats.fetch_age_seconds
+    if stats.oldest_price_age_seconds is not None:
+        payload["oldest_price_age_seconds"] = stats.oldest_price_age_seconds
+    if stats.newest_price_age_seconds is not None:
+        payload["newest_price_age_seconds"] = stats.newest_price_age_seconds
+    return payload
 
 
 def _status_payload_from_error(
@@ -315,7 +442,7 @@ def _status_payload_from_error(
         "min_required": MIN_PRODUCTS,
         "max_per_message": MAX_PRODUCTS,
         "live_binding": live if exc.code != "CONFIG_PENDING" else "CONFIG_PENDING",
-        "freshness_basis": "per_product_source_updated_at",
+        "freshness_basis": _freshness_basis(provider_name),
         "freshness_limit_seconds": int(
             details.get("limit_seconds", _max_staleness_seconds())
         ),
@@ -371,16 +498,10 @@ def product_feed_status(
     provider_name = getattr(active, "name", "unknown")
     try:
         raw = active.fetch_advertising_products(clock=clock)
+        _enforce_fetch_freshness(raw, clock=clock)
         filtered, stats = filter_fresh_products(raw, clock=clock)
         payload = _status_payload_from_result(filtered, stats)
-        if stats.eligible_before_freshness > 0 and stats.fresh_eligible == 0:
-            payload["ok"] = False
-            payload["code"] = PRODUCT_FEED_STALE
-            payload["message"] = (
-                "همه محصولات تبلیغاتی واجد شرایط از نظر تازگی منقضی شده‌اند."
-            )
-            payload["details"] = _freshness_error_details(stats)
-        elif stats.fresh_eligible < MIN_PRODUCTS and stats.eligible_before_freshness == 0:
+        if stats.fresh_eligible < MIN_PRODUCTS and stats.eligible_before_freshness == 0:
             payload["ok"] = False
             payload["code"] = PRODUCT_FEED_EMPTY
             payload["details"] = _freshness_error_details(stats)

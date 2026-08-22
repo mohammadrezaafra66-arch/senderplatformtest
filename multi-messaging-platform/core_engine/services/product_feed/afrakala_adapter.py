@@ -134,6 +134,7 @@ def normalize_public_bot_product(
     if price_computed_at is not None:
         if source_updated_at is None or price_computed_at > source_updated_at:
             source_updated_at = price_computed_at
+    # source_updated_at is last product/price update metadata — not an expiry signal.
 
     flat: dict[str, Any] = {
         "id": external_id,
