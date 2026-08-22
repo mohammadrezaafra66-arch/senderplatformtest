@@ -43,17 +43,30 @@ def _as_str(value: Any) -> str:
     return str(value).strip()
 
 
+def _normalize_label_text(value: Any) -> str:
+    if value is None:
+        return ""
+    return " ".join(str(value).split()).strip()
+
+
 def is_explicitly_advertising(raw: dict[str, Any]) -> bool:
     for key in _AD_BOOL_KEYS:
         if key in raw and raw[key] in _TRUE_VALUES:
             return True
     tags = raw.get("tags") or raw.get("labels") or raw.get("tag")
+    if isinstance(tags, dict):
+        tags = [tags]
     if isinstance(tags, str):
         tags = [tags]
     if isinstance(tags, list):
-        tokens = {str(item).strip().lower() for item in tags}
-        if tokens & {t.lower() for t in _AD_TAG_TOKENS}:
-            return True
+        for item in tags:
+            if isinstance(item, dict):
+                if _normalize_label_text(item.get("title")) == "تبلیغات":
+                    return True
+                continue
+            token = _normalize_label_text(item).lower()
+            if token in {t.lower() for t in _AD_TAG_TOKENS} or token == "تبلیغات":
+                return True
     return False
 
 

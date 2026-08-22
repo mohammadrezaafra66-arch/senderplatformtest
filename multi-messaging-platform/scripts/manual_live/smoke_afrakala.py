@@ -21,7 +21,9 @@ if str(_ROOT) not in sys.path:
 
 from core_engine.config import get_settings
 from core_engine.services.pilot_profiles import require_manual_live_confirmation
-from core_engine.services.product_feed.http_provider import HttpJsonProductFeedProvider
+from core_engine.services.product_feed.afrakala_public_bot_provider import (
+    AfraKalaPublicBotProductFeedProvider,
+)
 from core_engine.services.product_feed.errors import ProductFeedError
 
 
@@ -38,7 +40,7 @@ def main() -> int:
         return 3
     started = time.monotonic()
     try:
-        feed = HttpJsonProductFeedProvider.from_settings().fetch_advertising_products()
+        feed = AfraKalaPublicBotProductFeedProvider.from_settings().fetch_advertising_products()
     except ProductFeedError as exc:
         print("status", exc.code)
         print("ok", False)

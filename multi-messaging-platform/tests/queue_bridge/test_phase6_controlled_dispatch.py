@@ -416,7 +416,10 @@ async def test_circuit_open_stops_rubika_not_permanent(pg_session_factory, enabl
     )
     skipped_perm = (
         session.query(StagedQueueItem)
-        .filter(StagedQueueItem.status == StagedQueueItemStatus.SKIPPED.value)
+        .filter(
+            StagedQueueItem.campaign_id == campaign.id,
+            StagedQueueItem.status == StagedQueueItemStatus.SKIPPED.value,
+        )
         .count()
     )
     assert ready == 4
