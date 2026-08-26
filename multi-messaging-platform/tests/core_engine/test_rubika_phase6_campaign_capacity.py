@@ -35,6 +35,8 @@ from core_engine.models import (
 from core_engine.services.campaign_capacity import (
     AccountCapacityInput,
     SendWindowSpec,
+    account_eligible_now,
+    account_ready_now,
     aggregate_campaign_capacity,
     current_window_phase,
     next_window_start,
@@ -105,6 +107,29 @@ def test_pure_capacity_scale_levels():
             assert agg.completion.policy_days and agg.completion.policy_days >= 2
             assert agg.accounts[0].is_bottleneck is True
 
+
+
+def test_account_readiness_is_independent_of_assignment():
+    row = AccountCapacityInput(
+        account_id=12,
+        assigned_remaining=0,
+        remaining_daily=19,
+        remaining_hourly=1,
+        daily_cap=20,
+        hourly_cap=1,
+        window_open=True,
+        applies_quota=True,
+    )
+    assert account_ready_now(row) is True
+    assert account_eligible_now(row) is False
+    agg = aggregate_campaign_capacity(
+        [row],
+        now=datetime(2026, 8, 17, 10, 0, tzinfo=IRAN),
+        windows=WINDOWS,
+    )
+    assert agg.ready_now == 1
+    assert agg.usable_now == 0
+    assert agg.accounts[0].account_ready_now is True
 
 def test_mixed_account_states_no_reassignment():
     now = datetime(2026, 8, 17, 10, 0, tzinfo=IRAN)

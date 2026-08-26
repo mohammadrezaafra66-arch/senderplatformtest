@@ -84,6 +84,7 @@ class AccountCapacityPlan:
     account_id: int
     label: str | None
     assigned_remaining: int
+    account_ready_now: bool
     health: str | None
     readiness: str | None
     lifecycle: str | None
@@ -118,6 +119,7 @@ class CompletionEstimate:
 @dataclass(frozen=True, slots=True)
 class CampaignCapacityAggregate:
     assigned_accounts: int
+    ready_now: int
     usable_now: int
     temporary: int
     blocked: int
@@ -216,9 +218,14 @@ def _is_temporary(code: str | None) -> bool:
     return bool(code) and code in TEMPORARY_CODES
 
 
-def account_eligible_now(row: AccountCapacityInput) -> bool:
-    if row.assigned_remaining <= 0:
-        return False
+def account_ready_now(row: AccountCapacityInput) -> bool:
+    """Whether the account itself can send now, independent of campaign assignment.
+
+    Campaign assignment is a workload property, not account readiness.  Keeping
+    the two concepts separate prevents draft/unprepared campaigns from
+    reporting healthy READY accounts as unusable merely because Message rows
+    have not been materialized yet.
+    """
     if _is_hard_blocked(row.block_code):
         return False
     if row.block_code in {"RUBIKA_CIRCUIT_OPEN", "REDIS_UNAVAILABLE"}:
@@ -241,6 +248,13 @@ def account_eligible_now(row: AccountCapacityInput) -> bool:
     }:
         return False
     return True
+
+
+def account_eligible_now(row: AccountCapacityInput) -> bool:
+    """Whether this account can execute already-assigned campaign work now."""
+    if row.assigned_remaining <= 0:
+        return False
+    return account_ready_now(row)
 
 
 def immediate_slots_for_account(row: AccountCapacityInput) -> int:
@@ -399,7 +413,7 @@ def aggregate_campaign_capacity(
 ) -> CampaignCapacityAggregate:
     local = policy_now(clock=now)
     plans: list[AccountCapacityPlan] = []
-    usable = temporary = blocked = 0
+    ready = usable = temporary = blocked = 0
     immediate = 0
     today_known = True
     today_total = 0
@@ -409,11 +423,14 @@ def aggregate_campaign_capacity(
     bottleneck_ids: list[int] = []
 
     for row in rows:
+        account_ready = account_ready_now(row)
         eligible = account_eligible_now(row)
         hard = _is_hard_blocked(row.block_code)
         temp = (not hard) and (
             _is_temporary(row.block_code) or (row.applies_quota and not row.window_open)
         )
+        if account_ready:
+            ready += 1
         if eligible:
             usable += 1
         elif hard:
@@ -439,6 +456,7 @@ def aggregate_campaign_capacity(
                 account_id=row.account_id,
                 label=row.label,
                 assigned_remaining=row.assigned_remaining,
+                account_ready_now=account_ready,
                 health=row.health,
                 readiness=row.readiness,
                 lifecycle=row.lifecycle,
@@ -502,6 +520,7 @@ def aggregate_campaign_capacity(
     unique_limits = tuple(dict.fromkeys(limitations))
     return CampaignCapacityAggregate(
         assigned_accounts=len(rows),
+        ready_now=ready,
         usable_now=usable,
         temporary=temporary,
         blocked=blocked,
@@ -526,6 +545,7 @@ def plan_to_matrix_row(plan: AccountCapacityPlan) -> dict[str, Any]:
     return {
         "account": plan.account_id,
         "assigned": plan.assigned_remaining,
+        "account_ready_now": plan.account_ready_now,
         "health": plan.health,
         "readiness": plan.readiness,
         "daily_remaining": plan.remaining_daily,

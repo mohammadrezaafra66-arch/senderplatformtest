@@ -167,6 +167,10 @@ class CampaignPreflightResult:
     limitations: list[str] = field(default_factory=list)
     evaluated_at: str = ""
     redis_ok: bool = True
+    ready_accounts: int = 0
+    execution_usable_accounts: int = 0
+    assignment_materialized: bool = False
+    capacity_applicable: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -434,6 +438,14 @@ async def evaluate_campaign_send_preflight(
     pushing_staged = int(staged.get(StagedQueueItemStatus.PUSHING.value, 0))
     remaining_assigned = sum(assigned.values())
     remaining = remaining_assigned or pending_total or ready_staged
+    assignment_materialized = bool(
+        assigned
+        or prepared > 0
+        or ready_staged > 0
+        or queued_staged > 0
+        or pushing_staged > 0
+    )
+    capacity_applicable = remaining > 0 and bool(assigned)
 
     progress = CampaignProgressCounts(
         total=total_recipients,
@@ -858,7 +870,8 @@ async def evaluate_campaign_send_preflight(
         warnings.append(_issue(CAMPAIGN_ALREADY_RUNNING))
 
     if (
-        aggregate.estimated_today_capacity is not None
+        capacity_applicable
+        and aggregate.estimated_today_capacity is not None
         and remaining > aggregate.estimated_today_capacity
     ):
         warnings.append(_issue("CAMPAIGN_MULTI_DAY", MULTI_DAY_WARNING))
@@ -882,7 +895,7 @@ async def evaluate_campaign_send_preflight(
         )
 
     for plan in aggregate.accounts:
-        if plan.is_bottleneck:
+        if capacity_applicable and plan.is_bottleneck:
             warnings.append(
                 _issue(
                     "CAMPAIGN_ASSIGNMENT_BOTTLENECK",
@@ -933,6 +946,12 @@ async def evaluate_campaign_send_preflight(
                 "readiness": plan.readiness,
                 "lifecycle": plan.lifecycle,
                 "assigned": plan.assigned_remaining,
+                "assignment_state": (
+                    "assigned"
+                    if plan.assigned_remaining > 0
+                    else ("unassigned" if assignment_materialized else "not_materialized")
+                ),
+                "account_ready_now": plan.account_ready_now,
                 "daily_remaining": plan.remaining_daily,
                 "hourly_remaining": plan.remaining_hourly,
                 "next_allowed_at": plan.next_allowed_at.isoformat() if plan.next_allowed_at else None,
@@ -968,18 +987,26 @@ async def evaluate_campaign_send_preflight(
         ready_messages=ready_staged,
         blocked_messages=progress.blocked_sender,
         assigned_accounts=aggregate.assigned_accounts,
-        usable_accounts=aggregate.usable_now,
+        # ``usable_accounts`` is the public/UI-facing readiness count.  It must
+        # not collapse to zero before Message.account_id assignments exist.
+        usable_accounts=aggregate.ready_now,
         blocked_accounts=aggregate.blocked,
         temporary_accounts=aggregate.temporary,
-        immediate_capacity=aggregate.immediate_capacity,
-        estimated_today_capacity=aggregate.estimated_today_capacity,
-        estimated_hourly_capacity=aggregate.estimated_hourly_capacity,
+        immediate_capacity=(aggregate.immediate_capacity if capacity_applicable else None),
+        estimated_today_capacity=(
+            aggregate.estimated_today_capacity if capacity_applicable else None
+        ),
+        estimated_hourly_capacity=(
+            aggregate.estimated_hourly_capacity if capacity_applicable else None
+        ),
         estimated_completion_at=(
             completion.estimated_completion_at.isoformat()
-            if completion.estimated_completion_at is not None
+            if capacity_applicable and completion.estimated_completion_at is not None
             else None
         ),
-        estimated_duration_seconds=completion.estimated_duration_seconds,
+        estimated_duration_seconds=(
+            completion.estimated_duration_seconds if capacity_applicable else None
+        ),
         timezone="Asia/Tehran",
         warnings=warnings,
         blockers=blockers,
@@ -991,8 +1018,16 @@ async def evaluate_campaign_send_preflight(
         next_window_start=next_window.isoformat() if next_window else None,
         resume_policy="operator",
         ready_to_resume=ready_to_resume,
-        capacity_confidence=aggregate.today_confidence,
-        limitations=list(completion.limitations),
+        capacity_confidence=(aggregate.today_confidence if capacity_applicable else "not_applicable"),
+        limitations=(
+            list(completion.limitations)
+            if capacity_applicable
+            else ["assignment_not_materialized", "capacity_not_applicable_before_assignment"]
+        ),
         evaluated_at=evaluated_iso,
         redis_ok=True,
+        ready_accounts=aggregate.ready_now,
+        execution_usable_accounts=aggregate.usable_now,
+        assignment_materialized=assignment_materialized,
+        capacity_applicable=capacity_applicable,
     )

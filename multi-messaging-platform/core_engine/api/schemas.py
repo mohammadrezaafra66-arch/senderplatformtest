@@ -281,6 +281,10 @@ class CampaignPreflightResponse(BaseModel):
     limitations: list[str] = Field(default_factory=list)
     evaluated_at: str = ""
     redis_ok: bool = True
+    ready_accounts: int = 0
+    execution_usable_accounts: int = 0
+    assignment_materialized: bool = False
+    capacity_applicable: bool = False
 
 
 class CampaignStopResponse(BaseModel):
