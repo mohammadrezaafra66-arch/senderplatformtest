@@ -1,19 +1,220 @@
 services:
+
+  # ============================================================
+  # PostgreSQL
+  # ============================================================
+
+  postgres:
+    image: postgres:15
+    container_name: mmp_postgres
+
+    environment:
+      POSTGRES_DB: mmp_db
+      POSTGRES_USER: mmp_user
+      POSTGRES_PASSWORD: mmp_pass
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+
+  # ============================================================
+  # Redis
+  # ============================================================
+
+  redis:
+    image: redis:7
+    container_name: mmp_redis
+
+    entrypoint:
+      - /bin/sh
+      - /usr/local/bin/start-redis.sh
+
+    ports:
+      - "127.0.0.1:6379:6379"
+
+    restart: unless-stopped
+
+    secrets:
+      - redis_password
+
+    volumes:
+      - ./redis.conf.template:/usr/local/etc/redis/redis.conf.template:ro
+      - ./scripts/start-redis.sh:/usr/local/bin/start-redis.sh:ro
+
+
+  # ============================================================
+  # Core API
+  # ============================================================
+
+  core_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    command:
+      - uvicorn
+      - core_engine.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+
+    container_name: mmp_core_api
+
+    depends_on:
+      - postgres
+      - redis
+
+    env_file:
+      - .env
+
+    environment:
+      DRY_RUN: ${DRY_RUN:-false}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+      SHADOW_MODE: ${SHADOW_MODE:-false}
+      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    ports:
+      - "8001:8000"
+
+    volumes:
+      - ./storage/browser_profiles:/app/storage/browser_profiles
+      - ./core_engine:/app/core_engine
+      - ./workers:/app/workers
+      - ./scripts:/app/scripts
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker:ro
+
+
+  # ============================================================
+  # Frontend - Next.js
+  # ============================================================
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        MMP_API_PROXY_TARGET: http://core_api:8000
+        NEXT_PUBLIC_API_URL: /backend
+
+    container_name: mmp_frontend
+
+    depends_on:
+      - core_api
+
+    environment:
+      NODE_ENV: production
+      MMP_API_PROXY_TARGET: http://core_api:8000
+      NEXT_PUBLIC_API_URL: /backend
+
+    ports:
+      - "3010:3010"
+
+    restart: unless-stopped
+
+
+  # ============================================================
+  # Celery Worker
+  # ============================================================
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    command:
+      - celery
+      - -A
+      - core_engine.tasks.celery_app
+      - worker
+      - --loglevel=info
+
+    container_name: mmp_celery_worker
+
+    depends_on:
+      - core_api
+      - redis
+
+    env_file:
+      - .env
+
+    environment:
+      DRY_RUN: ${DRY_RUN:-false}
+      PYTHONPATH: /app
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+      SHADOW_MODE: ${SHADOW_MODE:-false}
+      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
+
+    volumes:
+      - ./core_engine:/app/core_engine
+      - ./workers:/app/workers
+      - ./scripts:/app/scripts
+
+
+  # ============================================================
+  # Celery Beat
+  # ============================================================
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    command:
+      - celery
+      - -A
+      - core_engine.tasks.celery_app
+      - beat
+      - --loglevel=info
+      - --schedule=/tmp/celerybeat-schedule
+
+    container_name: mmp_celery_beat
+
+    depends_on:
+      - core_api
+      - redis
+
+    env_file:
+      - .env
+
+    environment:
+      DRY_RUN: ${DRY_RUN:-false}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
+      SHADOW_MODE: ${SHADOW_MODE:-false}
+      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
+
+
+  # ============================================================
+  # Bale Worker
+  # ============================================================
+
   bale_worker:
     build:
       context: .
       dockerfile: Dockerfile
+
     command:
-    - python
-    - -m
-    - workers.run_forever
+      - python
+      - -m
+      - workers.run_forever
+
     container_name: mmp_bale_worker
+
     depends_on:
-    - postgres
-    - redis
-    - celery_worker
+      - postgres
+      - redis
+      - celery_worker
+
     env_file:
-    - .env
+      - .env
+
     environment:
       CHANNEL_CONNECTORS_ENABLED: ${CHANNEL_CONNECTORS_ENABLED:-false}
       DRY_RUN: ${DRY_RUN:-true}
@@ -25,179 +226,32 @@ services:
       WORKER_ACCOUNT_ID: ${WORKER_ACCOUNT_ID:-1}
       WORKER_PLATFORM: bale
       WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-5}
-  celery_beat:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command:
-    - celery
-    - -A
-    - core_engine.tasks.celery_app
-    - beat
-    - --loglevel=info
-    - --schedule=/tmp/celerybeat-schedule
-    container_name: mmp_celery_beat
-    depends_on:
-    - core_api
-    - redis
-    env_file:
-    - .env
-    environment:
-      DRY_RUN: ${DRY_RUN:-false}
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
-      SHADOW_MODE: ${SHADOW_MODE:-false}
-      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
-  celery_worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command:
-    - celery
-    - -A
-    - core_engine.tasks.celery_app
-    - worker
-    - --loglevel=info
-    container_name: mmp_celery_worker
-    depends_on:
-    - core_api
-    - redis
-    env_file:
-    - .env
-    environment:
-      DRY_RUN: ${DRY_RUN:-false}
-      PYTHONPATH: /app
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
-      SHADOW_MODE: ${SHADOW_MODE:-false}
-      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
-    volumes:
-    - ./core_engine:/app/core_engine
-    - ./workers:/app/workers
-    - ./scripts:/app/scripts
-  core_api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command:
-    - uvicorn
-    - core_engine.main:app
-    - --host
-    - 0.0.0.0
-    - --port
-    - '8000'
-    container_name: mmp_core_api
-    depends_on:
-    - postgres
-    - redis
-    env_file:
-    - .env
-    environment:
-      DRY_RUN: ${DRY_RUN:-false}
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
-      SHADOW_MODE: ${SHADOW_MODE:-false}
-      SHADOW_PHONE_NUMBER: ${SHADOW_PHONE_NUMBER:-}
-    extra_hosts:
-    - host.docker.internal:host-gateway
-    ports:
-    - 8001:8000
-    volumes:
-    - ./storage/browser_profiles:/app/storage/browser_profiles
-    - ./core_engine:/app/core_engine
-    - ./workers:/app/workers
-    - ./scripts:/app/scripts
-    - /var/run/docker.sock:/var/run/docker.sock
-    - /usr/bin/docker:/usr/bin/docker:ro
-  evolution_api:
-    container_name: mmp_evolution_api
-    depends_on:
-    - postgres
-    - redis
-    environment:
-      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
-      AUTHENTICATION_TYPE: apikey
-      CACHE_LOCAL_ENABLED: 'true'
-      CACHE_REDIS_ENABLED: 'false'
-      CONFIG_SESSION_PHONE_VERSION: 2.3000.1033773198
-      DATABASE_CONNECTION_URI: postgresql://mmp_user:mmp_pass@postgres:5432/evolution_db
-      DATABASE_ENABLED: 'true'
-      DATABASE_PROVIDER: postgresql
-      DATABASE_SAVE_DATA_CHATS: 'false'
-      DATABASE_SAVE_DATA_CONTACTS: 'false'
-      DATABASE_SAVE_DATA_HISTORIC: 'false'
-      DATABASE_SAVE_DATA_LABELS: 'false'
-      REDIS_ENABLED: 'false'
-      WEBHOOK_ENABLED: 'true'
-      WEBHOOK_EVENTS: APPLICATION_STARTUP,QRCODE_UPDATED,MESSAGES_SET,MESSAGES_UPSERT,SEND_MESSAGE,CONNECTION_UPDATE
-      WEBHOOK_URL: ${EVOLUTION_WEBHOOK_URL:-http://core_api:8000/webhooks/whatsapp/evolution}
-    image: evoapicloud/evolution-api:v2.3.7
-    ports:
-    - 8080:8080
-    restart: unless-stopped
-    volumes:
-    - evolution_instances:/evolution/instances
-  grafana:
-    container_name: mmp_grafana
-    depends_on:
-    - prometheus
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_SECURITY_ADMIN_USER: admin
-    image: grafana/grafana:latest
-    ports:
-    - 3002:3000
-    volumes:
-    - grafana_data:/var/lib/grafana
-    - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
-    - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
-  postgres:
-    container_name: mmp_postgres
-    environment:
-      POSTGRES_DB: mmp_db
-      POSTGRES_PASSWORD: mmp_pass
-      POSTGRES_USER: mmp_user
-    image: postgres:15
-    ports:
-    - 5433:5432
-    volumes:
-    - postgres_data:/var/lib/postgresql/data
-  prometheus:
-    container_name: mmp_prometheus
-    depends_on:
-    - core_api
-    image: prom/prometheus:latest
-    ports:
-    - 9090:9090
-    volumes:
-    - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    - ./monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
-  redis:
-    container_name: mmp_redis
-    entrypoint:
-    - /bin/sh
-    - /usr/local/bin/start-redis.sh
-    image: redis:7
-    ports:
-    - 127.0.0.1:6379:6379
-    restart: unless-stopped
-    secrets:
-    - redis_password
-    volumes:
-    - ./redis.conf.template:/usr/local/etc/redis/redis.conf.template:ro
-    - ./scripts/start-redis.sh:/usr/local/bin/start-redis.sh:ro
+
+
+  # ============================================================
+  # Rubika Worker
+  # ============================================================
+
   rubika_worker:
     build:
       context: .
       dockerfile: Dockerfile
+
     command:
-    - python
-    - -m
-    - workers.run_forever
+      - python
+      - -m
+      - workers.run_forever
+
     container_name: mmp_rubika_worker
+
     depends_on:
-    - postgres
-    - redis
-    - celery_worker
+      - postgres
+      - redis
+      - celery_worker
+
     env_file:
-    - .env
+      - .env
+
     environment:
       CHANNEL_CONNECTORS_ENABLED: ${CHANNEL_CONNECTORS_ENABLED:-false}
       DRY_RUN: ${DRY_RUN:-true}
@@ -210,65 +264,103 @@ services:
       WORKER_ACCOUNT_ID: ${WORKER_ACCOUNT_ID:-1}
       WORKER_PLATFORM: rubika
       WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-5}
+
     restart: unless-stopped
+
+
+  # ============================================================
+  # Rubika Listener - optional profile
+  # ============================================================
+
   rubika_listener:
     build:
       context: .
       dockerfile: Dockerfile
+
     command:
-    - python
-    - -m
-    - workers.rubika_group_listener
+      - python
+      - -m
+      - workers.rubika_group_listener
+
     container_name: mmp_rubika_listener
+
     depends_on:
-    - postgres
-    - redis
+      - postgres
+      - redis
+
     env_file:
-    - .env
+      - .env
+
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
       RUBIKA_DELIVERY_MODE: user_account
       RUBIKA_USER_ACCOUNT_ENABLED: "true"
+
     profiles:
-    - rubika_listener
+      - rubika_listener
+
     restart: unless-stopped
+
+
+  # ============================================================
+  # Rubika AI Loop - optional profile
+  # ============================================================
+
   rubika_ai_loop:
     build:
       context: .
       dockerfile: Dockerfile
+
     command:
-    - python
-    - -m
-    - workers.rubika_ai_response_loop
+      - python
+      - -m
+      - workers.rubika_ai_response_loop
+
     container_name: mmp_rubika_ai_loop
+
     depends_on:
-    - postgres
-    - redis
+      - postgres
+      - redis
+
     env_file:
-    - .env
+      - .env
+
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
       RUBIKA_DELIVERY_MODE: user_account
       RUBIKA_USER_ACCOUNT_ENABLED: "true"
+
     profiles:
-    - rubika_ai_loop
+      - rubika_ai_loop
+
     restart: unless-stopped
+
+
+  # ============================================================
+  # Rubika Status Bot - optional profile
+  # ============================================================
+
   rubika_status_bot:
     build:
       context: .
       dockerfile: Dockerfile
+
     command:
-    - python
-    - -m
-    - workers.rubika_status_bot
+      - python
+      - -m
+      - workers.rubika_status_bot
+
     container_name: mmp_rubika_status_bot
+
     depends_on:
-    - postgres
-    - redis
+      - postgres
+      - redis
+
     env_file:
-    - .env
+      - .env
+
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set}
       SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set}
@@ -276,24 +368,37 @@ services:
       RUBIKA_USER_ACCOUNT_ENABLED: "true"
       RUBIKA_STATUS_HOURLY_LIKE_CAP: ${RUBIKA_STATUS_HOURLY_LIKE_CAP:-30}
       RUBIKA_STATUS_DAILY_COMMENT_CAP: ${RUBIKA_STATUS_DAILY_COMMENT_CAP:-10}
+
     profiles:
-    - rubika_status
+      - rubika_status
+
     restart: unless-stopped
+
+
+  # ============================================================
+  # Telegram Worker
+  # ============================================================
+
   telegram_worker:
     build:
       context: .
       dockerfile: Dockerfile
+
     command:
-    - python
-    - -m
-    - workers.run_forever
+      - python
+      - -m
+      - workers.run_forever
+
     container_name: mmp_telegram_worker
+
     depends_on:
-    - postgres
-    - redis
-    - celery_worker
+      - postgres
+      - redis
+      - celery_worker
+
     env_file:
-    - .env
+      - .env
+
     environment:
       CHANNEL_CONNECTORS_ENABLED: ${CHANNEL_CONNECTORS_ENABLED:-false}
       DRY_RUN: ${DRY_RUN:-true}
@@ -306,22 +411,34 @@ services:
       WORKER_ACCOUNT_ID: ${WORKER_ACCOUNT_ID:-1}
       WORKER_PLATFORM: telegram
       WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-5}
+
     restart: unless-stopped
+
+
+  # ============================================================
+  # WhatsApp Cloud Worker - optional profile
+  # ============================================================
+
   whatsapp_worker:
     build:
       context: .
       dockerfile: Dockerfile
+
     command:
-    - python
-    - -m
-    - workers.run_forever
+      - python
+      - -m
+      - workers.run_forever
+
     container_name: mmp_whatsapp_worker
+
     depends_on:
-    - postgres
-    - redis
-    - celery_worker
+      - postgres
+      - redis
+      - celery_worker
+
     env_file:
-    - .env
+      - .env
+
     environment:
       CHANNEL_CONNECTORS_ENABLED: ${CHANNEL_CONNECTORS_ENABLED:-false}
       DRY_RUN: ${DRY_RUN:-true}
@@ -335,23 +452,35 @@ services:
       WORKER_ACCOUNT_ID: ${WORKER_ACCOUNT_ID:-1}
       WORKER_PLATFORM: whatsapp
       WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-5}
+
     profiles:
-    - whatsapp_cloud
+      - whatsapp_cloud
+
     restart: unless-stopped
+
+
+  # ============================================================
+  # WhatsApp Worker Pool
+  # ============================================================
+
   whatsapp_worker_pool:
     build:
       context: .
       dockerfile: Dockerfile
+
     command:
-    - python
-    - -m
-    - workers.run_pool_forever
+      - python
+      - -m
+      - workers.run_pool_forever
+
     depends_on:
-    - postgres
-    - redis
-    - celery_worker
+      - postgres
+      - redis
+      - celery_worker
+
     env_file:
-    - .env
+      - .env
+
     environment:
       CHANNEL_CONNECTORS_ENABLED: ${CHANNEL_CONNECTORS_ENABLED:-false}
       DRY_RUN: ${DRY_RUN:-true}
@@ -376,52 +505,180 @@ services:
       WORKER_POLL_INTERVAL_SECONDS: ${WORKER_POLL_INTERVAL_SECONDS:-5}
       WORKER_POOL_INDEX: ${WORKER_POOL_INDEX:--1}
       WORKER_POOL_SIZE: ${WORKER_POOL_SIZE:-1}
+
     restart: unless-stopped
+
     volumes:
-    - ./storage/browser_profiles:/app/storage/browser_profiles
+      - ./storage/browser_profiles:/app/storage/browser_profiles
+
+
+  # ============================================================
+  # Evolution API
+  # ============================================================
+
+  evolution_api:
+    image: evoapicloud/evolution-api:v2.3.7
+    container_name: mmp_evolution_api
+
+    depends_on:
+      - postgres
+      - redis
+
+    environment:
+      AUTHENTICATION_API_KEY: ${EVOLUTION_API_KEY}
+      AUTHENTICATION_TYPE: apikey
+
+      CACHE_LOCAL_ENABLED: "true"
+      CACHE_REDIS_ENABLED: "false"
+
+      CONFIG_SESSION_PHONE_VERSION: 2.3000.1033773198
+
+      DATABASE_CONNECTION_URI: postgresql://mmp_user:mmp_pass@postgres:5432/evolution_db
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+
+      DATABASE_SAVE_DATA_CHATS: "false"
+      DATABASE_SAVE_DATA_CONTACTS: "false"
+      DATABASE_SAVE_DATA_HISTORIC: "false"
+      DATABASE_SAVE_DATA_LABELS: "false"
+
+      REDIS_ENABLED: "false"
+
+      WEBHOOK_ENABLED: "true"
+      WEBHOOK_EVENTS: APPLICATION_STARTUP,QRCODE_UPDATED,MESSAGES_SET,MESSAGES_UPSERT,SEND_MESSAGE,CONNECTION_UPDATE
+      WEBHOOK_URL: ${EVOLUTION_WEBHOOK_URL:-http://core_api:8000/webhooks/whatsapp/evolution}
+
+    ports:
+      - "8080:8080"
+
+    restart: unless-stopped
+
+    volumes:
+      - evolution_instances:/evolution/instances
+
+
+  # ============================================================
+  # WhatsApp Health Monitor
+  # ============================================================
+
   whatsapp_health_monitor:
     build:
       context: .
       dockerfile: Dockerfile
+
     command:
       - python
       - -m
       - workers.whatsapp_health_monitor
+
     container_name: mmp_whatsapp_health_monitor
+
     depends_on:
       - postgres
       - redis
       - core_api
+      - evolution_api
+
     env_file:
       - .env
+
     environment:
       EVOLUTION_API_BASE_URL: ${EVOLUTION_API_URL:-http://evolution_api:8080}
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:?EVOLUTION_API_KEY must be set}
       HEALTH_MONITOR_INTERVAL_SECONDS: ${HEALTH_MONITOR_INTERVAL_SECONDS:-30}
+
     restart: unless-stopped
+
+
+  # ============================================================
+  # WhatsApp Auto Reconnect
+  # ============================================================
+
   whatsapp_auto_reconnect:
     build:
       context: .
       dockerfile: Dockerfile
+
     command:
       - python
       - -m
       - workers.whatsapp_auto_reconnect
+
     container_name: mmp_whatsapp_auto_reconnect
+
     depends_on:
       - postgres
       - redis
       - core_api
+      - evolution_api
+
     env_file:
       - .env
+
     environment:
       EVOLUTION_API_BASE_URL: ${EVOLUTION_API_URL:-http://evolution_api:8080}
       EVOLUTION_API_KEY: ${EVOLUTION_API_KEY:?EVOLUTION_API_KEY must be set}
+
     restart: unless-stopped
+
+
+  # ============================================================
+  # Prometheus
+  # ============================================================
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: mmp_prometheus
+
+    depends_on:
+      - core_api
+
+    ports:
+      - "9090:9090"
+
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+
+
+  # ============================================================
+  # Grafana
+  # ============================================================
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: mmp_grafana
+
+    depends_on:
+      - prometheus
+
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+
+    ports:
+      - "3002:3000"
+
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+
+# ============================================================
+# Docker Secrets
+# ============================================================
+
 secrets:
   redis_password:
     file: ./secrets/redis_password.txt
+
+
+# ============================================================
+# Persistent Volumes
+# ============================================================
+
 volumes:
-  evolution_instances: null
-  grafana_data: null
-  postgres_data: null
+  postgres_data:
+  evolution_instances:
+  grafana_data:

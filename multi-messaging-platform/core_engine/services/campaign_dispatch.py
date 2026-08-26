@@ -15,8 +15,10 @@ from sqlalchemy.orm import Session
 
 from core_engine.models import (
     Campaign,
+    CampaignRecipient,
     CampaignStatus,
     Message,
+    SendStatus,
     PlatformType,
     StagedQueueItem,
     StagedQueueItemStatus,
@@ -52,15 +54,39 @@ def dispatch_settings(settings: Any) -> dict[str, int]:
 
 
 def count_in_flight(db: Session, campaign_ids: Sequence[int]) -> int:
+    """Count only dispatch rows whose recipient is still non-terminal.
+
+    StagedQueueItem.QUEUED is historical staging state and intentionally remains
+    QUEUED after delivery; therefore it cannot by itself mean active in-flight.
+    """
     if not campaign_ids:
         return 0
+
+    pending_send = (
+        SendStatus.PENDING,
+        SendStatus.QUEUED,
+        SendStatus.PROCESSING,
+        SendStatus.ACCEPTED_BY_WORKER,
+        SendStatus.ACCEPTED_BY_PLATFORM,
+        SendStatus.FAILED_RETRYABLE,
+    )
+
     return int(
         db.query(func.count(StagedQueueItem.id))
+        .join(
+            CampaignRecipient,
+            (CampaignRecipient.campaign_id == StagedQueueItem.campaign_id)
+            & (CampaignRecipient.contact_id == StagedQueueItem.contact_id),
+        )
         .filter(
             StagedQueueItem.campaign_id.in_(list(campaign_ids)),
             StagedQueueItem.status.in_(
-                (StagedQueueItemStatus.PUSHING.value, StagedQueueItemStatus.QUEUED.value)
+                (
+                    StagedQueueItemStatus.PUSHING.value,
+                    StagedQueueItemStatus.QUEUED.value,
+                )
             ),
+            CampaignRecipient.send_status.in_(pending_send),
         )
         .scalar()
         or 0

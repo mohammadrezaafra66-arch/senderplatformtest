@@ -10,7 +10,9 @@ from sqlalchemy.orm import Session
 
 from core_engine.database import SessionLocal
 from core_engine.models import (
+    Campaign,
     CampaignRecipient,
+    CampaignStatus,
     Message,
     MessageAttempt,
     MessageAttemptStatus,
@@ -255,6 +257,68 @@ def _coerce_int(value: int | str | None) -> int | None:
         return None
 
 
+_TERMINAL_CAMPAIGN_SEND_STATUSES = (
+    SendStatus.DELIVERED,
+    SendStatus.READ,
+    SendStatus.FAILED_PERMANENT,
+    SendStatus.DRY_RUN,
+    SendStatus.SHADOW_SENT,
+    SendStatus.OPTED_OUT,
+    SendStatus.BLACKLISTED,
+)
+
+_SUCCESS_CAMPAIGN_SEND_STATUSES = (
+    SendStatus.DELIVERED,
+    SendStatus.READ,
+    SendStatus.DRY_RUN,
+    SendStatus.SHADOW_SENT,
+)
+
+
+def _finalize_campaign_if_terminal(
+    session: Session,
+    campaign_id: int | None,
+) -> None:
+    """Finalize a campaign when every recipient has reached a terminal send state.
+
+    StagedQueueItem is intentionally not mutated here: QUEUED is the terminal
+    state of the staging/dispatch layer, while CampaignRecipient.send_status is
+    the canonical delivery outcome.
+    """
+    if campaign_id is None:
+        return
+
+    campaign = session.get(Campaign, campaign_id)
+    if campaign is None:
+        return
+
+    if campaign.status not in (
+        CampaignStatus.RUNNING.value,
+        CampaignStatus.PREPARED.value,
+        CampaignStatus.PAUSED.value,
+    ):
+        return
+
+    recipients = (
+        session.query(CampaignRecipient.send_status)
+        .filter(CampaignRecipient.campaign_id == campaign_id)
+        .all()
+    )
+
+    if not recipients:
+        return
+
+    statuses = [row[0] for row in recipients]
+
+    if any(status not in _TERMINAL_CAMPAIGN_SEND_STATUSES for status in statuses):
+        return
+
+    if any(status in _SUCCESS_CAMPAIGN_SEND_STATUSES for status in statuses):
+        campaign.status = CampaignStatus.COMPLETED.value
+    else:
+        campaign.status = CampaignStatus.FAILED.value
+
+
 def update_message_attempt_result(
     *,
     message_id: int | str,
@@ -356,6 +420,8 @@ def update_message_attempt_result(
                     error_message=error_message,
                 )
                 session.add(attempt)
+
+        _finalize_campaign_if_terminal(session, campaign_id_int)
 
         session.commit()
         log_worker_event(

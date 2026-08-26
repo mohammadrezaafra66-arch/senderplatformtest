@@ -36,11 +36,11 @@ class RubikaLifecycleState(str, Enum):
 
 # Application defaults (conservative). Overridable via WorkerSettings / kwargs.
 _DEFAULT_STAGE_LIMITS: dict[RubikaLifecycleState, dict[str, int]] = {
-    RubikaLifecycleState.NEW: {"daily": 3, "hourly": 1, "min_interval": 90},
-    RubikaLifecycleState.OBSERVATION: {"daily": 5, "hourly": 2, "min_interval": 60},
-    RubikaLifecycleState.LIMITED: {"daily": 15, "hourly": 5, "min_interval": 30},
-    RubikaLifecycleState.RAMPING: {"daily": 50, "hourly": 15, "min_interval": 15},
-    RubikaLifecycleState.NORMAL: {"daily": 100, "hourly": 50, "min_interval": 5},
+    RubikaLifecycleState.NEW: {"daily": 20, "hourly": 2, "min_interval": 900},
+    RubikaLifecycleState.OBSERVATION: {"daily": 35, "hourly": 3, "min_interval": 600},
+    RubikaLifecycleState.LIMITED: {"daily": 60, "hourly": 5, "min_interval": 420},
+    RubikaLifecycleState.RAMPING: {"daily": 70, "hourly": 6, "min_interval": 360},
+    RubikaLifecycleState.NORMAL: {"daily": 80, "hourly": 7, "min_interval": 300},
 }
 
 

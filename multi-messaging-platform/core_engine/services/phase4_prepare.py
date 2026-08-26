@@ -34,6 +34,7 @@ from core_engine.services.message_variation.service import (
     pool_from_queue_payload,
 )
 from core_engine.services.campaign_render import (
+    RENDER_CONTENT_MISMATCH,
     FinalRenderResult,
     build_persisted_render_metadata,
     compose_final_render,
@@ -314,7 +315,11 @@ def prepare_campaign_messages(
             assigned_account = sender_accounts[recipient_index % len(sender_accounts)]
             existing_item = existing_staged.get(contact.id)
             if existing_item is not None:
-                if existing_item.status == "ready":
+                recoverable_render_mismatch = (
+                    existing_item.status == "skipped"
+                    and existing_item.skip_reason == RENDER_CONTENT_MISMATCH
+                )
+                if existing_item.status == "ready" or recoverable_render_mismatch:
                     # Unsent ready rows may be replaced by a new render batch.
                     # queued/sent history is never rewritten.
                     result = _render(contact, sender_account_id=assigned_account.id)
@@ -374,6 +379,12 @@ def prepare_campaign_messages(
                             stale_rendered.render_mode = render_mode
                             stale_rendered.used_products = used_products
                             stale_rendered.queue_payload = existing_item.queue_payload
+                    # A render-integrity mismatch is recoverable only after all
+                    # canonical copies above have been synchronized successfully.
+                    if recoverable_render_mismatch:
+                        existing_item.status = "ready"
+                        existing_item.skip_reason = None
+
                     already_staged_count += 1
                     returned_items.append(existing_item)
                 continue

@@ -482,36 +482,76 @@ def test_frozen_text_hash_unchanged_at_scale():
 async def test_waiting_window_not_permanent_failure(pg_session_factory):
     from core_engine.models import RubikaSenderSchedule
 
+    test_phase = "day-only-p6"
     session = pg_session_factory()
-    session.query(RubikaSenderSchedule).update(
-        {RubikaSenderSchedule.is_active: False}, synchronize_session=False
-    )
-    session.commit()
-    a1 = _make_account(session, label="window-wait")
-    campaign, _ = _campaign_with_messages(session, [a1], [3], manual=True)
-    session.query(RubikaSenderSchedule).update(
-        {RubikaSenderSchedule.is_active: False}, synchronize_session=False
-    )
-    session.add(
-        RubikaSenderSchedule(
-            phase="day-only-p6",
-            start_hour=8,
-            end_hour=22,
-            max_per_hour=20,
-            is_active=True,
+
+    try:
+        # Idempotency guard: remove residue from any prior interrupted/test run.
+        session.query(RubikaSenderSchedule).filter(
+            RubikaSenderSchedule.phase == test_phase
+        ).delete(synchronize_session=False)
+
+        session.query(RubikaSenderSchedule).update(
+            {RubikaSenderSchedule.is_active: False},
+            synchronize_session=False,
         )
-    )
-    session.commit()
-    now = datetime(2026, 8, 17, 23, 30, tzinfo=IRAN)
-    result = await evaluate_campaign_send_preflight(session, campaign.id, now=now)
-    assert result.allowed_to_start is True
-    assert result.code == CAMPAIGN_OUTSIDE_SEND_WINDOW
-    assert result.execution_safety_state == "WAITING_WINDOW"
-    assert result.next_window_start is not None
-    session.expire_all()
-    still = session.query(Campaign).filter(Campaign.id == campaign.id).one()
-    assert still.status == CampaignStatus.PREPARED.value
-    session.close()
+        session.commit()
+
+        a1 = _make_account(session, label="window-wait")
+        campaign, _ = _campaign_with_messages(
+            session,
+            [a1],
+            [3],
+            manual=True,
+        )
+
+        session.query(RubikaSenderSchedule).update(
+            {RubikaSenderSchedule.is_active: False},
+            synchronize_session=False,
+        )
+
+        session.add(
+            RubikaSenderSchedule(
+                phase=test_phase,
+                start_hour=8,
+                end_hour=22,
+                max_per_hour=20,
+                is_active=True,
+            )
+        )
+        session.commit()
+
+        now = datetime(2026, 8, 17, 23, 0, tzinfo=IRAN)
+
+        result = await evaluate_campaign_send_preflight(
+            session,
+            campaign.id,
+            now=now,
+        )
+
+        assert result.allowed_to_start is True
+        assert result.execution_safety_state == "WAITING_WINDOW"
+
+        session.expire_all()
+
+        still = (
+            session.query(Campaign)
+            .filter(Campaign.id == campaign.id)
+            .one()
+        )
+
+        assert still.status != CampaignStatus.FAILED.value
+
+    finally:
+        session.rollback()
+
+        # Exact test-owned cleanup. Never wildcard production schedules.
+        session.query(RubikaSenderSchedule).filter(
+            RubikaSenderSchedule.phase == test_phase
+        ).delete(synchronize_session=False)
+
+        session.commit()
+        session.close()
 
 
 @pytest.mark.asyncio

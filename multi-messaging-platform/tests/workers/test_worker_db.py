@@ -5,7 +5,9 @@ import pytest
 from sqlalchemy.orm import Session
 
 from core_engine.models import (
+    Campaign,
     CampaignRecipient,
+    CampaignStatus,
     Message,
     RenderedMessage,
     SendStatus,
@@ -40,6 +42,99 @@ def test_update_message_attempt_result_updates_recipient(recipient_bundle):
     assert recipient.send_status == SendStatus.DRY_RUN
 
 
+
+def test_finalize_campaign_when_all_recipients_terminal():
+    from workers.db import _finalize_campaign_if_terminal
+
+    session = MagicMock(spec=Session)
+
+    campaign = SimpleNamespace(
+        status=CampaignStatus.RUNNING.value,
+    )
+
+    session.get.return_value = campaign
+
+    session.query.return_value.filter.return_value.all.return_value = [
+        (SendStatus.DELIVERED,),
+        (SendStatus.READ,),
+    ]
+
+    _finalize_campaign_if_terminal(session, 10)
+
+    assert campaign.status == CampaignStatus.COMPLETED.value
+
+    session.get.assert_called_once_with(Campaign, 10)
+
+
+def test_campaign_does_not_finalize_with_pending_recipient():
+    from workers.db import _finalize_campaign_if_terminal
+
+    session = MagicMock(spec=Session)
+
+    campaign = SimpleNamespace(
+        status=CampaignStatus.RUNNING.value,
+    )
+
+    session.get.return_value = campaign
+
+    session.query.return_value.filter.return_value.all.return_value = [
+        (SendStatus.DELIVERED,),
+        (SendStatus.PENDING,),
+    ]
+
+    _finalize_campaign_if_terminal(session, 11)
+
+    assert campaign.status == CampaignStatus.RUNNING.value
+
+    session.get.assert_called_once_with(Campaign, 11)
+
+
+def test_paused_campaign_finalizes_when_all_recipients_terminal():
+    from workers.db import _finalize_campaign_if_terminal
+
+    session = MagicMock(spec=Session)
+
+    campaign = SimpleNamespace(
+        status=CampaignStatus.PAUSED.value,
+    )
+
+    session.get.return_value = campaign
+
+    session.query.return_value.filter.return_value.all.return_value = [
+        (SendStatus.DELIVERED,),
+        (SendStatus.DELIVERED,),
+    ]
+
+    _finalize_campaign_if_terminal(session, 13)
+
+    assert campaign.status == CampaignStatus.COMPLETED.value
+
+    session.get.assert_called_once_with(Campaign, 13)
+
+
+def test_campaign_fails_when_all_terminal_without_success():
+    from workers.db import _finalize_campaign_if_terminal
+
+    session = MagicMock(spec=Session)
+
+    campaign = SimpleNamespace(
+        status=CampaignStatus.RUNNING.value,
+    )
+
+    session.get.return_value = campaign
+
+    session.query.return_value.filter.return_value.all.return_value = [
+        (SendStatus.FAILED_PERMANENT,),
+        (SendStatus.BLACKLISTED,),
+    ]
+
+    _finalize_campaign_if_terminal(session, 12)
+
+    assert campaign.status == CampaignStatus.FAILED.value
+
+    session.get.assert_called_once_with(Campaign, 12)
+
+
 def test_update_message_attempt_result_does_not_invent_account_id(caplog):
     """A missing account id must never be replaced with another account's id."""
     session = MagicMock(spec=Session)
@@ -62,6 +157,8 @@ def test_update_message_attempt_result_does_not_invent_account_id(caplog):
             return None
         if model is RenderedMessage:
             return rendered
+        if model is Campaign:
+            return None
         raise AssertionError(f"unexpected model lookup: {model}")
 
     session.get.side_effect = get_side_effect

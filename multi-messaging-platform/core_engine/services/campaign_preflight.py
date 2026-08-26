@@ -441,7 +441,26 @@ async def evaluate_campaign_send_preflight(
         pending=int(status_counts.get(SendStatus.PENDING.value, 0)),
         ready=ready_staged,
         queued=queued_staged,
-        in_flight=queued_staged + pushing_staged,
+        in_flight=int(
+            db.query(func.count(StagedQueueItem.id))
+            .join(
+                CampaignRecipient,
+                (CampaignRecipient.campaign_id == StagedQueueItem.campaign_id)
+                & (CampaignRecipient.contact_id == StagedQueueItem.contact_id),
+            )
+            .filter(
+                StagedQueueItem.campaign_id == campaign.id,
+                StagedQueueItem.status.in_(
+                    (
+                        StagedQueueItemStatus.PUSHING.value,
+                        StagedQueueItemStatus.QUEUED.value,
+                    )
+                ),
+                CampaignRecipient.send_status.in_(_PENDING_SEND),
+            )
+            .scalar()
+            or 0
+        ),
         delivered=delivered,
         failed_retryable=failed_retryable,
         failed_permanent=failed_permanent,
