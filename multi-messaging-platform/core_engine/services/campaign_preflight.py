@@ -1,8 +1,10 @@
 """Central campaign-level send preflight (Phase 6).
 
 Planning only: never consumes quota, never reassigns senders, never mutates
-frozen final_text. Account-level preflight/quota/circuit remain authoritative
-at the transport boundary.
+frozen final_text. Per-account sendability is evaluated by the authoritative
+``evaluate_rubika_send_preflight`` engine (same codes as transport). Campaign
+layer adds assignment/capacity aggregation and campaign-only codes such as
+``CAMPAIGN_NOT_PREPARED``.
 """
 
 from __future__ import annotations
@@ -18,7 +20,6 @@ from sqlalchemy.orm import Session
 
 from core_engine.models import (
     Account,
-    AccountStatus,
     Campaign,
     CampaignAccount,
     CampaignRecipient,
@@ -563,8 +564,6 @@ async def evaluate_campaign_send_preflight(
     from core_engine.services.rubika_circuit import get_circuit_snapshot
     from core_engine.services.rubika_health import (
         build_health_snapshot,
-        get_quarantine_meta,
-        is_account_quarantined,
     )
     from core_engine.services.rubika_quota import read_quota_snapshot
     from workers.config import get_worker_settings
@@ -661,6 +660,13 @@ async def evaluate_campaign_send_preflight(
 
     quarantined_count = 0
     inputs: list[AccountCapacityInput] = []
+    from core_engine.services.rubika_preflight import (
+        ACCOUNT_QUARANTINED as PF_ACCOUNT_QUARANTINED,
+        OUTSIDE_SEND_WINDOW as PF_OUTSIDE_SEND_WINDOW,
+        READY as PF_READY,
+        evaluate_rubika_send_preflight,
+    )
+
     for account_id in planning_ids:
         account = accounts_by_id.get(account_id)
         assigned_n = int(assigned.get(account_id, 0))
@@ -675,6 +681,7 @@ async def evaluate_campaign_send_preflight(
         next_allowed = None
         cooldown_until = None
         label = account.label if account is not None else None
+        account_window_open = window_open if applies_quota else True
 
         if account is None:
             block_code = "ACCOUNT_MISSING"
@@ -689,15 +696,46 @@ async def evaluate_campaign_send_preflight(
             )
             continue
 
+        # Authoritative account sendability — same engine as transport connectors.
+        try:
+            pf = await evaluate_rubika_send_preflight(
+                db,
+                account=account,
+                campaign_id=campaign.id,
+                delivery_mode=delivery_mode,
+                context="campaign_preflight",
+                redis=redis_client,
+                clock=evaluated,
+                consume_circuit_probe=False,
+            )
+        except Exception as exc:  # noqa: BLE001 — fail closed
+            log_campaign_safety_event(
+                "campaign_preflight_blocked",
+                campaign_id=campaign.id,
+                code=CAMPAIGN_CAPACITY_UNKNOWN,
+                extra={"error": type(exc).__name__, "account_id": account_id},
+            )
+            return _unknown_result(
+                campaign.id,
+                code=CAMPAIGN_CAPACITY_UNKNOWN,
+                message=_PERSIAN[CAMPAIGN_CAPACITY_UNKNOWN],
+                evaluated_iso=evaluated_iso,
+                redis_ok=False,
+            )
+
+        if pf.code != PF_READY:
+            block_code = pf.code
+        if block_code == PF_ACCOUNT_QUARANTINED:
+            quarantined_count += 1
+        if block_code == PF_OUTSIDE_SEND_WINDOW:
+            account_window_open = False
+
         readiness = evaluate_account_session_readiness(
             db, account, rubika_delivery_mode=delivery_mode
         )
         readiness_code = readiness.code
-        if not readiness.ready:
-            block_code = readiness.code
+
         try:
-            quarantined = await is_account_quarantined(redis_client, account_id)
-            qmeta = await get_quarantine_meta(redis_client, account_id) if quarantined else None
             health = await build_health_snapshot(
                 redis_client,
                 account,
@@ -721,21 +759,8 @@ async def evaluate_campaign_send_preflight(
                 redis_ok=False,
             )
 
-        if quarantined:
-            quarantined_count += 1
-            block_code = "ACCOUNT_QUARANTINED"
-            if qmeta and qmeta.get("until"):
-                cooldown_until = _parse_dt(str(qmeta.get("until")))
-        elif account.status == AccountStatus.BANNED:
-            block_code = "ACCOUNT_BANNED"
-        elif account.status == AccountStatus.REQUIRES_LOGIN:
-            block_code = "ACCOUNT_REQUIRES_LOGIN"
-        elif account.status == AccountStatus.RESTING:
-            block_code = "ACCOUNT_DISABLED"
-        elif account.status != AccountStatus.ACTIVE:
-            block_code = "ACCOUNT_SUSPENDED"
-        elif circuit_open:
-            block_code = "RUBIKA_CIRCUIT_OPEN"
+        if pf.details.get("until"):
+            cooldown_until = _parse_dt(str(pf.details.get("until")))
 
         lifecycle_state = resolve_rubika_lifecycle(
             account,
@@ -757,21 +782,20 @@ async def evaluate_campaign_send_preflight(
             hourly_cap = limits.hourly_cap
             remaining_daily = max(0, limits.daily_cap - int(snap.sent_today))
             remaining_hourly = max(0, limits.hourly_cap - int(snap.sent_this_hour))
-            if snap.cooldown_until:
+            if snap.cooldown_until and cooldown_until is None:
                 cooldown_until = _parse_dt(snap.cooldown_until)
-                if block_code is None:
-                    block_code = "COOLDOWN_ACTIVE"
-            if snap.throttle_active and block_code is None:
-                block_code = "ACCOUNT_THROTTLED"
-            if snap.delay_ttl_seconds > 0 and block_code is None:
-                block_code = "MIN_INTERVAL_ACTIVE"
+            if snap.delay_ttl_seconds > 0:
                 next_allowed = evaluated + timedelta(seconds=int(snap.delay_ttl_seconds))
-            if remaining_daily <= 0 and block_code is None:
-                block_code = "DAILY_CAP_REACHED"
-            if remaining_hourly <= 0 and block_code is None:
-                block_code = "HOURLY_CAP_REACHED"
-            if not window_open and block_code is None:
-                block_code = "OUTSIDE_SEND_WINDOW"
+            policy = pf.details.get("policy") if isinstance(pf.details, dict) else None
+            if isinstance(policy, dict):
+                if policy.get("remaining_daily") is not None:
+                    remaining_daily = max(0, int(policy["remaining_daily"]))
+                if policy.get("remaining_hourly") is not None:
+                    remaining_hourly = max(0, int(policy["remaining_hourly"]))
+                if policy.get("daily_cap") is not None:
+                    daily_cap = int(policy["daily_cap"])
+                if policy.get("hourly_cap") is not None:
+                    hourly_cap = int(policy["hourly_cap"])
 
         inputs.append(
             AccountCapacityInput(
@@ -788,7 +812,7 @@ async def evaluate_campaign_send_preflight(
                 min_interval_seconds=cfg_min,
                 next_allowed_at=next_allowed,
                 cooldown_until=cooldown_until,
-                window_open=window_open if applies_quota else True,
+                window_open=account_window_open,
                 applies_quota=applies_quota,
                 block_code=block_code,
                 delivery_mode=delivery_mode,

@@ -28,7 +28,11 @@ logger = logging.getLogger("workers.rubika_account_pool")
 IRAN_TZ = ZoneInfo("Asia/Tehran")
 
 
-def resolve_current_phase(db: Session) -> str | None:
+def resolve_current_phase(
+    db: Session,
+    *,
+    clock: datetime | None = None,
+) -> str | None:
     """فاز فعال همین لحظه (به وقت ایران) را از rubika_sender_schedules بخوان.
 
     عمداً از DB می‌خواند نه از WorkerSettings — چون WorkerSettings در فرایند
@@ -38,8 +42,15 @@ def resolve_current_phase(db: Session) -> str | None:
 
     اگر هیچ بازه فعالی ساعت جاری را پوشش ندهد، None برمی‌گرداند — یعنی «خارج از
     بازه ارسال، صبر کن» (نیازمندی ۶ سند).
+
+    ``clock`` (optional) keeps Campaign and Transport gates on the same Iran hour
+    during tests and injected preflight evaluation.
     """
-    current_hour = datetime.now(IRAN_TZ).hour
+    if clock is None:
+        current_hour = datetime.now(IRAN_TZ).hour
+    else:
+        local = clock if clock.tzinfo is not None else clock.replace(tzinfo=IRAN_TZ)
+        current_hour = local.astimezone(IRAN_TZ).hour
 
     schedules = (
         db.query(RubikaSenderSchedule)

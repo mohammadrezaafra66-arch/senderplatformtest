@@ -230,7 +230,9 @@ def test_window_and_retry_hints():
     assert interval.delay_seconds >= 7
 
 
-def _make_account(session, *, label: str, status=AccountStatus.ACTIVE):
+def _make_account(session, *, label: str, status=AccountStatus.ACTIVE, pool_phase: str | None = "day"):
+    from core_engine.models import RubikaAccountPool
+
     account = Account(
         platform=PlatformType.RUBIKA,
         phone_number=f"98912{abs(hash(label + uuid.uuid4().hex)) % 10_000_000:07d}",
@@ -254,6 +256,18 @@ def _make_account(session, *, label: str, status=AccountStatus.ACTIVE):
         session_type=SessionType.RUBIKA_SESSION,
         plaintext=envelope,
     )
+    # Enroll in a known phase name only — never create/deactivate schedules here.
+    if pool_phase is not None:
+        existing = (
+            session.query(RubikaAccountPool)
+            .filter(
+                RubikaAccountPool.account_id == account.id,
+                RubikaAccountPool.phase == pool_phase,
+            )
+            .first()
+        )
+        if existing is None:
+            session.add(RubikaAccountPool(account_id=account.id, phase=pool_phase, priority=1))
     session.commit()
     session.refresh(account)
     return account
@@ -270,18 +284,8 @@ def _campaign_with_messages(session, accounts: list[Account], counts: list[int],
     )
     session.add(campaign)
     session.flush()
-    from core_engine.models import RubikaSenderSchedule
-
-    if not session.query(RubikaSenderSchedule).filter(RubikaSenderSchedule.phase == "p6-all").first():
-        session.add(
-            RubikaSenderSchedule(
-                phase=f"p6-{uuid.uuid4().hex[:6]}",
-                start_hour=0,
-                end_hour=23,
-                max_per_hour=999,
-                is_active=True,
-            )
-        )
+    # Do NOT create/activate RubikaSenderSchedule rows — production schedules
+    # must remain untouched. Phase is pinned by the autouse monkeypatch below.
     if manual:
         for i, account in enumerate(accounts, start=1):
             session.add(
@@ -368,6 +372,20 @@ def _campaign_with_messages(session, accounts: list[Account], counts: list[int],
             )
     session.commit()
     return campaign, texts
+
+
+@pytest.fixture(autouse=True)
+def _pin_rubika_phase_without_schedule_mutation(monkeypatch):
+    """Keep integration tests hermetic without touching production schedules."""
+
+    monkeypatch.setattr(
+        "workers.rubika_account_pool.resolve_current_phase",
+        lambda db, *, clock=None: "day",
+    )
+    monkeypatch.setattr(
+        "core_engine.services.campaign_preflight.load_send_windows",
+        lambda db: [SendWindowSpec(phase="day", start_hour=8, end_hour=22)],
+    )
 
 
 @pytest.mark.asyncio
@@ -504,47 +522,27 @@ def test_frozen_text_hash_unchanged_at_scale():
 
 
 @pytest.mark.asyncio
-async def test_waiting_window_not_permanent_failure(pg_session_factory):
-    from core_engine.models import RubikaSenderSchedule
-
-    test_phase = "day-only-p6"
+async def test_waiting_window_not_permanent_failure(pg_session_factory, monkeypatch):
     session = pg_session_factory()
 
+    # Hermetic outside-window: do not mute/create production schedules.
+    monkeypatch.setattr(
+        "workers.rubika_account_pool.resolve_current_phase",
+        lambda db, *, clock=None: None,
+    )
+    monkeypatch.setattr(
+        "core_engine.services.campaign_preflight.load_send_windows",
+        lambda db: [SendWindowSpec(phase="day", start_hour=8, end_hour=22)],
+    )
+
     try:
-        # Idempotency guard: remove residue from any prior interrupted/test run.
-        session.query(RubikaSenderSchedule).filter(
-            RubikaSenderSchedule.phase == test_phase
-        ).delete(synchronize_session=False)
-
-        session.query(RubikaSenderSchedule).update(
-            {RubikaSenderSchedule.is_active: False},
-            synchronize_session=False,
-        )
-        session.commit()
-
-        a1 = _make_account(session, label="window-wait")
+        a1 = _make_account(session, label="window-wait", pool_phase="day")
         campaign, _ = _campaign_with_messages(
             session,
             [a1],
             [3],
             manual=True,
         )
-
-        session.query(RubikaSenderSchedule).update(
-            {RubikaSenderSchedule.is_active: False},
-            synchronize_session=False,
-        )
-
-        session.add(
-            RubikaSenderSchedule(
-                phase=test_phase,
-                start_hour=8,
-                end_hour=22,
-                max_per_hour=20,
-                is_active=True,
-            )
-        )
-        session.commit()
 
         now = datetime(2026, 8, 17, 23, 0, tzinfo=IRAN)
 
@@ -569,15 +567,7 @@ async def test_waiting_window_not_permanent_failure(pg_session_factory):
 
     finally:
         session.rollback()
-
-        # Exact test-owned cleanup. Never wildcard production schedules.
-        session.query(RubikaSenderSchedule).filter(
-            RubikaSenderSchedule.phase == test_phase
-        ).delete(synchronize_session=False)
-
-        session.commit()
         session.close()
-
 
 @pytest.mark.asyncio
 async def test_daily_cap_waiting_capacity_not_failed(pg_session_factory):

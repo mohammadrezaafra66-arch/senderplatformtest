@@ -263,6 +263,7 @@ async def evaluate_rubika_send_preflight(
     check_pool_membership: bool | None = None,
     check_campaign_assignment: bool | None = None,
     check_send_window: bool | None = None,
+    consume_circuit_probe: bool = True,
     clock: Any | None = None,
     rng: Any | None = None,
 ) -> RubikaPreflightResult:
@@ -364,30 +365,69 @@ async def evaluate_rubika_send_preflight(
                 return client
 
         redis = await _usable_redis(redis)
-        from core_engine.services.rubika_circuit import assert_circuit_allows_send
+        from core_engine.services.rubika_circuit import (
+            assert_circuit_allows_send,
+            get_circuit_snapshot,
+        )
         from core_engine.services.rubika_health import get_quarantine_meta, is_account_quarantined
         from workers.config import get_worker_settings
 
         _settings = get_worker_settings()
-        allowed_circuit, circuit_detail, probe_token = await assert_circuit_allows_send(
-            redis,
-            probe_budget=int(getattr(_settings, "RUBIKA_CIRCUIT_PROBE_BUDGET", 1) or 1),
-            clock=clock,
-        )
-        if not allowed_circuit:
-            return _deny(
-                code=RUBIKA_CIRCUIT_OPEN,
-                account_id=account_id,
-                delivery_mode=mode,
-                session_type=session_type,
-                details={
-                    **details,
-                    "circuit_detail": circuit_detail,
-                    "retry_after_hint": "wait_for_circuit_recovery",
-                },
+        probe_budget = int(getattr(_settings, "RUBIKA_CIRCUIT_PROBE_BUDGET", 1) or 1)
+        if consume_circuit_probe:
+            allowed_circuit, circuit_detail, probe_token = await assert_circuit_allows_send(
+                redis,
+                probe_budget=probe_budget,
+                clock=clock,
             )
-        if probe_token:
-            details["circuit_probe_token"] = probe_token
+            if not allowed_circuit:
+                return _deny(
+                    code=RUBIKA_CIRCUIT_OPEN,
+                    account_id=account_id,
+                    delivery_mode=mode,
+                    session_type=session_type,
+                    details={
+                        **details,
+                        "circuit_detail": circuit_detail,
+                        "retry_after_hint": "wait_for_circuit_recovery",
+                    },
+                )
+            if probe_token:
+                details["circuit_probe_token"] = probe_token
+        else:
+            # Read-only path for campaign preflight — never consume half-open probes.
+            circuit_snap = await get_circuit_snapshot(
+                redis,
+                probe_budget=probe_budget,
+                clock=clock,
+            )
+            if circuit_snap.state == "open":
+                return _deny(
+                    code=RUBIKA_CIRCUIT_OPEN,
+                    account_id=account_id,
+                    delivery_mode=mode,
+                    session_type=session_type,
+                    details={
+                        **details,
+                        "circuit_detail": "open",
+                        "retry_after_hint": "wait_for_circuit_recovery",
+                    },
+                )
+            if (
+                circuit_snap.state == "half_open"
+                and int(circuit_snap.probe_remaining or 0) <= 0
+            ):
+                return _deny(
+                    code=RUBIKA_CIRCUIT_OPEN,
+                    account_id=account_id,
+                    delivery_mode=mode,
+                    session_type=session_type,
+                    details={
+                        **details,
+                        "circuit_detail": "half_open_budget_exhausted",
+                        "retry_after_hint": "wait_for_circuit_recovery",
+                    },
+                )
 
         if await is_account_quarantined(redis, account_id):
             qmeta = await get_quarantine_meta(redis, account_id) or {}
@@ -497,7 +537,7 @@ async def evaluate_rubika_send_preflight(
     if check_send_window or check_pool_membership:
         from workers.rubika_account_pool import resolve_current_phase
 
-        phase = resolve_current_phase(db)
+        phase = resolve_current_phase(db, clock=clock)
         details["phase"] = phase
         if check_send_window and phase is None:
             return _deny(
