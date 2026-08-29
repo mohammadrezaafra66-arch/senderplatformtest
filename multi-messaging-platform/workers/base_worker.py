@@ -21,6 +21,7 @@ from workers.errors import PayloadValidationError, WorkerError
 from workers.logging_utils import get_worker_logger, log_worker_event
 from workers.payload_adapter import normalize_queue_payload
 from workers.payloads import WorkerPayload, WorkerResult
+from workers.redis_flags import parse_redis_truthy
 from workers.redis_keys import (
     account_pause_key,
     campaign_pause_key,
@@ -41,14 +42,8 @@ REQUIRED_PAYLOAD_FIELDS = (
 )
 
 
-def _is_redis_true(value: Any) -> bool:
-    if value is None:
-        return False
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, bytes):
-        value = value.decode()
-    return str(value).strip().lower() == "true"
+class WorkerExecutionDisabled(RuntimeError):
+    """Raised when WORKER_EXECUTION_ENABLED is false — no connect/poll/LPOP/send."""
 
 
 class BaseWorker(ABC):
@@ -61,12 +56,14 @@ class BaseWorker(ABC):
         database_url: str,
         poll_interval_seconds: int = 5,
         log_level: str = "INFO",
+        execution_enabled: bool = True,
     ) -> None:
         self.platform = platform
         self.account_id = account_id
         self.redis_url = redis_url
         self.database_url = database_url
         self.poll_interval_seconds = poll_interval_seconds
+        self.execution_enabled = bool(execution_enabled)
         self.logger = get_worker_logger(
             self.__class__.__name__,
             platform=platform,
@@ -74,10 +71,20 @@ class BaseWorker(ABC):
             level=log_level,
         )
         self._redis: Redis | None = None
+        self._lpop_count = 0
+        self._connect_count = 0
+
+    def assert_execution_enabled(self) -> None:
+        if not self.execution_enabled:
+            raise WorkerExecutionDisabled(
+                "WORKER_EXECUTION_ENABLED=false — refusing connect/poll/LPOP/send."
+            )
 
     async def connect(self) -> None:
+        self.assert_execution_enabled()
         self._redis = Redis.from_url(self.redis_url, decode_responses=True)
         await self._redis.ping()
+        self._connect_count += 1
         log_worker_event(
             self.logger,
             event="worker_connected",
@@ -109,7 +116,7 @@ class BaseWorker(ABC):
 
     async def check_kill_switch(self) -> bool:
         value = await self.redis.get(kill_switch_key())
-        if not _is_redis_true(value):
+        if not parse_redis_truthy(value):
             return False
         log_worker_event(
             self.logger,
@@ -122,7 +129,7 @@ class BaseWorker(ABC):
 
     async def check_account_paused(self) -> bool:
         value = await self.redis.get(account_pause_key(self.account_id))
-        if not _is_redis_true(value):
+        if not parse_redis_truthy(value):
             return False
         log_worker_event(
             self.logger,
@@ -139,7 +146,7 @@ class BaseWorker(ABC):
         raw_payload: str,
     ) -> bool:
         value = await self.redis.get(campaign_pause_key(payload.campaign_id))
-        if not _is_redis_true(value):
+        if not parse_redis_truthy(value):
             return False
         await self.redis.lpush(self.get_queue_key(), raw_payload)
         log_worker_event(
@@ -154,7 +161,10 @@ class BaseWorker(ABC):
         return True
 
     async def read_next_payload(self) -> str | None:
+        self.assert_execution_enabled()
         raw = await self.redis.lpop(self.get_queue_key())
+        if raw is not None:
+            self._lpop_count += 1
         if raw is None:
             log_worker_event(
                 self.logger,
@@ -301,6 +311,16 @@ class BaseWorker(ABC):
         )
 
     async def run_once(self) -> None:
+        if not self.execution_enabled:
+            log_worker_event(
+                self.logger,
+                event="execution_disabled",
+                status="paused",
+                platform=self.platform,
+                account_id=self.account_id,
+            )
+            return
+
         if self._redis is None:
             await self.connect()
 
@@ -322,12 +342,15 @@ class BaseWorker(ABC):
 
             result = await self.send_message(payload)
             await self.handle_result(payload, result)
+        except WorkerExecutionDisabled:
+            return
         except WorkerError as exc:
             await self.handle_error(payload, exc)
         except Exception as exc:
             await self.handle_error(payload, exc)
 
     async def run_forever(self) -> None:
+        self.assert_execution_enabled()
         await self.connect()
         try:
             while True:

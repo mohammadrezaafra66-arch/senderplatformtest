@@ -15,6 +15,7 @@ class TelegramWorker(BaseWorker):
         database_url: str,
         poll_interval_seconds: int = 5,
         log_level: str = "INFO",
+        execution_enabled: bool = True,
     ) -> None:
         super().__init__(
             platform="telegram",
@@ -23,6 +24,7 @@ class TelegramWorker(BaseWorker):
             database_url=database_url,
             poll_interval_seconds=poll_interval_seconds,
             log_level=log_level,
+            execution_enabled=execution_enabled,
         )
 
     async def send_message(self, payload: WorkerPayload) -> WorkerResult:

@@ -17,6 +17,8 @@ class WorkerSettings(BaseSettings):
     REDIS_URL: str = "redis://localhost:6379/0"
     WORKER_PLATFORM: str = "bale"
     WORKER_ACCOUNT_ID: int = 1
+    # When false: refuse connect/poll/LPOP/send (R3 worker safety contract).
+    WORKER_EXECUTION_ENABLED: bool = False
     WORKER_POLL_INTERVAL_SECONDS: int = 5
     WORKER_DEFAULT_DELAY_SECONDS: int = 3
     WORKER_DEFAULT_HOURLY_CAP: int = 100

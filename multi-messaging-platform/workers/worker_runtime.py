@@ -26,13 +26,9 @@ REQUIRED_PAYLOAD_FIELDS = (
 
 
 def is_redis_truthy(value: Any) -> bool:
-    if value is None:
-        return False
-    if isinstance(value, bool):
-        return value
-    if isinstance(value, bytes):
-        value = value.decode()
-    return str(value).strip().lower() == "true"
+    from workers.redis_flags import parse_redis_truthy
+
+    return parse_redis_truthy(value)
 
 
 def validate_worker_payload(

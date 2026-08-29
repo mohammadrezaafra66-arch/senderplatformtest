@@ -20,11 +20,13 @@ from core_engine.services.phase4_prepare import prepare_campaign_messages
 from core_engine.services.queue_bridge import push_staged_items_to_worker_queue
 from core_engine.services.redis_client import get_redis_client, ping_redis
 from core_engine.config import get_settings
-from workers.redis_keys import campaign_pause_key
+from workers.redis_flags import (
+    clear_campaign_pause_flag,
+    set_campaign_pause_flag,
+)
 
 logger = logging.getLogger(__name__)
 
-_CAMPAIGN_PAUSE_VALUE = "true"
 _STARTABLE_STATUSES = {
     CampaignStatus.DRAFT.value,
     CampaignStatus.PREPARED.value,
@@ -54,7 +56,7 @@ async def clear_campaign_pause(campaign_id: int) -> None:
     await _require_redis()
     client = get_redis_client()
     try:
-        await client.delete(campaign_pause_key(campaign_id))
+        await clear_campaign_pause_flag(client, campaign_id)
     except Exception as exc:
         raise CampaignControlError("Failed to clear campaign pause in Redis", status_code=503) from exc
 
@@ -63,7 +65,7 @@ async def set_campaign_pause(campaign_id: int) -> None:
     await _require_redis()
     client = get_redis_client()
     try:
-        await client.set(campaign_pause_key(campaign_id), _CAMPAIGN_PAUSE_VALUE)
+        await set_campaign_pause_flag(client, campaign_id, paused=True)
     except Exception as exc:
         raise CampaignControlError("Failed to set campaign pause in Redis", status_code=503) from exc
 

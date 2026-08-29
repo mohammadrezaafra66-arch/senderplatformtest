@@ -24,9 +24,9 @@ def delay_redis_key(account_id: int) -> str:
 
 
 def _parse_redis_bool(value: str | None) -> bool:
-    if value is None:
-        return False
-    return str(value).strip().lower() == "true"
+    from workers.redis_flags import parse_redis_truthy
+
+    return parse_redis_truthy(value)
 
 
 async def _require_redis() -> None:
@@ -70,10 +70,12 @@ async def get_kill_switch_status() -> dict[str, object]:
 
 
 async def set_kill_switch(enabled: bool) -> dict[str, object]:
+    from workers.redis_flags import encode_redis_flag, set_system_kill_switch
+
     await _require_redis()
     client = get_redis_client()
     try:
-        await client.set(KILL_SWITCH_REDIS_KEY, "true" if enabled else "false")
+        await set_system_kill_switch(client, enabled=enabled)
     except Exception as exc:
         raise ControlServiceError("Failed to update kill switch in Redis", status_code=503) from exc
 
@@ -81,6 +83,7 @@ async def set_kill_switch(enabled: bool) -> dict[str, object]:
         "success": True,
         "enabled": enabled,
         "redis_key": KILL_SWITCH_REDIS_KEY,
+        "stored_value": encode_redis_flag(enabled),
     }
 
 
