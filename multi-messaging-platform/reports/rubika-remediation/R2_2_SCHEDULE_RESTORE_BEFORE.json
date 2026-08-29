@@ -1,0 +1,636 @@
+{
+  "body": {
+    "active_debris": [
+      {
+        "created_at": "2026-08-26T13:39:17.701576",
+        "end_hour": 23,
+        "id": 287,
+        "is_active": true,
+        "max_per_hour": 999,
+        "phase": "p6-pool-b0213b",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.711653",
+        "end_hour": 23,
+        "id": 288,
+        "is_active": true,
+        "max_per_hour": 999,
+        "phase": "p6-1e2fbb",
+        "start_hour": 0
+      }
+    ],
+    "active_schedules": [
+      {
+        "created_at": "2026-08-26T13:39:17.701576",
+        "end_hour": 23,
+        "id": 287,
+        "is_active": true,
+        "max_per_hour": 999,
+        "phase": "p6-pool-b0213b",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.711653",
+        "end_hour": 23,
+        "id": 288,
+        "is_active": true,
+        "max_per_hour": 999,
+        "phase": "p6-1e2fbb",
+        "start_hour": 0
+      }
+    ],
+    "captured_at": "2026-08-29T07:21:58.510917+00:00",
+    "controlling_for_12_79": [],
+    "day_candidates_8_22": [
+      {
+        "created_at": "2026-08-24T10:24:36.535222",
+        "end_hour": 22,
+        "id": 195,
+        "is_active": false,
+        "max_per_hour": 50,
+        "phase": "day",
+        "start_hour": 8
+      }
+    ],
+    "day_exact_8_22_max50": [
+      {
+        "created_at": "2026-08-24T10:24:36.535222",
+        "end_hour": 22,
+        "id": 195,
+        "is_active": false,
+        "max_per_hour": 50,
+        "phase": "day",
+        "start_hour": 8
+      }
+    ],
+    "debris_schedules": [
+      {
+        "created_at": "2026-08-26T13:38:32.667140",
+        "end_hour": 23,
+        "id": 256,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-438a29",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:32.776145",
+        "end_hour": 23,
+        "id": 257,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-08c5e8",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:32.883387",
+        "end_hour": 23,
+        "id": 258,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-71af3f",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:32.967359",
+        "end_hour": 23,
+        "id": 259,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-7c3af4",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.108077",
+        "end_hour": 23,
+        "id": 260,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-be9384",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.299063",
+        "end_hour": 23,
+        "id": 261,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-669ecd",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.528040",
+        "end_hour": 23,
+        "id": 262,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-pool-0ddc0c",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.540396",
+        "end_hour": 23,
+        "id": 263,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-56c4f7",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.635211",
+        "end_hour": 23,
+        "id": 265,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-pool-aa2502",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.645973",
+        "end_hour": 23,
+        "id": 266,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-84d51f",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:16.897872",
+        "end_hour": 23,
+        "id": 278,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-be6f5e",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:16.998827",
+        "end_hour": 23,
+        "id": 279,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-1af928",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.107556",
+        "end_hour": 23,
+        "id": 280,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-da517b",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.178128",
+        "end_hour": 23,
+        "id": 281,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-e8cc0c",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.354470",
+        "end_hour": 23,
+        "id": 282,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-e93b2c",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.455452",
+        "end_hour": 23,
+        "id": 283,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-84d6bf",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.613648",
+        "end_hour": 23,
+        "id": 284,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-pool-2c07bb",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.627936",
+        "end_hour": 23,
+        "id": 285,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-533a28",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.701576",
+        "end_hour": 23,
+        "id": 287,
+        "is_active": true,
+        "max_per_hour": 999,
+        "phase": "p6-pool-b0213b",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.711653",
+        "end_hour": 23,
+        "id": 288,
+        "is_active": true,
+        "max_per_hour": 999,
+        "phase": "p6-1e2fbb",
+        "start_hour": 0
+      }
+    ],
+    "inactive_debris": [
+      {
+        "created_at": "2026-08-26T13:38:32.667140",
+        "end_hour": 23,
+        "id": 256,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-438a29",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:32.776145",
+        "end_hour": 23,
+        "id": 257,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-08c5e8",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:32.883387",
+        "end_hour": 23,
+        "id": 258,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-71af3f",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:32.967359",
+        "end_hour": 23,
+        "id": 259,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-7c3af4",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.108077",
+        "end_hour": 23,
+        "id": 260,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-be9384",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.299063",
+        "end_hour": 23,
+        "id": 261,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-669ecd",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.528040",
+        "end_hour": 23,
+        "id": 262,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-pool-0ddc0c",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.540396",
+        "end_hour": 23,
+        "id": 263,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-56c4f7",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.635211",
+        "end_hour": 23,
+        "id": 265,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-pool-aa2502",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.645973",
+        "end_hour": 23,
+        "id": 266,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-84d51f",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:16.897872",
+        "end_hour": 23,
+        "id": 278,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-be6f5e",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:16.998827",
+        "end_hour": 23,
+        "id": 279,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-1af928",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.107556",
+        "end_hour": 23,
+        "id": 280,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-da517b",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.178128",
+        "end_hour": 23,
+        "id": 281,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-e8cc0c",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.354470",
+        "end_hour": 23,
+        "id": 282,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-e93b2c",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.455452",
+        "end_hour": 23,
+        "id": 283,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-84d6bf",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.613648",
+        "end_hour": 23,
+        "id": 284,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-pool-2c07bb",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.627936",
+        "end_hour": 23,
+        "id": 285,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-533a28",
+        "start_hour": 0
+      }
+    ],
+    "pool_membership_12_79": {
+      "12": [
+        {
+          "account_id": 12,
+          "phase": "day",
+          "pool_row_id": 9,
+          "priority": 1
+        }
+      ],
+      "79": [
+        {
+          "account_id": 79,
+          "phase": "day",
+          "pool_row_id": 36,
+          "priority": 1
+        }
+      ]
+    },
+    "production_like_schedules": [
+      {
+        "created_at": "2026-08-24T10:24:36.535222",
+        "end_hour": 22,
+        "id": 195,
+        "is_active": false,
+        "max_per_hour": 50,
+        "phase": "day",
+        "start_hour": 8
+      }
+    ],
+    "resolved_current_phase": "p6-pool-b0213b",
+    "schedules": [
+      {
+        "created_at": "2026-08-24T10:24:36.535222",
+        "end_hour": 22,
+        "id": 195,
+        "is_active": false,
+        "max_per_hour": 50,
+        "phase": "day",
+        "start_hour": 8
+      },
+      {
+        "created_at": "2026-08-26T13:38:32.667140",
+        "end_hour": 23,
+        "id": 256,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-438a29",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:32.776145",
+        "end_hour": 23,
+        "id": 257,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-08c5e8",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:32.883387",
+        "end_hour": 23,
+        "id": 258,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-71af3f",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:32.967359",
+        "end_hour": 23,
+        "id": 259,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-7c3af4",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.108077",
+        "end_hour": 23,
+        "id": 260,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-be9384",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.299063",
+        "end_hour": 23,
+        "id": 261,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-669ecd",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.528040",
+        "end_hour": 23,
+        "id": 262,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-pool-0ddc0c",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.540396",
+        "end_hour": 23,
+        "id": 263,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-56c4f7",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.635211",
+        "end_hour": 23,
+        "id": 265,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-pool-aa2502",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:38:33.645973",
+        "end_hour": 23,
+        "id": 266,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-84d51f",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:16.897872",
+        "end_hour": 23,
+        "id": 278,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-be6f5e",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:16.998827",
+        "end_hour": 23,
+        "id": 279,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-1af928",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.107556",
+        "end_hour": 23,
+        "id": 280,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-da517b",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.178128",
+        "end_hour": 23,
+        "id": 281,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-e8cc0c",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.354470",
+        "end_hour": 23,
+        "id": 282,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-e93b2c",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.455452",
+        "end_hour": 23,
+        "id": 283,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-84d6bf",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.613648",
+        "end_hour": 23,
+        "id": 284,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-pool-2c07bb",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.627936",
+        "end_hour": 23,
+        "id": 285,
+        "is_active": false,
+        "max_per_hour": 999,
+        "phase": "p6-533a28",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.701576",
+        "end_hour": 23,
+        "id": 287,
+        "is_active": true,
+        "max_per_hour": 999,
+        "phase": "p6-pool-b0213b",
+        "start_hour": 0
+      },
+      {
+        "created_at": "2026-08-26T13:39:17.711653",
+        "end_hour": 23,
+        "id": 288,
+        "is_active": true,
+        "max_per_hour": 999,
+        "phase": "p6-1e2fbb",
+        "start_hour": 0
+      }
+    ]
+  },
+  "sha256_of_body": "18ad8aa38dbb9542c0a8044d3f62cba8dd9d80ec436d9b781a6f302769632b61"
+}
