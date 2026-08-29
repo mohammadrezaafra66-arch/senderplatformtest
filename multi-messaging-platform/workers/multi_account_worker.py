@@ -42,9 +42,10 @@ class MultiAccountWorker(ABC):
         log_level: str = "INFO",
         max_retry_attempts: int = 0,
         retry_base_delay_seconds: float = 5.0,
+        execution_enabled: bool = True,
     ) -> None:
-        if not account_ids:
-            raise ValueError("account_ids must not be empty.")
+        if account_ids is None:
+            raise ValueError("account_ids is required.")
 
         self.platform = platform
         self.account_ids = sorted({int(account_id) for account_id in account_ids})
@@ -52,6 +53,7 @@ class MultiAccountWorker(ABC):
         self.redis_url = redis_url
         self.database_url = database_url
         self.poll_interval_seconds = poll_interval_seconds
+        self.execution_enabled = bool(execution_enabled)
         self.logger = get_worker_logger(
             self.__class__.__name__,
             platform=platform,
@@ -62,8 +64,15 @@ class MultiAccountWorker(ABC):
         self._round_robin_index = 0
         self._max_retry_attempts = max_retry_attempts
         self._retry_base_delay_seconds = retry_base_delay_seconds
+        self._lpop_count = 0
 
     async def connect(self) -> None:
+        if not self.execution_enabled:
+            from workers.base_worker import WorkerExecutionDisabled
+
+            raise WorkerExecutionDisabled(
+                "WORKER_EXECUTION_ENABLED=false — refusing multi-account connect."
+            )
         self._redis = Redis.from_url(self.redis_url, decode_responses=True)
         await self._redis.ping()
         log_worker_event(
@@ -143,15 +152,23 @@ class MultiAccountWorker(ABC):
         return True
 
     async def read_next_payload(self) -> tuple[int, str] | None:
-        """Round-robin LPOP across assigned account queues."""
+        """Round-robin LPOP across assigned account queues.
+
+        Paused accounts are skipped before LPOP (zero consume while paused).
+        """
         account_count = len(self.account_ids)
+        if account_count == 0:
+            return None
         for step in range(account_count):
             index = (self._round_robin_index + step) % account_count
             account_id = self.account_ids[index]
+            if await self.check_account_paused(account_id):
+                continue
             raw = await self.redis.lpop(self.queue_key_for(account_id))
             if raw is None:
                 continue
 
+            self._lpop_count += 1
             self._round_robin_index = (index + 1) % account_count
             log_worker_event(
                 self.logger,
@@ -326,6 +343,15 @@ class MultiAccountWorker(ABC):
         )
 
     async def run_once(self) -> None:
+        if not self.execution_enabled:
+            log_worker_event(
+                self.logger,
+                event="execution_disabled",
+                status="paused",
+                platform=self.platform,
+            )
+            return
+
         if self._redis is None:
             await self.connect()
 
@@ -340,6 +366,7 @@ class MultiAccountWorker(ABC):
                 return
 
             active_account_id, raw = item
+            # Pause already skipped before LPOP; re-check is a race guard only.
             if await self.check_account_paused(active_account_id):
                 await self.redis.rpush(self.queue_key_for(active_account_id), raw)
                 return

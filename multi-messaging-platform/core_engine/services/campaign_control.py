@@ -77,11 +77,21 @@ def _auto_prepare(db: Session, campaign_id: int) -> None:
     never substitute the placeholder dry-run text for what the operator wrote.
     Ready-but-unsent items are refreshed if the text changed since staging.
 
-    Ordinary not-ready-yet cases (no contacts, no template text) are swallowed
-    so start can still flip the campaign. Product-feed and GPT-variation
-    failures for include_products / use_gpt campaigns are re-raised: start
-    must not silently queue text-only or unvaried messages.
+    Soft not-ready-yet cases (empty campaign / missing template text with no
+    coded failure) may be skipped. Any coded prepare failure is re-raised so
+    start surfaces TEMPLATE_MISSING / RENDER_FAILED / sender codes instead of
+    collapsing later into CAMPAIGN_NOT_PREPARED (R6).
     """
+    _SOFT_SKIP_CODES = frozenset(
+        {
+            "no_contacts",
+            "NO_CONTACTS",
+            "empty_campaign",
+            "EMPTY_CAMPAIGN",
+            "template_text_empty",
+            "TEMPLATE_TEXT_EMPTY",
+        }
+    )
     try:
         result = prepare_campaign_messages(
             db,
@@ -91,29 +101,8 @@ def _auto_prepare(db: Session, campaign_id: int) -> None:
     except HTTPException as exc:
         db.rollback()
         detail = exc.detail if isinstance(exc.detail, dict) else {}
-        if detail.get("code") in {
-            "no_active_sender_account",
-            "no_enabled_campaign_sender",
-            "campaign_sender_inactive",
-            "campaign_sender_platform_mismatch",
-            "campaign_sender_missing",
-            "prepared_sender_assignment_mismatch",
-            "PRODUCT_FEED_UNAVAILABLE",
-            "PRODUCT_FEED_TIMEOUT",
-            "PRODUCT_FEED_INVALID_RESPONSE",
-            "PRODUCT_FEED_STALE",
-            "PRODUCT_FEED_EMPTY",
-            "PRODUCT_PRICE_INVALID",
-            "INSUFFICIENT_ADVERTISING_PRODUCTS",
-            "CONFIG_PENDING",
-            "GPT_NOT_CONFIGURED",
-            "GPT_UNAVAILABLE",
-            "GPT_TIMEOUT",
-            "GPT_RATE_LIMITED",
-            "GPT_INVALID_RESPONSE",
-            "GPT_VARIATION_INVALID",
-            "GPT_INSUFFICIENT_VARIATIONS",
-        }:
+        code = detail.get("code") if isinstance(detail, dict) else None
+        if code and str(code) not in _SOFT_SKIP_CODES:
             raise
         logger.info(
             "auto-prepare skipped for campaign=%s: %s", campaign_id, exc.detail

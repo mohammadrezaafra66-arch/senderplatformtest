@@ -47,6 +47,7 @@ TEMPORARY_CODES = frozenset(
         "RUBIKA_CIRCUIT_OPEN",
         "ACCOUNT_NOT_IN_ALLOWED_POOL",
         "REDIS_UNAVAILABLE",
+        "NO_WORKER_CONSUMER",
     }
 )
 
@@ -253,6 +254,8 @@ def account_ready_now(row: AccountCapacityInput) -> bool:
 def account_eligible_now(row: AccountCapacityInput) -> bool:
     """Whether this account can execute already-assigned campaign work now."""
     if row.assigned_remaining <= 0:
+        return False
+    if row.block_code == "NO_WORKER_CONSUMER":
         return False
     return account_ready_now(row)
 

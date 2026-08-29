@@ -6,11 +6,21 @@ import asyncio
 import sys
 
 from workers.base_worker import WorkerExecutionDisabled
+from workers.config import get_worker_settings
 from workers.factory import WorkerIdentityConflict, build_worker
+from workers.pool_factory import build_pool_worker
 
 
 async def main() -> int:
-    worker = build_worker()
+    cfg = get_worker_settings()
+    platform = cfg.WORKER_PLATFORM.lower().strip()
+
+    # Rubika multi-account pool when explicitly enabled (R4).
+    if platform == "rubika" and bool(getattr(cfg, "RUBIKA_MULTI_ACCOUNT_WORKER", False)):
+        worker = build_pool_worker(cfg)
+    else:
+        worker = build_worker(cfg)
+
     await worker.run_forever()
     return 0
 

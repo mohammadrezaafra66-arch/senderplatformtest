@@ -725,6 +725,18 @@ async def evaluate_campaign_send_preflight(
 
         if pf.code != PF_READY:
             block_code = pf.code
+        elif pf.code == PF_READY:
+            # R5: session/policy READY is not enough — need live worker coverage.
+            try:
+                from workers.pool_health import has_active_worker_coverage
+
+                covered = await has_active_worker_coverage(
+                    redis_client, platform="rubika", account_id=account_id
+                )
+                if not covered:
+                    block_code = "NO_WORKER_CONSUMER"
+            except Exception:  # noqa: BLE001 — fail soft: treat as no coverage
+                block_code = "NO_WORKER_CONSUMER"
         if block_code == PF_ACCOUNT_QUARANTINED:
             quarantined_count += 1
         if block_code == PF_OUTSIDE_SEND_WINDOW:
@@ -962,6 +974,16 @@ async def evaluate_campaign_send_preflight(
 
     account_rows = []
     for plan in aggregate.accounts:
+        worker_coverage = plan.block_code != "NO_WORKER_CONSUMER"
+        if plan.block_code is None or plan.block_code == "READY":
+            worker_coverage = True
+        # When block is NO_WORKER_CONSUMER, coverage is false; other blocks leave
+        # coverage unknown/false only for that code.
+        if plan.block_code == "NO_WORKER_CONSUMER":
+            worker_coverage = False
+        elif plan.account_ready_now and plan.block_code not in {None, "READY"}:
+            # Account ready but blocked by temporary/hard code other than coverage.
+            worker_coverage = plan.block_code != "NO_WORKER_CONSUMER"
         account_rows.append(
             {
                 "account_id": plan.account_id,
@@ -976,6 +998,7 @@ async def evaluate_campaign_send_preflight(
                     else ("unassigned" if assignment_materialized else "not_materialized")
                 ),
                 "account_ready_now": plan.account_ready_now,
+                "worker_coverage": worker_coverage,
                 "daily_remaining": plan.remaining_daily,
                 "hourly_remaining": plan.remaining_hourly,
                 "next_allowed_at": plan.next_allowed_at.isoformat() if plan.next_allowed_at else None,
@@ -983,6 +1006,7 @@ async def evaluate_campaign_send_preflight(
                 "cooldown_until": plan.cooldown_until.isoformat() if plan.cooldown_until else None,
                 "eligible_now": plan.eligible_now,
                 "block_code": plan.block_code,
+                "reason_code": plan.block_code or ("READY" if plan.account_ready_now else None),
                 "bottleneck": plan.is_bottleneck,
                 "reason": plan.bottleneck_reason,
                 "delivery_mode": plan.delivery_mode,

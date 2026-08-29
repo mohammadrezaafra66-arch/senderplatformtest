@@ -95,7 +95,14 @@ def parity_phase(monkeypatch):
         "workers.rubika_account_pool.resolve_current_phase",
         _phase,
     )
-    # Campaign planner also uses loaded windows; keep capacity window open via clock.
+    # Campaign coverage is planning-only; treat as covered in hermetic tests.
+    async def _covered(redis, *, platform: str, account_id: int) -> bool:
+        return True
+
+    monkeypatch.setattr(
+        "workers.pool_health.has_active_worker_coverage",
+        _covered,
+    )
     yield PARITY_PHASE
 
 

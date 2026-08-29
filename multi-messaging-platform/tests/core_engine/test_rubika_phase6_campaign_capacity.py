@@ -387,6 +387,14 @@ def _pin_rubika_phase_without_schedule_mutation(monkeypatch):
         lambda db: [SendWindowSpec(phase="day", start_hour=8, end_hour=22)],
     )
 
+    async def _covered(redis, *, platform: str, account_id: int) -> bool:
+        return True
+
+    monkeypatch.setattr(
+        "workers.pool_health.has_active_worker_coverage",
+        _covered,
+    )
+
 
 @pytest.mark.asyncio
 async def test_preflight_manual_scope_and_circuit(pg_session_factory):

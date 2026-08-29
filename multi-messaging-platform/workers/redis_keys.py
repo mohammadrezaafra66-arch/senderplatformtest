@@ -49,6 +49,11 @@ def worker_heartbeat_key(platform: str, hostname: str) -> str:
     return f"worker:alive:{platform}:{hostname}"
 
 
+def worker_account_coverage_key(platform: str, account_id: int | str) -> str:
+    """TTL-backed proof that an active worker currently owns this account queue."""
+    return f"worker:coverage:{platform}:{account_id}"
+
+
 def rubika_send_lock_key(account_id: int | str) -> str:
     return f"lock:rubika:send:{account_id}"
 

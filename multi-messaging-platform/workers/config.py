@@ -88,6 +88,11 @@ class WorkerSettings(BaseSettings):
     WORKER_POOL_INDEX: int = -1
     WHATSAPP_POOL_BROWSER_LOCK: bool = True
 
+    # Rubika multi-account pool (R4). Empty = discover from current phase pool.
+    RUBIKA_ACCOUNT_IDS: str = ""
+    RUBIKA_ACCOUNT_REFRESH_INTERVAL_SECONDS: int = 60
+    RUBIKA_MULTI_ACCOUNT_WORKER: bool = False
+
     # WA-5 — retry, rate limit, distributed lock, heartbeat.
     WHATSAPP_MAX_RETRY_ATTEMPTS: int = 3
     WHATSAPP_RETRY_BASE_DELAY_SECONDS: float = 5.0

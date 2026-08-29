@@ -96,6 +96,7 @@ class WhatsAppPoolWorker(MultiAccountWorker):
         retry_base_delay_seconds: float = 5.0,
         pool_size: int = 1,
         pool_index: int = 0,
+        execution_enabled: bool = True,
     ) -> None:
         super().__init__(
             platform="whatsapp",
@@ -106,6 +107,7 @@ class WhatsAppPoolWorker(MultiAccountWorker):
             log_level=log_level,
             max_retry_attempts=max_retry_attempts,
             retry_base_delay_seconds=retry_base_delay_seconds,
+            execution_enabled=execution_enabled,
         )
         self._settings = settings
         self._browser_lock_enabled = browser_lock_enabled

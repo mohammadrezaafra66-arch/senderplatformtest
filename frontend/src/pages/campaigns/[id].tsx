@@ -304,7 +304,18 @@ export default function CampaignMonitorPage() {
                         {t("campaignAssignedAccounts")}: {preflight.assigned_accounts}
                       </div>
                       <div>
-                        {t("campaignUsableAccounts")}: {preflight.usable_accounts}/{preflight.assigned_accounts}
+                        Account readiness: {preflight.ready_accounts ?? preflight.usable_accounts}/
+                        {preflight.assigned_accounts}
+                        {preflight.assignment_materialized === false
+                          ? " (campaign not prepared — readiness is account-level)"
+                          : ""}
+                      </div>
+                      <div>
+                        {t("campaignUsableAccounts")}: {preflight.usable_accounts}/
+                        {preflight.assigned_accounts}
+                        {typeof preflight.execution_usable_accounts === "number"
+                          ? ` · execution ${preflight.execution_usable_accounts}`
+                          : ""}
                       </div>
                       <div>
                         {t("campaignBlockedAccounts")}: {preflight.blocked_accounts}
@@ -350,7 +361,16 @@ export default function CampaignMonitorPage() {
                                 <td>{row.label || `#${row.account_id}`}</td>
                                 <td>{row.assigned}</td>
                                 <td>{row.health ?? "—"}</td>
-                                <td>{row.readiness ?? "—"}</td>
+                                <td>
+                                  {row.account_ready_now
+                                    ? "READY"
+                                    : row.readiness ?? "—"}
+                                  {row.worker_coverage === false
+                                    ? " · NO_WORKER_CONSUMER"
+                                    : row.worker_coverage
+                                      ? " · coverage"
+                                      : ""}
+                                </td>
                                 <td>{row.daily_remaining ?? "—"}</td>
                                 <td>{row.hourly_remaining ?? "—"}</td>
                                 <td>
@@ -361,7 +381,7 @@ export default function CampaignMonitorPage() {
                                 <td>
                                   {row.eligible_now
                                     ? t("campaignSafetyReady")
-                                    : row.block_code || t("campaignSafetyBlocked")}
+                                    : row.reason_code || row.block_code || t("campaignSafetyBlocked")}
                                   {row.bottleneck ? ` · ${t("campaignBottlenecks")}` : ""}
                                 </td>
                               </tr>

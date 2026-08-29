@@ -37,3 +37,40 @@ async def publish_worker_heartbeat(
     }
     key = worker_heartbeat_key(platform, hostname)
     await redis.set(key, json.dumps(payload, ensure_ascii=False), ex=ttl_seconds)
+
+
+async def publish_account_coverage(
+    redis: Redis,
+    *,
+    platform: str,
+    account_ids: list[int],
+    hostname: str,
+    ttl_seconds: int,
+) -> None:
+    """Publish TTL-backed per-account coverage (real runtime ownership)."""
+    from workers.redis_keys import worker_account_coverage_key
+
+    now = datetime.now(timezone.utc).isoformat()
+    for account_id in account_ids:
+        payload = {
+            "platform": platform,
+            "account_id": int(account_id),
+            "hostname": hostname,
+            "updated_at": now,
+        }
+        await redis.set(
+            worker_account_coverage_key(platform, account_id),
+            json.dumps(payload, ensure_ascii=False),
+            ex=ttl_seconds,
+        )
+
+
+async def has_active_worker_coverage(
+    redis: Redis,
+    *,
+    platform: str,
+    account_id: int,
+) -> bool:
+    from workers.redis_keys import worker_account_coverage_key
+
+    return bool(await redis.exists(worker_account_coverage_key(platform, account_id)))

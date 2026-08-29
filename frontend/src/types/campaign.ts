@@ -200,6 +200,9 @@ export type CampaignPreflightAccount = {
   readiness: string | null;
   lifecycle: string | null;
   assigned: number;
+  assignment_state?: string | null;
+  account_ready_now?: boolean;
+  worker_coverage?: boolean;
   daily_remaining: number | null;
   hourly_remaining: number | null;
   next_allowed_at: string | null;
@@ -207,8 +210,10 @@ export type CampaignPreflightAccount = {
   cooldown_until: string | null;
   eligible_now: boolean;
   block_code: string | null;
+  reason_code?: string | null;
   bottleneck: boolean;
   reason: string | null;
+  delivery_mode?: string | null;
 };
 
 export type CampaignPreflightIssue = {
@@ -250,6 +255,10 @@ export type CampaignPreflight = {
   limitations: string[];
   evaluated_at: string;
   redis_ok: boolean;
+  ready_accounts?: number;
+  execution_usable_accounts?: number;
+  assignment_materialized?: boolean;
+  capacity_applicable?: boolean;
 };
 
 export type CreateCampaignFromImportPayload = {
