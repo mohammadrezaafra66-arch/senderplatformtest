@@ -6,7 +6,7 @@ from workers.account_pool import parse_account_id_list, resolve_assigned_account
 from workers.base_worker import WorkerExecutionDisabled
 from workers.config import WorkerSettings, get_worker_settings
 from workers.multi_account_worker import MultiAccountWorker
-from workers.rubika_pool_worker import RubikaPoolWorker, discover_rubika_eligible_account_ids
+from workers.rubika_pool_worker import RubikaPoolWorker
 from workers.whatsapp_pool_worker import WhatsAppPoolWorker
 
 
@@ -53,10 +53,9 @@ def build_pool_worker(settings: WorkerSettings | None = None) -> MultiAccountWor
         return worker
 
     if platform == "rubika":
-        explicit = parse_account_id_list(getattr(cfg, "RUBIKA_ACCOUNT_IDS", "") or "")
-        account_ids = discover_rubika_eligible_account_ids(
-            explicit_ids=explicit or None
-        )
+        from workers.rubika_pool_worker import resolve_rubika_worker_account_ids_from_settings
+
+        account_ids, discovery_meta = resolve_rubika_worker_account_ids_from_settings(cfg)
         worker = RubikaPoolWorker(
             account_ids=account_ids,
             redis_url=cfg.REDIS_URL,
@@ -72,10 +71,17 @@ def build_pool_worker(settings: WorkerSettings | None = None) -> MultiAccountWor
             ),
             heartbeat_interval_seconds=int(cfg.WORKER_HEARTBEAT_INTERVAL_SECONDS),
             heartbeat_ttl_seconds=int(cfg.WORKER_HEARTBEAT_TTL_SECONDS),
+            discovery_mode=str(getattr(cfg, "RUBIKA_WORKER_DISCOVERY_MODE", "pinned")),
+            pinned_account_ids=parse_account_id_list(
+                getattr(cfg, "RUBIKA_ACCOUNT_IDS", "") or ""
+            ),
         )
         worker.logger.info(
-            "rubika_pool_started assigned_accounts=%s",
-            ",".join(str(account_id) for account_id in account_ids) or "(dynamic)",
+            "rubika_pool_started mode=%s assigned_accounts=%s dynamic_eligible=%s",
+            discovery_meta.get("mode"),
+            ",".join(str(account_id) for account_id in account_ids) or "(none)",
+            ",".join(str(i) for i in discovery_meta.get("dynamic_eligible_ids") or [])
+            or "(none)",
         )
         return worker
 

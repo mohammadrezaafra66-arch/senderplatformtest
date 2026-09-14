@@ -154,9 +154,10 @@ export async function fetchRubikaSchedule(): Promise<RubikaScheduleListResult> {
 
 export async function updateRubikaSchedule(
   phase: string,
+  slot: number,
   payload: { start_hour: number; end_hour: number; max_per_hour: number; is_active: boolean },
 ): Promise<RubikaScheduleItem> {
-  const response = await apiFetch(`/rubika/schedule/${phase}`, {
+  const response = await apiFetch(`/rubika/schedule/${phase}?slot=${slot}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),

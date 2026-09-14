@@ -68,6 +68,16 @@ CAMPAIGN_CAPACITY_UNKNOWN = "CAMPAIGN_CAPACITY_UNKNOWN"
 CAMPAIGN_ALREADY_RUNNING = "CAMPAIGN_ALREADY_RUNNING"
 CAMPAIGN_DEPENDENCY_ERROR = "CAMPAIGN_DEPENDENCY_ERROR"
 
+# Post-R10 production safety codes (also defined in campaign_production_guards).
+INVALID_RECIPIENT_PHONE = "INVALID_RECIPIENT_PHONE"
+UNRESOLVED_TEMPLATE_PLACEHOLDER = "UNRESOLVED_TEMPLATE_PLACEHOLDER"
+INVALID_MESSAGE_ASSIGNMENT = "INVALID_MESSAGE_ASSIGNMENT"
+DUPLICATE_RECIPIENT_ASSIGNMENT = "DUPLICATE_RECIPIENT_ASSIGNMENT"
+CAMPAIGN_SEND_LIMIT_REACHED = "CAMPAIGN_SEND_LIMIT_REACHED"
+MESSAGE_ALREADY_SENT = "MESSAGE_ALREADY_SENT"
+NO_WORKER_CONSUMER = "NO_WORKER_CONSUMER"
+CONTROLLED_PRODUCTION_APPROVAL_REQUIRED = "CONTROLLED_PRODUCTION_APPROVAL_REQUIRED"
+
 EXEC_READY = "READY"
 EXEC_CAPACITY_WARNING = "CAPACITY_WARNING"
 EXEC_BLOCKED = "BLOCKED"
@@ -113,6 +123,16 @@ _PERSIAN = {
     CAMPAIGN_CAPACITY_UNKNOWN: "وضعیت ظرفیت به دلیل اختلال Redis قابل بررسی نیست.",
     CAMPAIGN_ALREADY_RUNNING: "کمپین هم‌اکنون در حال اجرا است.",
     CAMPAIGN_DEPENDENCY_ERROR: "خطای وابستگی سیستمی؛ وضعیت کمپین تغییر نکرد.",
+    INVALID_RECIPIENT_PHONE: "یک یا چند گیرنده شماره روبیکای معتبر ندارند.",
+    UNRESOLVED_TEMPLATE_PLACEHOLDER: "متن نهایی هنوز placeholder حل‌نشده دارد.",
+    INVALID_MESSAGE_ASSIGNMENT: "تخصیص فرستنده پیام نامعتبر است.",
+    DUPLICATE_RECIPIENT_ASSIGNMENT: "گیرنده تکراری در پیام‌های آماده‌شده وجود دارد.",
+    CAMPAIGN_SEND_LIMIT_REACHED: "سقف تعداد ارسال کمپین رد شده است.",
+    MESSAGE_ALREADY_SENT: "پیام قبلاً با موفقیت ارسال شده است.",
+    NO_WORKER_CONSUMER: "پوشش worker برای حداقل یک اکانت اختصاص‌یافته فعال نیست.",
+    CONTROLLED_PRODUCTION_APPROVAL_REQUIRED: (
+        "برای شروع ارسال واقعی، تأیید نهایی اپراتور لازم است."
+    ),
 }
 
 MULTI_DAY_WARNING = "این کمپین با ظرفیت فعلی در چند بازه/روز تکمیل خواهد شد."
@@ -170,8 +190,31 @@ class CampaignPreflightResult:
     redis_ok: bool = True
     ready_accounts: int = 0
     execution_usable_accounts: int = 0
+    campaign_eligible_accounts: int = 0
     assignment_materialized: bool = False
     capacity_applicable: bool = False
+    # Post-R10 production observability
+    total_recipients: int = 0
+    valid_recipient_count: int = 0
+    invalid_recipient_count: int = 0
+    prepared_messages: int = 0
+    campaign_prepared: bool = False
+    queued_messages: int = 0
+    sending_messages: int = 0
+    success_messages: int = 0
+    failed_retryable: int = 0
+    failed_permanent: int = 0
+    worker_coverage_accounts: int = 0
+    block_code: str | None = None
+    block_details: list[dict[str, Any]] = field(default_factory=list)
+    preparation_ready: bool = True
+    preparation_blockers: list[dict[str, Any]] = field(default_factory=list)
+    technical_ready: bool = False
+    controlled_production_enabled: bool = False
+    controlled_production_confirmation_required: bool = False
+    allowed_to_start_after_confirmation: bool = False
+    controlled_production_max_messages: int | None = None
+    controlled_production_label: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -390,6 +433,15 @@ async def evaluate_campaign_send_preflight(
             int(campaign_id),
             code=CAMPAIGN_CONFIGURATION_INVALID,
             message="کمپین پیدا نشد.",
+            evaluated_iso=evaluated_iso,
+            redis_ok=True,
+        )
+
+    if getattr(campaign, "archived_at", None) is not None:
+        return _unknown_result(
+            int(campaign_id),
+            code="CAMPAIGN_ARCHIVED",
+            message="این کمپین آرشیو شده و قابل اجرا نیست.",
             evaluated_iso=evaluated_iso,
             redis_ok=True,
         )
@@ -902,6 +954,98 @@ async def evaluate_campaign_send_preflight(
     else:
         code = CAMPAIGN_READY
 
+    # Explicit worker-coverage gate (separate from account readiness).
+    # NO_WORKER_CONSUMER is temporary for capacity math, but must block start.
+    _HARD_SYSTEM_CODES = {
+        CAMPAIGN_CIRCUIT_OPEN,
+        CAMPAIGN_DEPENDENCY_ERROR,
+        CAMPAIGN_CAPACITY_UNKNOWN,
+    }
+    coverage_missing = [
+        plan.account_id
+        for plan in aggregate.accounts
+        if plan.block_code == "NO_WORKER_CONSUMER"
+    ]
+    if coverage_missing:
+        allowed = False
+        if code not in _HARD_SYSTEM_CODES:
+            code = NO_WORKER_CONSUMER
+        blockers.append(
+            _issue(
+                NO_WORKER_CONSUMER,
+                "حداقل یک اکانت اختصاص‌یافته پوشش worker فعال ندارد.",
+                account_id=coverage_missing[0],
+            )
+        )
+        log_campaign_safety_event(
+            "campaign_preflight_blocked",
+            campaign_id=campaign.id,
+            code=NO_WORKER_CONSUMER,
+            extra={"account_ids": coverage_missing},
+        )
+
+    # --- Post-R10 production safety gates (fail closed; do not mutate) ---
+    from core_engine.services.campaign_production_guards import (
+        evaluate_send_limit,
+        scan_assignment_consistency,
+        scan_campaign_recipient_phones,
+        scan_unresolved_placeholders_for_campaign,
+    )
+
+    valid_contact_ids, phone_issues = scan_campaign_recipient_phones(db, campaign)
+    valid_recipient_count = len(valid_contact_ids)
+    invalid_recipient_count = len(phone_issues)
+    placeholder_issues = scan_unresolved_placeholders_for_campaign(db, campaign.id)
+    assignment_issues = scan_assignment_consistency(db, campaign)
+    limit_issue = evaluate_send_limit(
+        db,
+        campaign,
+        prepared_or_ready_count=max(prepared, ready_staged, total_recipients),
+    )
+    if invalid_recipient_count > 0:
+        blockers.extend([i.as_blocker() for i in phone_issues])
+        allowed = False
+        if code not in _HARD_SYSTEM_CODES:
+            code = INVALID_RECIPIENT_PHONE
+        log_campaign_safety_event(
+            "campaign_preflight_blocked",
+            campaign_id=campaign.id,
+            code=INVALID_RECIPIENT_PHONE,
+            extra={"invalid_recipient_count": invalid_recipient_count},
+        )
+    if placeholder_issues:
+        blockers.extend([i.as_blocker() for i in placeholder_issues])
+        allowed = False
+        if code not in _HARD_SYSTEM_CODES:
+            code = UNRESOLVED_TEMPLATE_PLACEHOLDER
+        log_campaign_safety_event(
+            "campaign_preflight_blocked",
+            campaign_id=campaign.id,
+            code=UNRESOLVED_TEMPLATE_PLACEHOLDER,
+            extra={"count": len(placeholder_issues)},
+        )
+    if assignment_issues:
+        blockers.extend([i.as_blocker() for i in assignment_issues])
+        allowed = False
+        if code not in _HARD_SYSTEM_CODES:
+            code = str(assignment_issues[0].code)
+        log_campaign_safety_event(
+            "campaign_preflight_blocked",
+            campaign_id=campaign.id,
+            code=str(assignment_issues[0].code),
+        )
+    if limit_issue is not None:
+        blockers.append(limit_issue.as_blocker())
+        allowed = False
+        if code not in _HARD_SYSTEM_CODES:
+            code = CAMPAIGN_SEND_LIMIT_REACHED
+        log_campaign_safety_event(
+            "campaign_preflight_blocked",
+            campaign_id=campaign.id,
+            code=CAMPAIGN_SEND_LIMIT_REACHED,
+            extra=limit_issue.details,
+        )
+
     if campaign.status == CampaignStatus.RUNNING.value and allowed:
         warnings.append(_issue(CAMPAIGN_ALREADY_RUNNING))
 
@@ -973,6 +1117,22 @@ async def evaluate_campaign_send_preflight(
     )
 
     account_rows = []
+    from core_engine.services.campaign_execution_labels import resolve_account_execution_blocker
+    from core_engine.services.account_runtime_status import compute_all_account_runtime_statuses
+    from core_engine.services.campaign_sender_eligibility import (
+        evaluate_campaign_sender_eligibility,
+        resolve_display_identity,
+    )
+
+    runtime_by_id: dict[int, Any] = {}
+    if accounts_by_id:
+        runtimes = compute_all_account_runtime_statuses(db, list(accounts_by_id.values()))
+        runtime_by_id = {int(r.account_id): r for r in runtimes}
+
+    campaign_prepared = not (
+        campaign.status == CampaignStatus.DRAFT.value and prepared <= 0 and ready_staged <= 0
+    )
+
     for plan in aggregate.accounts:
         worker_coverage = plan.block_code != "NO_WORKER_CONSUMER"
         if plan.block_code is None or plan.block_code == "READY":
@@ -984,10 +1144,64 @@ async def evaluate_campaign_send_preflight(
         elif plan.account_ready_now and plan.block_code not in {None, "READY"}:
             # Account ready but blocked by temporary/hard code other than coverage.
             worker_coverage = plan.block_code != "NO_WORKER_CONSUMER"
+        account = accounts_by_id.get(plan.account_id)
+        elig = None
+        display_identity = plan.label
+        if account is not None:
+            elig = evaluate_campaign_sender_eligibility(
+                db,
+                account,
+                campaign=campaign,
+                runtime=runtime_by_id.get(int(plan.account_id)),
+                capacity_block_code=plan.block_code,
+                daily_remaining=plan.remaining_daily,
+                hourly_remaining=plan.remaining_hourly,
+                next_send_at=plan.next_allowed_at.isoformat() if plan.next_allowed_at else None,
+                assigned=plan.assigned_remaining > 0,
+            )
+            display_identity = elig.display_identity
+        else:
+            display_identity = resolve_display_identity(
+                account_id=int(plan.account_id),
+                phone_number=None,
+                label=plan.label,
+            )
+        next_allowed_iso = plan.next_allowed_at.isoformat() if plan.next_allowed_at else None
+        exec_block_code, exec_block_label = resolve_account_execution_blocker(
+            eligible_now=plan.eligible_now,
+            account_ready_now=plan.account_ready_now,
+            block_code=plan.block_code,
+            assignment_materialized=assignment_materialized,
+            campaign_prepared=campaign_prepared,
+            next_allowed_at=next_allowed_iso,
+        )
+        if elig is not None and elig.execution_blocker_code:
+            exec_block_code = elig.execution_blocker_code
+            exec_block_label = elig.execution_blocker_label
+        execution_ready = plan.eligible_now if plan.assigned_remaining > 0 else (
+            elig.execution_ready if elig is not None else False
+        )
+        if not campaign_prepared:
+            execution_ready = False
         account_rows.append(
             {
                 "account_id": plan.account_id,
                 "label": plan.label,
+                "display_identity": display_identity,
+                "runtime_status": elig.runtime_status if elig else None,
+                "runtime_status_label": elig.runtime_status_label if elig else None,
+                "account_health_label": elig.runtime_status_label if elig else None,
+                "campaign_eligible": elig.campaign_eligible if elig else False,
+                "blocker_code": elig.blocker_code if elig else plan.block_code,
+                "blocker_label": elig.blocker_label if elig else None,
+                "execution_ready": execution_ready,
+                "execution_blocker_code": exec_block_code,
+                "execution_blocker_label": exec_block_label,
+                "execution_status_label": (
+                    exec_block_label
+                    if exec_block_label
+                    else ("آماده ارسال" if execution_ready else None)
+                ),
                 "health": plan.health,
                 "readiness": plan.readiness,
                 "lifecycle": plan.lifecycle,
@@ -1006,7 +1220,7 @@ async def evaluate_campaign_send_preflight(
                 "cooldown_until": plan.cooldown_until.isoformat() if plan.cooldown_until else None,
                 "eligible_now": plan.eligible_now,
                 "block_code": plan.block_code,
-                "reason_code": plan.block_code or ("READY" if plan.account_ready_now else None),
+                "reason_code": exec_block_code or ("READY" if plan.eligible_now else None),
                 "bottleneck": plan.is_bottleneck,
                 "reason": plan.bottleneck_reason,
                 "delivery_mode": plan.delivery_mode,
@@ -1024,6 +1238,60 @@ async def evaluate_campaign_send_preflight(
     primary_message = _PERSIAN.get(code, code)
     if code not in _PERSIAN and warnings:
         primary_message = str(warnings[0].get("message") or code)
+
+    worker_coverage_accounts = sum(
+        1 for row in account_rows if row.get("worker_coverage") is True
+    )
+    queued_messages = queued_staged + pushing_staged
+    sending_messages = status_counts.get(SendStatus.PROCESSING.value, 0) + status_counts.get(
+        SendStatus.ACCEPTED_BY_WORKER.value, 0
+    )
+    block_details = list(blockers) if not allowed else []
+
+    preparation_blockers: list[dict[str, Any]] = []
+    preparation_ready = True
+    if not campaign_prepared:
+        from core_engine.services.campaign_preparation import evaluate_preparation_readiness
+
+        preparation_blockers = evaluate_preparation_readiness(db, campaign)
+        preparation_ready = len(preparation_blockers) == 0
+
+    from core_engine.models import PlatformType as _PlatformType
+    from core_engine.services.campaign_production_guards import (
+        controlled_production_default_max,
+        controlled_production_enabled,
+        resolve_campaign_max_total_messages,
+    )
+
+    technical_ready = bool(allowed and code == CAMPAIGN_READY)
+    cp_enabled = bool(controlled_production_enabled())
+    cp_confirmation_required = bool(
+        cp_enabled
+        and campaign.platform == _PlatformType.RUBIKA
+        and technical_ready
+    )
+    cp_max = resolve_campaign_max_total_messages(campaign) if cp_enabled else None
+    cp_label = (
+        "حالت ارسال کنترل‌شده فعال است — تأیید نهایی برای هر شروع لازم است."
+        if cp_enabled and campaign.platform == _PlatformType.RUBIKA
+        else None
+    )
+    allowed_after_confirmation = bool(technical_ready and cp_confirmation_required)
+
+    if cp_confirmation_required:
+        allowed = False
+        code = CONTROLLED_PRODUCTION_APPROVAL_REQUIRED
+        primary_message = _PERSIAN[CONTROLLED_PRODUCTION_APPROVAL_REQUIRED]
+        if not any(
+            b.get("code") == CONTROLLED_PRODUCTION_APPROVAL_REQUIRED for b in blockers
+        ):
+            blockers.append(
+                _issue(
+                    CONTROLLED_PRODUCTION_APPROVAL_REQUIRED,
+                    primary_message,
+                )
+            )
+        block_details = list(blockers)
 
     return CampaignPreflightResult(
         allowed_to_start=allowed,
@@ -1076,6 +1344,30 @@ async def evaluate_campaign_send_preflight(
         redis_ok=True,
         ready_accounts=aggregate.ready_now,
         execution_usable_accounts=aggregate.usable_now,
+        campaign_eligible_accounts=sum(
+            1 for row in account_rows if row.get("campaign_eligible") is True
+        ),
         assignment_materialized=assignment_materialized,
         capacity_applicable=capacity_applicable,
+        total_recipients=total_recipients,
+        valid_recipient_count=valid_recipient_count,
+        invalid_recipient_count=invalid_recipient_count,
+        prepared_messages=prepared,
+        campaign_prepared=campaign_prepared,
+        queued_messages=queued_messages,
+        sending_messages=sending_messages,
+        success_messages=delivered,
+        failed_retryable=failed_retryable,
+        failed_permanent=failed_permanent,
+        worker_coverage_accounts=worker_coverage_accounts,
+        block_code=(None if allowed else code),
+        block_details=block_details,
+        preparation_ready=preparation_ready,
+        preparation_blockers=preparation_blockers,
+        technical_ready=technical_ready,
+        controlled_production_enabled=cp_enabled,
+        controlled_production_confirmation_required=cp_confirmation_required,
+        allowed_to_start_after_confirmation=allowed_after_confirmation,
+        controlled_production_max_messages=cp_max,
+        controlled_production_label=cp_label,
     )

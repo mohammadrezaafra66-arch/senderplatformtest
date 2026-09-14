@@ -94,6 +94,7 @@ async def push_staged_items_to_worker_queue(
         .filter(
             StagedQueueItem.status == StagedQueueItemStatus.READY.value,
             Campaign.status == CampaignStatus.RUNNING.value,
+            Campaign.archived_at.is_(None),
             StagedQueueItem.rendered_message_id.is_(None),
         )
         .count()
@@ -312,6 +313,42 @@ async def push_staged_items_to_worker_queue(
                 skipped_invalid += 1
                 db.commit()
                 continue
+
+            from core_engine.services.campaign_production_guards import (
+                CAMPAIGN_SEND_LIMIT_REACHED,
+                MESSAGE_ALREADY_SENT,
+                message_has_terminal_success,
+                would_exceed_send_limit,
+            )
+
+            if message_has_terminal_success(db, message_id):
+                item.status = StagedQueueItemStatus.SKIPPED.value
+                item.skip_reason = MESSAGE_ALREADY_SENT
+                skipped_invalid += 1
+                logger.info(
+                    "queue bridge skipped staged_item=%s message_id=%s: already sent",
+                    item.id,
+                    message_id,
+                )
+                db.commit()
+                continue
+
+            campaign_row = (
+                db.query(Campaign).filter(Campaign.id == item.campaign_id).first()
+            )
+            if campaign_row is not None:
+                limit_issue = would_exceed_send_limit(db, campaign_row, additional=1)
+                if limit_issue is not None:
+                    item.status = StagedQueueItemStatus.SKIPPED.value
+                    item.skip_reason = CAMPAIGN_SEND_LIMIT_REACHED
+                    skipped_invalid += 1
+                    logger.info(
+                        "queue bridge skipped staged_item=%s campaign_id=%s: send limit",
+                        item.id,
+                        item.campaign_id,
+                    )
+                    db.commit()
+                    continue
 
             alt_text = payload.get("message_text")
             if alt_text is not None and str(alt_text) != payload_text:

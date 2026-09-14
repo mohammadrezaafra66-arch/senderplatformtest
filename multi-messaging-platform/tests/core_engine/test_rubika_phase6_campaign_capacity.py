@@ -299,7 +299,8 @@ def _campaign_with_messages(session, accounts: list[Account], counts: list[int],
     texts = []
     for account, n in zip(accounts, counts, strict=True):
         for i in range(n):
-            suffix = uuid.uuid4().hex[:10]
+            # Canonical IR mobile: 98 + 10 digits (digits only).
+            suffix = f"{abs(hash(uuid.uuid4().hex)) % 1_000_000_000:09d}"
             contact = Contact(
                 first_name=f"c{account.id}-{i}",
                 phone=f"+989{suffix}",

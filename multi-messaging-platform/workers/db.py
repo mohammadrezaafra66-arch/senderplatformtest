@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from core_engine.database import SessionLocal
 from core_engine.models import (
+    Account,
     Campaign,
     CampaignRecipient,
     CampaignStatus,
@@ -106,6 +107,8 @@ _RESULT_TO_SEND_STATUS: dict[str, SendStatus] = {
     "whatsapp_api_error": SendStatus.FAILED_PERMANENT,
     "whatsapp_rate_limited": SendStatus.FAILED_RETRYABLE,
     "whatsapp_timeout": SendStatus.FAILED_RETRYABLE,
+    "account_archived": SendStatus.FAILED_PERMANENT,
+    "campaign_archived": SendStatus.FAILED_PERMANENT,
     "whatsapp_transport_error": SendStatus.FAILED_RETRYABLE,
     "whatsapp_http_error": SendStatus.FAILED_RETRYABLE,
     "whatsapp_bad_response": SendStatus.FAILED_RETRYABLE,
@@ -216,11 +219,56 @@ _RESULT_TO_ATTEMPT_STATUS: dict[str, MessageAttemptStatus] = {
     "whatsapp_send_throttled": MessageAttemptStatus.FAILED_RETRYABLE,
     "whatsapp_hourly_cap_reached": MessageAttemptStatus.FAILED_RETRYABLE,
     "whatsapp_browser_lock_busy": MessageAttemptStatus.FAILED_RETRYABLE,
+    "account_archived": MessageAttemptStatus.FAILED_PERMANENT,
+    "campaign_archived": MessageAttemptStatus.FAILED_PERMANENT,
 }
 
 
 def get_db_session() -> Session:
     return SessionLocal()
+
+
+def check_archive_blocks_provider_send(
+    *,
+    account_id: int | str | None,
+    campaign_id: int | str | None,
+    db: Session | None = None,
+) -> str | None:
+    """Re-check archive state immediately before provider send.
+
+    Returns error_code ACCOUNT_ARCHIVED / CAMPAIGN_ARCHIVED (lowercase snake for
+    WorkerResult) or None if send is allowed. Fail-closed on DB errors.
+    """
+    session = db or SessionLocal()
+    owns = db is None
+    try:
+        if account_id is not None:
+            row = (
+                session.query(Account.archived_at)
+                .filter(Account.id == int(account_id))
+                .first()
+            )
+            if row is None or row[0] is not None:
+                return "account_archived"
+        if campaign_id is not None:
+            row = (
+                session.query(Campaign.archived_at)
+                .filter(Campaign.id == int(campaign_id))
+                .first()
+            )
+            if row is None or row[0] is not None:
+                return "campaign_archived"
+        return None
+    except Exception:
+        logger.exception(
+            "archive pre-send check failed; refusing send account_id=%s campaign_id=%s",
+            account_id,
+            campaign_id,
+        )
+        return "campaign_archived"
+    finally:
+        if owns:
+            session.close()
 
 
 def log_worker_event(

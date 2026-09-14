@@ -9,12 +9,15 @@ import { WhatsAppWebPanel } from "@/components/WhatsAppWebPanel";
 import WhatsAppEvolutionPanel from "@/components/WhatsAppEvolutionPanel";
 import ProxyAssignmentForm from "@/components/ProxyAssignmentForm";
 import TooltipHint from "@/components/TooltipHint";
-import { Button, PageContent } from "@/components/ui";
+import { Button, PageContent, TableWrap } from "@/components/ui";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ApiError } from "@/lib/api";
 import {
+  archiveAccount,
   assignAccountProxy,
   createAccount,
   fetchAccounts,
+  restoreAccount,
   testAccountConnection,
   updateAccount,
 } from "@/lib/accounts-api";
@@ -30,9 +33,12 @@ import {
   accountStatusColor,
   accountStatusLabel,
   PLATFORM_OPTIONS,
+  runtimeStatusColor,
+  runtimeStatusIcon,
+  runtimeStatusLabel,
 } from "@/utils/account-status";
 import { toJalaliDateTime } from "@/utils/jalali";
-import { canManageAccounts } from "@/utils/permissions";
+import { canArchiveAccounts, canManageAccounts, canViewAccounts } from "@/utils/permissions";
 
 const EVOLUTION_MODE =
   process.env.NEXT_PUBLIC_WHATSAPP_DELIVERY_MODE === "evolution";
@@ -41,7 +47,6 @@ const panelStyle: React.CSSProperties = {
   marginTop: 16,
   border: "1px solid rgba(0,0,0,0.12)",
   borderRadius: 12,
-  overflow: "hidden",
 };
 
 const inputStyle: React.CSSProperties = {
@@ -91,12 +96,18 @@ export default function AccountsPage() {
   const { t } = useTranslation();
   const { role } = useAuth();
   const canManage = canManageAccounts(role);
+  const canView = canViewAccounts(role);
+  const canArchive = canArchiveAccounts(role);
 
   const [platformFilter, setPlatformFilter] = useState<PlatformOption | "">("");
+  const [archiveView, setArchiveView] = useState<"active" | "archived">("active");
   const [items, setItems] = useState<AccountItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [archiveConfirmId, setArchiveConfirmId] = useState<number | null>(null);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [restoreLoadingId, setRestoreLoadingId] = useState<number | null>(null);
 
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState<CreateFormState>(defaultCreateForm);
@@ -111,25 +122,39 @@ export default function AccountsPage() {
   const [rubikaUserPanelId, setRubikaUserPanelId] = useState<number | null>(null);
 
   const loadAccounts = useCallback(async () => {
-    if (!canManage) {
+    if (!canView) {
       setLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchAccounts(platformFilter || undefined);
+      const data = await fetchAccounts({
+        platform: platformFilter || undefined,
+        archived: archiveView === "archived",
+      });
       setItems(data.items);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("accountsLoadError"));
     } finally {
       setLoading(false);
     }
-  }, [canManage, platformFilter, t]);
+  }, [canView, platformFilter, archiveView, t]);
 
   useEffect(() => {
     void loadAccounts();
   }, [loadAccounts]);
+
+  // L18 bounded soft refresh so OTP/worker transitions appear without full page reload.
+  useEffect(() => {
+    if (!canView) return;
+    const id = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void loadAccounts();
+      }
+    }, 45000);
+    return () => window.clearInterval(id);
+  }, [canView, loadAccounts]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -219,17 +244,64 @@ export default function AccountsPage() {
     setNotice(null);
     try {
       const result = await testAccountConnection(accountId);
+      const label = result.runtime_status_label
+        ? ` — ${result.runtime_status_label}`
+        : result.reason_code
+          ? ` (${result.reason_code})`
+          : "";
       setNotice(
         result.success
-          ? `${t("testConnectionSuccess")}: ${result.message}`
-          : `${t("testConnectionFailed")}: ${result.error ?? result.message}`,
+          ? `${t("testConnectionSuccess")}: ${result.message}${label}`
+          : `${t("testConnectionFailed")}: ${result.error ?? result.message}${label}`,
       );
+      await loadAccounts();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("actionFailed"));
     } finally {
       setTestingId(null);
     }
   }
+
+  async function handleArchiveConfirmed() {
+    if (!canArchive || archiveConfirmId == null || archiveLoading) return;
+    setArchiveLoading(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await archiveAccount(archiveConfirmId);
+      setItems((prev) => prev.filter((item) => item.id !== archiveConfirmId));
+      setNotice(result.message || "اکانت با موفقیت آرشیو شد.");
+      setArchiveConfirmId(null);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("actionFailed"));
+    } finally {
+      setArchiveLoading(false);
+    }
+  }
+
+  async function handleRestore(accountId: number) {
+    if (!canArchive || restoreLoadingId != null) return;
+    setRestoreLoadingId(accountId);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await restoreAccount(accountId);
+      setItems((prev) => prev.filter((item) => item.id !== accountId));
+      setNotice(result.message || "اکانت از آرشیو بازیابی شد.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("actionFailed"));
+    } finally {
+      setRestoreLoadingId(null);
+    }
+  }
+
+  const pillStyle = (active: boolean): React.CSSProperties => ({
+    padding: "8px 10px",
+    borderRadius: 999,
+    border: "1px solid rgba(0,0,0,0.12)",
+    background: active ? "rgba(0,0,0,0.08)" : "rgba(0,0,0,0.02)",
+    cursor: "pointer",
+  });
 
   return (
     <>
@@ -238,7 +310,7 @@ export default function AccountsPage() {
       </Head>
       <Layout title={t("accounts")}>
         <PageContent>
-          {!canManage ? (
+          {!canView ? (
             <div style={{ padding: 12, borderRadius: 12, border: "1px solid rgba(0,0,0,0.14)" }}>
               {t("notAllowed")}
             </div>
@@ -276,6 +348,24 @@ export default function AccountsPage() {
                 ))}
               </div>
 
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => setArchiveView("active")}
+                  style={pillStyle(archiveView === "active")}
+                >
+                  فعال
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setArchiveView("archived")}
+                  style={pillStyle(archiveView === "archived")}
+                >
+                  آرشیو
+                </button>
+              </div>
+
+              {archiveView === "active" && canManage ? (
               <div style={{ marginTop: 16, display: "flex", gap: 10, flexWrap: "wrap" }}>
                 <button
                   type="button"
@@ -296,8 +386,9 @@ export default function AccountsPage() {
                 </button>
                 <TooltipHint text="یک اکانت واتساپ، تلگرام، بله یا روبیکا جدید به سیستم اضافه کنید" />
               </div>
+              ) : null}
 
-              {showCreate ? (
+              {archiveView === "active" && canManage && showCreate ? (
                 <form
                   onSubmit={(e) => void handleCreate(e)}
                   style={{
@@ -413,22 +504,97 @@ export default function AccountsPage() {
                 {loading ? (
                   <div style={{ padding: 12 }}>{t("loading")}</div>
                 ) : items.length === 0 ? (
-                  <div style={{ padding: 12, opacity: 0.75 }}>{t("noAccounts")}</div>
-                ) : (
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                  <div style={{ padding: 12, opacity: 0.75 }}>
+                    {archiveView === "archived" ? "اکانت آرشیوشده‌ای وجود ندارد." : t("noAccounts")}
+                  </div>
+                ) : archiveView === "archived" ? (
+                  <TableWrap>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 720 }}>
                     <thead>
                       <tr style={{ background: "rgba(0,0,0,0.02)" }}>
-                        <th style={{ padding: 10, textAlign: "right" }}>#</th>
-                        <th style={{ padding: 10, textAlign: "right" }}>{t("platform")}</th>
-                        <th style={{ padding: 10, textAlign: "right" }}>{t("label")}</th>
                         <th style={{ padding: 10, textAlign: "right" }}>{t("accountIdentifier")}</th>
-                        <th style={{ padding: 10, textAlign: "right" }}>{t("status")}</th>
-                        <th style={{ padding: 10, textAlign: "right" }}>{t("lastUsedAt")}</th>
+                        <th style={{ padding: 10, textAlign: "right" }}>{t("platform")}</th>
+                        <th style={{ padding: 10, textAlign: "right" }}>تاریخ آرشیو</th>
+                        <th style={{ padding: 10, textAlign: "right" }}>{t("connectionStatus")}</th>
                         <th style={{ padding: 10, textAlign: "right" }}>{t("actions")}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {items.map((account) => (
+                      {items.map((account) => {
+                        const runtimeStatus =
+                          account.runtime_status ?? account.runtime?.runtime_status ?? null;
+                        const runtimeLabel = runtimeStatusLabel(
+                          runtimeStatus,
+                          t,
+                          account.runtime_status_label ?? account.runtime?.runtime_status_label,
+                        );
+                        const identity =
+                          account.display_identity ??
+                          account.label ??
+                          account.account_identifier ??
+                          `#${account.id}`;
+                        return (
+                          <tr key={account.id} style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>
+                            <td style={{ padding: 10 }}>{identity}</td>
+                            <td style={{ padding: 10 }}>{t(account.platform)}</td>
+                            <td style={{ padding: 10, fontSize: 13 }}>
+                              {account.archived_at ? toJalaliDateTime(account.archived_at) : "—"}
+                            </td>
+                            <td
+                              style={{
+                                padding: 10,
+                                color: runtimeStatusColor(runtimeStatus),
+                                fontWeight: 600,
+                              }}
+                            >
+                              {runtimeStatusIcon(runtimeStatus)} {runtimeLabel}
+                            </td>
+                            <td style={{ padding: 10 }}>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="primary"
+                                disabled={restoreLoadingId === account.id}
+                                onClick={() => void handleRestore(account.id)}
+                              >
+                                {restoreLoadingId === account.id ? t("loading") : "بازیابی"}
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  </TableWrap>
+                ) : (
+                  <TableWrap>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 1080 }}>
+                    <thead>
+                      <tr style={{ background: "rgba(0,0,0,0.02)" }}>
+                        <th style={{ padding: 10, textAlign: "right" }}>{t("accountIdCol")}</th>
+                        <th style={{ padding: 10, textAlign: "right" }}>{t("platform")}</th>
+                        <th style={{ padding: 10, textAlign: "right" }}>{t("label")}</th>
+                        <th style={{ padding: 10, textAlign: "right" }}>{t("accountIdentifier")}</th>
+                        <th style={{ padding: 10, textAlign: "right" }}>{t("accountLifecycleStatus")}</th>
+                        <th style={{ padding: 10, textAlign: "right" }}>{t("connectionStatus")}</th>
+                        <th style={{ padding: 10, textAlign: "right" }}>{t("dispatchReadiness")}</th>
+                        <th style={{ padding: 10, textAlign: "right" }}>{t("lastVerifiedAt")}</th>
+                        <th style={{ padding: 10, textAlign: "right" }}>{t("actions")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map((account) => {
+                        const runtimeStatus =
+                          account.runtime_status ?? account.runtime?.runtime_status ?? null;
+                        const runtimeLabel = runtimeStatusLabel(
+                          runtimeStatus,
+                          t,
+                          account.runtime_status_label ?? account.runtime?.runtime_status_label,
+                        );
+                        const dispatchReady =
+                          account.runtime?.dispatch?.ready === true || runtimeStatus === "READY";
+                        const verifiedAt = account.runtime?.last_verified_at ?? null;
+                        return (
                         <Fragment key={account.id}>
                           <tr style={{ borderTop: "1px solid rgba(0,0,0,0.06)" }}>
                             <td style={{ padding: 10 }}>{account.id}</td>
@@ -436,15 +602,49 @@ export default function AccountsPage() {
                             <td style={{ padding: 10 }}>{account.label ?? "—"}</td>
                             <td style={{ padding: 10 }}>{account.account_identifier ?? "—"}</td>
                             <td style={{ padding: 10, color: accountStatusColor(account.status) }}>
-                              {accountStatusLabel(account.status, t)}
+                              {account.account_enabled === false ||
+                              account.status === "resting" ||
+                              account.status === "banned"
+                                ? t("accountEnabledOff")
+                                : account.status === "active"
+                                  ? t("accountEnabledOn")
+                                  : accountStatusLabel(account.status, t)}
+                            </td>
+                            <td
+                              style={{
+                                padding: 10,
+                                color: runtimeStatusColor(runtimeStatus),
+                                fontWeight: 600,
+                              }}
+                              title={account.runtime?.reason_code ?? undefined}
+                            >
+                              {runtimeStatusIcon(runtimeStatus)} {runtimeLabel}
                             </td>
                             <td style={{ padding: 10, fontSize: 13 }}>
-                              {account.last_used_at
-                                ? toJalaliDateTime(account.last_used_at)
-                                : "—"}
+                              {dispatchReady
+                                ? t("dispatchReadyYes")
+                                : account.runtime?.dispatch?.blocker
+                                  ? `${t("dispatchReadyNo")} (${account.runtime.dispatch.blocker})`
+                                  : t("dispatchReadyNo")}
                             </td>
-                            <td style={{ padding: 10 }}>
-                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <td style={{ padding: 10, fontSize: 13 }}>
+                              {verifiedAt ? toJalaliDateTime(verifiedAt) : "—"}
+                            </td>
+                            <td style={{ padding: 10, minWidth: 120 }}>
+                              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                                {canArchive ? (
+                                  <Button
+                                    type="button"
+                                    variant="primary"
+                                    size="sm"
+                                    disabled={archiveLoading}
+                                    onClick={() => setArchiveConfirmId(account.id)}
+                                  >
+                                    آرشیو
+                                  </Button>
+                                ) : null}
+                                {canManage ? (
+                                  <>
                                 <button
                                   type="button"
                                   onClick={() => startEdit(account)}
@@ -461,7 +661,7 @@ export default function AccountsPage() {
                                 >
                                   {testingId === account.id ? t("loading") : t("testConnection")}
                                 </button>
-                                <TooltipHint text="بررسی می‌کند که آیا این اکانت واتساپ در حال حاضر به سرور متصل است یا خیر" />
+                                <TooltipHint text="بررسی امن احراز هویت/سشن بدون ارسال پیام و بدون درخواست OTP" />
                                 {account.platform === "whatsapp" ? (
                                   <>
                                     <button
@@ -537,12 +737,14 @@ export default function AccountsPage() {
                                     <TooltipHint text="ورود تعاملی با شماره موبایل و کد پیامکی برای حالت user_account (اکانت شخصی روبیکا) — جدا از توکن بات بالا" />
                                   </>
                                 ) : null}
+                                  </>
+                                ) : null}
                               </div>
                             </td>
                           </tr>
                           {waPanelId === account.id && account.platform === "whatsapp" ? (
                             <tr>
-                              <td colSpan={7} style={{ padding: "0 12px 12px" }}>
+                              <td colSpan={9} style={{ padding: "0 12px 12px" }}>
                                 {EVOLUTION_MODE ? (
                                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                                     <WhatsAppEvolutionPanel
@@ -575,7 +777,7 @@ export default function AccountsPage() {
                           ) : null}
                           {sessionPanelId === account.id && isApiTokenPlatform(account.platform) ? (
                             <tr>
-                              <td colSpan={7} style={{ padding: "0 12px 12px" }}>
+                              <td colSpan={9} style={{ padding: "0 12px 12px" }}>
                                 <ApiTokenSessionPanel
                                   accountId={account.id}
                                   platform={account.platform}
@@ -587,7 +789,7 @@ export default function AccountsPage() {
                           ) : null}
                           {rubikaUserPanelId === account.id && account.platform === "rubika" ? (
                             <tr>
-                              <td colSpan={7} style={{ padding: "0 12px 12px" }}>
+                              <td colSpan={9} style={{ padding: "0 12px 12px" }}>
                                 <RubikaUserAccountLoginPanel
                                   accountId={account.id}
                                   accountPhone={account.account_identifier}
@@ -598,7 +800,7 @@ export default function AccountsPage() {
                           ) : null}
                           {editingId === account.id && editForm ? (
                             <tr>
-                              <td colSpan={7} style={{ padding: 12, background: "rgba(0,0,0,0.02)" }}>
+                              <td colSpan={9} style={{ padding: 12, background: "rgba(0,0,0,0.02)" }}>
                                 <form
                                   onSubmit={(e) => void handleSaveEdit(e)}
                                   style={{
@@ -689,11 +891,27 @@ export default function AccountsPage() {
                             </tr>
                           ) : null}
                         </Fragment>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
+                  </TableWrap>
                 )}
               </div>
+              <ConfirmDialog
+                open={archiveConfirmId != null}
+                title="آرشیو کردن اکانت"
+                message="این اکانت از لیست فعال خارج می‌شود و تا زمان بازیابی برای ارسال استفاده نخواهد شد. سوابق آن حذف نمی‌شود."
+                confirmLabel="آرشیو"
+                cancelLabel={t("cancel")}
+                confirmLoading={archiveLoading}
+                cancelDisabled={archiveLoading}
+                onCancel={() => {
+                  if (archiveLoading) return;
+                  setArchiveConfirmId(null);
+                }}
+                onConfirm={() => void handleArchiveConfirmed()}
+              />
             </>
           )}
         </PageContent>

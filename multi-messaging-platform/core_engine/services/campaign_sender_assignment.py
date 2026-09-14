@@ -9,6 +9,7 @@ from core_engine.models import (
     Campaign,
     CampaignAccount,
 )
+from core_engine.services.campaign_sender_eligibility import filter_auto_select_eligible
 
 
 def _sender_error(code: str, message: str) -> HTTPException:
@@ -19,7 +20,12 @@ def _sender_error(code: str, message: str) -> HTTPException:
 
 
 def resolve_campaign_sender_accounts(db: Session, campaign: Campaign) -> list[Account]:
-    """Return one validated sender pool; an empty relation set means Auto mode."""
+    """Return one validated sender pool; an empty relation set means Auto mode.
+
+    Auto mode selects ONLY campaign_eligible=True accounts (L18 + capacity base).
+    Manual mode returns assigned enabled links (ASSIGNED_BUT_NOT_READY allowed);
+    start/preflight gates still block non-ready senders.
+    """
     links = (
         db.query(CampaignAccount)
         .filter(CampaignAccount.campaign_id == campaign.id)
@@ -32,6 +38,7 @@ def resolve_campaign_sender_accounts(db: Session, campaign: Campaign) -> list[Ac
             .filter(
                 Account.status == AccountStatus.ACTIVE,
                 Account.platform == campaign.platform,
+                Account.archived_at.is_(None),
             )
             .order_by(Account.id.asc())
             .all()
@@ -41,7 +48,13 @@ def resolve_campaign_sender_accounts(db: Session, campaign: Campaign) -> list[Ac
                 "no_active_sender_account",
                 f"No active sender account is available for {campaign.platform.value}.",
             )
-        return accounts
+        eligible = filter_auto_select_eligible(db, accounts, campaign=campaign)
+        if not eligible:
+            raise _sender_error(
+                "no_ready_sender_account",
+                f"No campaign-eligible sender account is available for {campaign.platform.value}.",
+            )
+        return eligible
 
     enabled_links = [link for link in links if link.enabled]
     if not enabled_links:

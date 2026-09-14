@@ -1,12 +1,13 @@
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Layout } from "@/components/Layout";
 import { MessageSenderCell } from "@/components/MessageSenderCell";
 import { MessageTextCell } from "@/components/MessageTextCell";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { MessageDetailModal } from "@/components/MessageDetailModal";
 import { CampaignSenderSelector, type SenderMode } from "@/components/CampaignSenderSelector";
 import {
@@ -23,12 +24,17 @@ import {
 import { ApiError } from "@/lib/api";
 import { fetchAccounts } from "@/lib/accounts-api";
 import { campaignAccountError } from "@/lib/campaign-account-errors";
+import { campaignPreparationError } from "@/lib/campaign-preparation-errors";
+import { campaignStartError } from "@/lib/campaign-start-errors";
 import { getFailureReasonFa } from "@/lib/failure-reason";
 import {
+  archiveCampaign,
   fetchCampaignDetail,
   fetchCampaignPreflight,
   fetchCampaignRecipientDetail,
   fetchCampaignRecipients,
+  prepareCampaign,
+  restoreCampaign,
   startCampaign,
   stopCampaign,
   updateCampaignAccounts,
@@ -43,7 +49,25 @@ import type {
 import type { AccountItem } from "@/types/account";
 import { campaignStatusLabel, SEND_STATUS_OPTIONS } from "@/utils/campaign-status";
 import { canControlCampaign, canViewCampaigns } from "@/utils/permissions";
-import { accountDisplayName, orderedSenders } from "@/utils/sender-accounts";
+import { accountDisplayName, orderedSenders, resolveCampaignSenderStatusLabel } from "@/utils/sender-accounts";
+import { toJalaliDateTime } from "@/utils/jalali";
+import {
+  controlledProductionStatusLabel,
+  formatPreflightBlockers,
+  hasTechnicalStartBlockers,
+  isStartActionable,
+  nextPreflightRefreshMs,
+  preflightNeedsAutoRefresh,
+  preparationStatusLabel,
+  requiresControlledProductionConfirmation,
+  resolvePreparationUiState,
+  resolvePreflightAccountHealthLabel,
+  resolvePreflightExecutionLabel,
+} from "@/utils/campaign-preflight-display";
+
+function isCampaignRunningOrQueued(status: string, stats?: { queued?: number }): boolean {
+  return status === "running" || status === "queued" || (stats?.queued ?? 0) > 0;
+}
 
 export default function CampaignMonitorPage() {
   const { t } = useTranslation();
@@ -61,6 +85,7 @@ export default function CampaignMonitorPage() {
   const [sendStatusFilter, setSendStatusFilter] = useState("");
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [prepareLoading, setPrepareLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<AccountItem[]>([]);
@@ -75,6 +100,11 @@ export default function CampaignMonitorPage() {
   const [detail, setDetail] = useState<MessageLogDetail | null>(null);
   const [preflight, setPreflight] = useState<CampaignPreflight | null>(null);
   const [preflightError, setPreflightError] = useState<string | null>(null);
+  const [startConfirmOpen, setStartConfirmOpen] = useState(false);
+  const [startConfirmLoading, setStartConfirmLoading] = useState(false);
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
+  const [archiveLoading, setArchiveLoading] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
 
   const loadAccounts = useCallback(async () => {
     setAccountsLoading(true);
@@ -110,6 +140,9 @@ export default function CampaignMonitorPage() {
           return null;
         }),
       ]);
+      if (canControl) {
+        void loadAccounts();
+      }
       setCampaign(detail);
       const ids = detail.account_ids ?? [];
       setSenderMode(ids.length > 0 ? "manual" : "auto");
@@ -123,7 +156,7 @@ export default function CampaignMonitorPage() {
     } finally {
       setLoading(false);
     }
-  }, [campaignId, canView, sendStatusFilter, t]);
+  }, [campaignId, canView, canControl, sendStatusFilter, t, loadAccounts]);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -131,7 +164,47 @@ export default function CampaignMonitorPage() {
     void loadCampaign();
   }, [router.isReady, loadCampaign]);
 
-  const startBlocked = Boolean(preflight && !preflight.allowed_to_start);
+  useEffect(() => {
+    if (!preflightNeedsAutoRefresh(preflight)) return;
+    const delay = nextPreflightRefreshMs(preflight);
+    const timer = window.setTimeout(() => {
+      if (!Number.isFinite(campaignId)) return;
+      void fetchCampaignPreflight(campaignId)
+        .then(setPreflight)
+        .catch(() => undefined);
+    }, delay);
+    return () => window.clearTimeout(timer);
+  }, [preflight, campaignId]);
+
+  const startActionable = isStartActionable(preflight);
+  const controlledConfirmationRequired = requiresControlledProductionConfirmation(preflight);
+  const controlledStatusLabel = controlledProductionStatusLabel(preflight, t);
+  const technicalStartBlocked = hasTechnicalStartBlockers(preflight);
+  const showTechnicalStartBlockers = Boolean(
+    preflight && technicalStartBlocked && !controlledConfirmationRequired,
+  );
+  const preparationState = resolvePreparationUiState(preflight, prepareLoading);
+  const preparationLabel = preparationStatusLabel(preparationState, t);
+  const showPrepareRetry =
+    preparationState === "needs_retry" ||
+    (prepareLoading && preparationState !== "ready");
+  const prepareBlocked = Boolean(
+    preflight?.preparation_blockers && preflight.preparation_blockers.length > 0,
+  );
+  const enrichedAccounts = useMemo(() => {
+    if (!preflight?.accounts?.length) return accounts;
+    const byId = new Map(preflight.accounts.map((row) => [row.account_id, row]));
+    return accounts.map((account) => {
+      const row = byId.get(account.id);
+      if (!row) return account;
+      return {
+        ...account,
+        execution_blocker_label: row.execution_blocker_label ?? undefined,
+        execution_blocker_code: row.execution_blocker_code ?? undefined,
+        execution_ready: row.execution_ready,
+      };
+    });
+  }, [accounts, preflight]);
   const safetyLabel = (() => {
     const state = preflight?.execution_safety_state;
     if (state === "BLOCKED" || state === "PAUSED_SAFETY") return t("campaignSafetyBlocked");
@@ -141,18 +214,65 @@ export default function CampaignMonitorPage() {
     return t("campaignSafetyReady");
   })();
 
-  async function handleStart() {
+  const isArchived = Boolean(campaign?.archived_at);
+  const archiveConfirmRunning = campaign
+    ? isCampaignRunningOrQueued(campaign.status, campaign.stats)
+    : false;
+
+  async function handleStartConfirmed(confirmControlledProduction: boolean) {
     if (!canControl || !Number.isFinite(campaignId)) return;
+    if (startConfirmLoading || actionLoading) return;
+    setStartConfirmLoading(true);
     setActionLoading(true);
     setNotice(null);
+    setError(null);
     try {
-      const result = await startCampaign(campaignId);
-      setNotice(result.message);
+      const result = await startCampaign(campaignId, {
+        confirmControlledProduction,
+      });
+      setStartConfirmOpen(false);
+      const scheduled =
+        typeof result.queue_jobs_created === "number"
+          ? result.queue_jobs_created
+          : typeof result.messages_scheduled === "number"
+            ? result.messages_scheduled
+            : null;
+      setNotice(
+        scheduled != null && scheduled > 0
+          ? `${result.message} (${scheduled})`
+          : result.message,
+      );
       await loadCampaign();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("actionFailed"));
+      setError(campaignStartError(err, t));
     } finally {
+      setStartConfirmLoading(false);
       setActionLoading(false);
+    }
+  }
+
+  function handleStartClick() {
+    if (!canControl || !Number.isFinite(campaignId) || !startActionable) return;
+    if (controlledConfirmationRequired) {
+      setStartConfirmOpen(true);
+      return;
+    }
+    void handleStartConfirmed(false);
+  }
+
+  async function handlePrepare() {
+    if (!canControl || !Number.isFinite(campaignId)) return;
+    setPrepareLoading(true);
+    setNotice(null);
+    setError(null);
+    try {
+      const result = await prepareCampaign(campaignId);
+      setNotice(result.message || t("campaignPrepareSuccess"));
+      await loadCampaign();
+    } catch (err) {
+      setError(campaignPreparationError(err, t));
+    } finally {
+      setPrepareLoading(false);
     }
   }
 
@@ -168,6 +288,39 @@ export default function CampaignMonitorPage() {
       setError(err instanceof ApiError ? err.message : t("actionFailed"));
     } finally {
       setActionLoading(false);
+    }
+  }
+
+  async function handleArchiveConfirmed() {
+    if (!canControl || !Number.isFinite(campaignId) || archiveLoading) return;
+    setArchiveLoading(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await archiveCampaign(campaignId);
+      setArchiveConfirmOpen(false);
+      setNotice(result.message);
+      await loadCampaign();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("actionFailed"));
+    } finally {
+      setArchiveLoading(false);
+    }
+  }
+
+  async function handleRestore() {
+    if (!canControl || !Number.isFinite(campaignId) || restoreLoading) return;
+    setRestoreLoading(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await restoreCampaign(campaignId);
+      setNotice(result.message);
+      await loadCampaign();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : t("actionFailed"));
+    } finally {
+      setRestoreLoading(false);
     }
   }
 
@@ -258,28 +411,105 @@ export default function CampaignMonitorPage() {
             </div>
           ) : (
             <>
+              {isArchived ? (
+                <Alert>
+                  این کمپین آرشیو شده است.
+                  {campaign.archived_at ? ` (${toJalaliDateTime(campaign.archived_at)})` : ""}
+                </Alert>
+              ) : null}
+
+              <Alert variant={preparationState === "ready" ? "success" : undefined}>
+                <strong>{t("campaignPreparationTitle")}: </strong>
+                {preparationLabel}
+                {typeof preflight?.prepared_messages === "number" && preflight.campaign_prepared
+                  ? ` (${preflight.prepared_messages})`
+                  : ""}
+              </Alert>
+
+              {controlledStatusLabel ? (
+                <Alert variant="success">
+                  {controlledStatusLabel}
+                </Alert>
+              ) : null}
+
               <div className="mmp-stack" style={{ marginTop: 16 }}>
-                <Button
-                  type="button"
-                  variant="primary"
-                  disabled={!canControl || actionLoading || startBlocked}
-                  onClick={() => void handleStart()}
-                >
-                  {t("start")}
-                </Button>
-                <Button
-                  type="button"
-                  disabled={!canControl || actionLoading}
-                  onClick={() => void handleStop()}
-                >
-                  {t("stop")}
-                </Button>
+                {!isArchived && showPrepareRetry ? (
+                  <Button
+                    type="button"
+                    disabled={!canControl || prepareLoading || actionLoading || prepareBlocked}
+                    onClick={() => void handlePrepare()}
+                  >
+                    {prepareLoading ? t("campaignPrepareInProgress") : t("campaignPrepareAction")}
+                  </Button>
+                ) : null}
+                {!isArchived ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      disabled={
+                        !canControl ||
+                        actionLoading ||
+                        prepareLoading ||
+                        startConfirmLoading ||
+                        !startActionable ||
+                        preparationState !== "ready"
+                      }
+                      onClick={() => handleStartClick()}
+                    >
+                      {t("start")}
+                    </Button>
+                    <Button
+                      type="button"
+                      disabled={!canControl || actionLoading || prepareLoading}
+                      onClick={() => void handleStop()}
+                    >
+                      {t("stop")}
+                    </Button>
+                  </>
+                ) : null}
+                {canControl && isArchived ? (
+                  <Button
+                    type="button"
+                    variant="primary"
+                    disabled={restoreLoading}
+                    onClick={() => void handleRestore()}
+                  >
+                    {restoreLoading ? t("loading") : "بازیابی"}
+                  </Button>
+                ) : null}
+                {canControl && !isArchived ? (
+                  <Button
+                    type="button"
+                    disabled={actionLoading || prepareLoading || archiveLoading}
+                    onClick={() => setArchiveConfirmOpen(true)}
+                  >
+                    {archiveConfirmRunning ? "توقف و آرشیو" : "آرشیو"}
+                  </Button>
+                ) : null}
               </div>
 
-              {preflightError ? <Alert>{preflightError}</Alert> : null}
-              {startBlocked && preflight ? (
+              {preparationState === "needs_retry" ? (
+                <p className="mmp-muted">{t("campaignPreparationRetryHint")}</p>
+              ) : null}
+              {preflight?.preparation_blockers && preflight.preparation_blockers.length > 0 ? (
                 <Alert>
-                  {preflight.blockers[0]?.message || preflight.message || t("campaignStartBlocked")}
+                  <div className="mmp-stack">
+                    <strong>{t("campaignPreparationBlockersTitle")}</strong>
+                    {preflight.preparation_blockers.map((item) => (
+                      <div key={item.code}>{item.message}</div>
+                    ))}
+                  </div>
+                </Alert>
+              ) : null}
+              {preflightError ? <Alert>{preflightError}</Alert> : null}
+              {showTechnicalStartBlockers && preflight ? (
+                <Alert>
+                  <div className="mmp-stack">
+                    {formatPreflightBlockers(preflight, t).map((line) => (
+                      <div key={line}>{line}</div>
+                    ))}
+                  </div>
                 </Alert>
               ) : null}
               {preflight && preflight.warnings.length > 0 ? (
@@ -304,10 +534,34 @@ export default function CampaignMonitorPage() {
                         {t("campaignAssignedAccounts")}: {preflight.assigned_accounts}
                       </div>
                       <div>
-                        Account readiness: {preflight.ready_accounts ?? preflight.usable_accounts}/
-                        {preflight.assigned_accounts}
+                        {t("campaignAccountReadinessTitle")}:{" "}
+                        {preflight.campaign_eligible_accounts ??
+                          preflight.ready_accounts ??
+                          preflight.usable_accounts}
+                        /{preflight.assigned_accounts}
+                      </div>
+                      <div>
+                        {t("campaignExecutionReadinessTitle")}:{" "}
+                        {preflight.execution_usable_accounts ?? 0}/{preflight.assigned_accounts}
+                      </div>
+                      <div>
+                        {t("campaignPreparationTitle")}:{" "}
+                        {preflight.campaign_prepared
+                          ? t("campaignPreparedYes")
+                          : t("campaignPreparedNo")}
+                        {typeof preflight.prepared_messages === "number"
+                          ? ` (${preflight.prepared_messages})`
+                          : ""}
+                      </div>
+                      <div className="mmp-muted">{t("campaignReadinessSemanticsNote")}</div>
+                      <div>
+                        {t("campaignSenderReadyCount")}:{" "}
+                        {preflight.campaign_eligible_accounts ??
+                          preflight.ready_accounts ??
+                          preflight.usable_accounts}
+                        /{preflight.assigned_accounts}
                         {preflight.assignment_materialized === false
-                          ? " (campaign not prepared — readiness is account-level)"
+                          ? ` (${t("campaignPreparedSeparate")})`
                           : ""}
                       </div>
                       <div>
@@ -348,7 +602,8 @@ export default function CampaignMonitorPage() {
                               <th>{t("campaignCapacityTableSender")}</th>
                               <th>{t("campaignCapacityTableAssigned")}</th>
                               <th>{t("campaignCapacityTableHealth")}</th>
-                              <th>{t("campaignCapacityTableReady")}</th>
+                              <th>{t("campaignCapacityTableAccountHealth")}</th>
+                              <th>{t("campaignCapacityTableExecution")}</th>
                               <th>{t("campaignCapacityTableDaily")}</th>
                               <th>{t("campaignCapacityTableHourly")}</th>
                               <th>{t("campaignCapacityTableNext")}</th>
@@ -358,19 +613,11 @@ export default function CampaignMonitorPage() {
                           <tbody>
                             {preflight.accounts.map((row) => (
                               <tr key={row.account_id}>
-                                <td>{row.label || `#${row.account_id}`}</td>
+                                <td>{row.display_identity || row.label || `#${row.account_id}`}</td>
                                 <td>{row.assigned}</td>
                                 <td>{row.health ?? "—"}</td>
-                                <td>
-                                  {row.account_ready_now
-                                    ? "READY"
-                                    : row.readiness ?? "—"}
-                                  {row.worker_coverage === false
-                                    ? " · NO_WORKER_CONSUMER"
-                                    : row.worker_coverage
-                                      ? " · coverage"
-                                      : ""}
-                                </td>
+                                <td>{resolvePreflightAccountHealthLabel(row, t)}</td>
+                                <td>{resolvePreflightExecutionLabel(row, t)}</td>
                                 <td>{row.daily_remaining ?? "—"}</td>
                                 <td>{row.hourly_remaining ?? "—"}</td>
                                 <td>
@@ -379,9 +626,9 @@ export default function CampaignMonitorPage() {
                                     : "—"}
                                 </td>
                                 <td>
-                                  {row.eligible_now
+                                  {row.execution_ready || row.eligible_now
                                     ? t("campaignSafetyReady")
-                                    : row.reason_code || row.block_code || t("campaignSafetyBlocked")}
+                                    : resolvePreflightExecutionLabel(row, t)}
                                   {row.bottleneck ? ` · ${t("campaignBottlenecks")}` : ""}
                                 </td>
                               </tr>
@@ -432,8 +679,28 @@ export default function CampaignMonitorPage() {
                       {orderedSenders(campaign).map((sender) => (
                         <li key={sender.account_id}>
                           <strong>{accountDisplayName(sender)}</strong>
-                          {sender.label && sender.account_identifier ? <span>{sender.account_identifier}</span> : null}
-                          <span>{t(`account_status_${sender.status}`)}</span>
+                          <span>{sender.platform}</span>
+                          <span>
+                            {resolveCampaignSenderStatusLabel(sender, t)}
+                            {(() => {
+                              const pfRow = preflight?.accounts.find(
+                                (row) => row.account_id === sender.account_id,
+                              );
+                              if (pfRow?.execution_blocker_label) {
+                                return ` · ${pfRow.execution_blocker_label}`;
+                              }
+                              if (sender.campaign_eligible === false) {
+                                return ` · ${sender.blocker_label || t("senderAssignedNotReadyHint")}`;
+                              }
+                              if (pfRow?.execution_ready || pfRow?.eligible_now) {
+                                return ` · ${t("campaignExecutionReadyNow")}`;
+                              }
+                              if (sender.campaign_eligible === true) {
+                                return ` · ${t("campaignAccountHealthReady")}`;
+                              }
+                              return "";
+                            })()}
+                          </span>
                         </li>
                       ))}
                     </ol>
@@ -442,12 +709,12 @@ export default function CampaignMonitorPage() {
                     <div style={{ marginTop: 16 }}>
                       <CampaignSenderSelector
                         platform={campaign.platform}
-                        accounts={accounts}
+                        accounts={enrichedAccounts}
                         mode={senderMode}
                         selectedIds={selectedAccountIds}
                         loading={accountsLoading}
                         loadError={accountsError}
-                        disabled={senderSaving}
+                        disabled={senderSaving || isArchived}
                         onModeChange={setSenderMode}
                         onSelectedIdsChange={setSelectedAccountIds}
                         onRetry={() => void loadAccounts()}
@@ -455,7 +722,11 @@ export default function CampaignMonitorPage() {
                       <p className="mmp-muted">{t("senderChangeWarning")}</p>
                       <Button
                         variant="primary"
-                        disabled={senderSaving || (senderMode === "manual" && selectedAccountIds.length === 0)}
+                        disabled={
+                          isArchived ||
+                          senderSaving ||
+                          (senderMode === "manual" && selectedAccountIds.length === 0)
+                        }
                         onClick={() => void handleSaveSenders()}
                       >
                         {senderSaving ? t("loading") : t("saveSenderAccounts")}
@@ -594,6 +865,84 @@ export default function CampaignMonitorPage() {
               </Panel>
             </>
           )}
+          <ConfirmDialog
+            open={archiveConfirmOpen}
+            title="آرشیو کردن کمپین"
+            message={
+              <div className="mmp-stack">
+                <p>
+                  {archiveConfirmRunning
+                    ? "با آرشیو کردن، ارسال‌های انجام‌نشده این کمپین متوقف می‌شوند. پیام‌هایی که قبلاً ارسال شده‌اند در تاریخچه باقی می‌مانند."
+                    : "این کمپین از لیست فعال خارج می‌شود و تا زمان بازیابی قابل اجرا نخواهد بود."}
+                </p>
+                {archiveConfirmRunning && campaign ? (
+                  <ul className="mmp-stack" style={{ margin: 0, paddingInlineStart: 20 }}>
+                    <li>
+                      {t("kpiMessagesSent")}: {campaign.stats.sent}
+                    </li>
+                    <li>
+                      {t("queuePending")}: {campaign.stats.queued}
+                    </li>
+                    <li>
+                      {t("recipients")}: {campaign.stats.total_recipients}
+                    </li>
+                  </ul>
+                ) : null}
+              </div>
+            }
+            confirmLabel={archiveConfirmRunning ? "توقف و آرشیو" : "آرشیو"}
+            cancelLabel={t("cancel")}
+            confirmLoading={archiveLoading}
+            cancelDisabled={archiveLoading}
+            onCancel={() => {
+              if (archiveLoading) return;
+              setArchiveConfirmOpen(false);
+            }}
+            onConfirm={() => void handleArchiveConfirmed()}
+          />
+          <ConfirmDialog
+            open={startConfirmOpen}
+            title={t("campaignControlledConfirmTitle")}
+            message={
+              <div className="mmp-stack">
+                <p>{t("campaignControlledConfirmBody")}</p>
+                {preflight ? (
+                  <ul className="mmp-stack" style={{ margin: 0, paddingInlineStart: 20 }}>
+                    <li>
+                      {t("campaignControlledConfirmRecipients")}:{" "}
+                      {preflight.total_recipients ?? preflight.total_messages}
+                    </li>
+                    <li>
+                      {t("campaignControlledConfirmPrepared")}:{" "}
+                      {preflight.prepared_messages ?? preflight.ready_messages}
+                    </li>
+                    <li>
+                      {t("campaignControlledConfirmSenders")}:{" "}
+                      {preflight.execution_usable_accounts ??
+                        preflight.usable_accounts ??
+                        0}
+                      /{preflight.assigned_accounts}
+                    </li>
+                    {typeof preflight.controlled_production_max_messages === "number" ? (
+                      <li>
+                        {t("campaignControlledConfirmMaxMessages")}:{" "}
+                        {preflight.controlled_production_max_messages}
+                      </li>
+                    ) : null}
+                  </ul>
+                ) : null}
+              </div>
+            }
+            confirmLabel={t("campaignControlledConfirmAction")}
+            cancelLabel={t("campaignControlledConfirmCancel")}
+            confirmLoading={startConfirmLoading}
+            cancelDisabled={startConfirmLoading}
+            onCancel={() => {
+              if (startConfirmLoading) return;
+              setStartConfirmOpen(false);
+            }}
+            onConfirm={() => void handleStartConfirmed(true)}
+          />
           <MessageDetailModal
             open={detailOpen}
             loading={detailLoading}

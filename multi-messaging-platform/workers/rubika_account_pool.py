@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session
 
 from core_engine.models import Account, AccountStatus, RubikaAccountPool, RubikaSenderSchedule
+from core_engine.services.rubika_policy import is_rubika_send_day
 
 if TYPE_CHECKING:
     from redis.asyncio import Redis
@@ -47,10 +48,15 @@ def resolve_current_phase(
     during tests and injected preflight evaluation.
     """
     if clock is None:
-        current_hour = datetime.now(IRAN_TZ).hour
+        local = datetime.now(IRAN_TZ)
     else:
         local = clock if clock.tzinfo is not None else clock.replace(tzinfo=IRAN_TZ)
-        current_hour = local.astimezone(IRAN_TZ).hour
+        local = local.astimezone(IRAN_TZ)
+
+    if not is_rubika_send_day(clock=local):
+        return None
+
+    current_hour = local.hour
 
     schedules = (
         db.query(RubikaSenderSchedule)
@@ -87,6 +93,7 @@ class RubikaAccountPoolManager:
             .filter(
                 RubikaAccountPool.phase == phase,
                 Account.status == AccountStatus.ACTIVE,
+                Account.archived_at.is_(None),
             )
             .order_by(
                 RubikaAccountPool.priority.asc(),

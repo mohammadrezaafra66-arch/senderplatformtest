@@ -1,13 +1,16 @@
 """API مدیریت کمپین‌های ارسال."""
 
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, Header, HTTPException
 from fastapi.responses import Response
 from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
+import uuid
 
 from core_engine.api.schemas import (
+    ArchiveActionRequest,
+    ArchiveActionResponse,
     CampaignAccountsResponse,
     CampaignAccountsUpdateRequest,
     CampaignFromContactsRequest,
@@ -17,10 +20,13 @@ from core_engine.api.schemas import (
     CampaignFromImportResponse,
     CampaignListItemResponse,
     CampaignPreflightResponse,
+    CampaignPrepareRequest,
+    CampaignPrepareResponse,
     CampaignRecipientDetailResponse,
     CampaignRecipientsListResponse,
     CampaignRenderPreviewRequest,
     CampaignsListResponse,
+    CampaignStartRequest,
     CampaignStartResponse,
     CampaignStatsData,
     CampaignStopResponse,
@@ -45,6 +51,7 @@ from core_engine.models import (
     SendStatus,
 )
 from core_engine.services.audit_service import record_audit
+from core_engine.services.contact_delete import is_contact_deleted
 from core_engine.services.campaign_control import start_campaign, stop_campaign
 from core_engine.services.campaign_recipients import (
     CSV_EXPORT_MAX_ROWS,
@@ -62,6 +69,26 @@ from core_engine.services.rbac import requires_role
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 
 
+def _auto_prepare_summary(db: Session, campaign_id: int, *, trigger: str):
+    from core_engine.services.campaign_auto_prepare import auto_prepare_after_mutation
+
+    result = auto_prepare_after_mutation(db, campaign_id, trigger=trigger)
+    from core_engine.api.schemas import CampaignAutoPrepareSummary
+
+    payload = result.to_dict()
+    return CampaignAutoPrepareSummary(
+        attempted=bool(payload.get("attempted")),
+        prepared=bool(payload.get("prepared")),
+        skipped=bool(payload.get("skipped")),
+        skip_reason=payload.get("skip_reason"),
+        blockers=list(payload.get("blockers") or []),
+        error_code=payload.get("error_code"),
+        error_message=payload.get("error_message"),
+        ready_count=payload.get("ready_count"),
+        staged_count=payload.get("staged_count"),
+    )
+
+
 def _create_campaign_draft_from_eligible_contacts(
     db: Session,
     current_user: dict[str, str],
@@ -76,7 +103,7 @@ def _create_campaign_draft_from_eligible_contacts(
     skipped_contacts_count: int,
     audit_source: str,
     audit_extra_details: dict[str, object] | None = None,
-) -> tuple[Campaign, int, list[SenderAccountResponse]]:
+) -> tuple[Campaign, int, list[SenderAccountResponse], Any]:
     """Shared helper for:
     - Campaign construction (DRAFT)
     - Manual sender account validation/sync
@@ -157,24 +184,62 @@ def _create_campaign_draft_from_eligible_contacts(
         .filter(Campaign.id == campaign.id)
         .one()
     )
-    senders = _sender_accounts(campaign)
-    return campaign, contacts_attached_count, senders
+    senders = _sender_accounts(campaign, db)
+    auto_prepare = _auto_prepare_summary(db, campaign.id, trigger="create")
+    return campaign, contacts_attached_count, senders, auto_prepare
 
 
-def _sender_accounts(campaign: Campaign) -> list[SenderAccountResponse]:
-    return [
-        SenderAccountResponse(
-            account_id=link.account_id,
-            label=link.account.label,
-            account_identifier=link.account.phone_number,
-            platform=link.account.platform,
-            status=link.account.status,
-            priority=link.priority,
-            weight=link.weight,
-            enabled=link.enabled,
+def _sender_accounts(campaign: Campaign, db: Session | None = None) -> list[SenderAccountResponse]:
+    links = sorted(campaign.campaign_accounts, key=lambda item: item.priority)
+    accounts = [link.account for link in links if link.account is not None]
+    elig_by_id: dict[int, Any] = {}
+    from core_engine.services.campaign_sender_eligibility import (
+        evaluate_campaign_sender_eligibility_batch,
+        resolve_display_identity,
+    )
+
+    if db is not None and accounts:
+        elig_by_id = evaluate_campaign_sender_eligibility_batch(
+            db,
+            accounts,
+            campaign=campaign,
+            assigned_ids={int(a.id) for a in accounts},
         )
-        for link in sorted(campaign.campaign_accounts, key=lambda item: item.priority)
-    ]
+    out: list[SenderAccountResponse] = []
+    for link in links:
+        account = link.account
+        elig = elig_by_id.get(int(link.account_id)) if account is not None else None
+        display = (
+            elig.display_identity
+            if elig is not None
+            else resolve_display_identity(
+                account_id=int(link.account_id),
+                phone_number=account.phone_number if account else None,
+                label=account.label if account else None,
+            )
+        )
+        out.append(
+            SenderAccountResponse(
+                account_id=link.account_id,
+                label=account.label if account else None,
+                account_identifier=account.phone_number if account else None,
+                display_identity=display,
+                platform=account.platform if account else campaign.platform,
+                status=account.status if account else AccountStatus.REQUIRES_LOGIN,
+                priority=link.priority,
+                weight=link.weight,
+                enabled=link.enabled,
+                runtime_status=elig.runtime_status if elig else None,
+                runtime_status_label=elig.runtime_status_label if elig else None,
+                campaign_eligible=elig.campaign_eligible if elig else None,
+                blocker_code=elig.blocker_code if elig else None,
+                blocker_label=elig.blocker_label if elig else None,
+                auth_ready=elig.auth_ready if elig else None,
+                worker_ready=elig.worker_ready if elig else None,
+                dispatch_ready=elig.dispatch_ready if elig else None,
+            )
+        )
+    return out
 
 
 def _account_error(status_code: int, code: str, message: str) -> HTTPException:
@@ -245,18 +310,43 @@ def list_campaigns(
     offset: int = 0,
     status: str | None = None,
     platform: PlatformType | None = None,
+    archived: bool = False,
+    q: str | None = None,
     db: Annotated[Session, Depends(get_db)] = None,
     current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))] = None,
 ):
-    """لیست کمپین‌ها با pagination و فیلتر."""
+    """لیست کمپین‌ها با pagination و فیلتر.
+
+    By default excludes archived campaigns. Pass archived=true for Archive list.
+    """
     query = db.query(Campaign).options(
         selectinload(Campaign.campaign_accounts).selectinload(CampaignAccount.account)
     )
 
+    if archived:
+        query = query.filter(Campaign.archived_at.isnot(None))
+    else:
+        query = query.filter(Campaign.archived_at.is_(None))
     if status:
         query = query.filter(Campaign.status == status)
     if platform:
         query = query.filter(Campaign.platform == platform)
+    if q:
+        needle = f"%{q.strip()}%"
+        try:
+            as_id = int(q.strip())
+        except ValueError:
+            as_id = None
+        if as_id is not None:
+            query = query.filter(
+                (Campaign.id == as_id)
+                | (Campaign.name.ilike(needle))
+                | (Campaign.title.ilike(needle))
+            )
+        else:
+            query = query.filter(
+                (Campaign.name.ilike(needle)) | (Campaign.title.ilike(needle))
+            )
 
     total_count = query.count()
 
@@ -276,7 +366,7 @@ def list_campaigns(
 
     items = []
     for campaign in campaigns:
-        senders = _sender_accounts(campaign)
+        senders = _sender_accounts(campaign, db)
         items.append(CampaignListItemResponse(
             id=campaign.id,
             name=campaign.name,
@@ -287,6 +377,8 @@ def list_campaigns(
             total_recipients=recipient_counts.get(campaign.id, 0),
             account_ids=[sender.account_id for sender in senders],
             sender_accounts=senders,
+            archived_at=campaign.archived_at,
+            archived_by=campaign.archived_by,
         ))
 
     return CampaignsListResponse(
@@ -428,7 +520,7 @@ def get_campaign_detail(
     stats_dict = get_campaign_stats(db, campaign_id)
     stats = CampaignStatsData(**stats_dict)
 
-    senders = _sender_accounts(campaign)
+    senders = _sender_accounts(campaign, db)
     committed_renders, latest_batch = fetch_committed_render_samples(db, campaign_id)
     from core_engine.services.campaign_render import RENDER_VERSION
 
@@ -455,6 +547,9 @@ def get_campaign_detail(
         latest_render_batch_id=latest_batch,
         render_version=RENDER_VERSION if committed_renders else None,
         committed_renders=committed_renders,
+        archived_at=campaign.archived_at,
+        archived_by=campaign.archived_by,
+        archive_reason=campaign.archive_reason,
     )
 
 
@@ -481,11 +576,27 @@ def update_campaign_accounts(
             .filter(Campaign.id == campaign_id)
             .one()
         )
-        senders = _sender_accounts(campaign)
+        senders = _sender_accounts(campaign, db)
+        from core_engine.services.campaign_readiness_contract import assignment_eligibility_warnings
+        from core_engine.services.campaign_sender_eligibility import (
+            evaluate_campaign_sender_eligibility_batch,
+        )
+
+        accounts = [link.account for link in campaign.campaign_accounts if link.account]
+        elig = evaluate_campaign_sender_eligibility_batch(
+            db,
+            accounts,
+            campaign=campaign,
+            assigned_ids={int(a.id) for a in accounts},
+        )
+        warnings = assignment_eligibility_warnings(list(elig.values()))
+        auto_prepare = _auto_prepare_summary(db, campaign.id, trigger="update_accounts")
         return CampaignAccountsResponse(
             campaign_id=campaign.id,
             account_ids=[sender.account_id for sender in senders],
             sender_accounts=senders,
+            assignment_warnings=warnings,
+            auto_prepare=auto_prepare,
         )
     except HTTPException:
         db.rollback()
@@ -497,26 +608,119 @@ def update_campaign_accounts(
         ) from exc
 
 
+@router.post("/{campaign_id}/archive", response_model=ArchiveActionResponse)
+def archive_campaign_endpoint(
+    campaign_id: int,
+    payload: ArchiveActionRequest | None = None,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    """Soft-archive a campaign and stop future undispatched sends. Idempotent."""
+    from core_engine.services.archive import archive_campaign
+
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found.")
+    reason = payload.reason if payload else None
+    result = archive_campaign(
+        db,
+        campaign,
+        actor=current_user["username"],
+        reason=reason,
+    )
+    db.commit()
+    return ArchiveActionResponse(
+        status="archived",
+        entity_type=result.entity_type,
+        entity_id=result.entity_id,
+        already_archived=result.already_archived,
+        archived_at=result.archived_at,
+        previous_status=result.previous_status,
+        queued_items_cancelled=result.queued_items_cancelled,
+        pending_recipients_stopped=result.pending_recipients_stopped,
+        already_sent_count=result.already_sent_count,
+        in_flight_count=result.in_flight_count,
+        message=(
+            "Campaign already archived."
+            if result.already_archived
+            else "Campaign archived; future sends stopped."
+        ),
+        details=result.details,
+    )
+
+
+@router.post("/{campaign_id}/restore", response_model=ArchiveActionResponse)
+def restore_campaign_endpoint(
+    campaign_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    """Restore archived campaign. Never auto-starts or auto-sends."""
+    from core_engine.services.archive import restore_campaign
+
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found.")
+    result = restore_campaign(db, campaign, actor=current_user["username"])
+    db.commit()
+    return ArchiveActionResponse(
+        status="restored",
+        entity_type=result.entity_type,
+        entity_id=result.entity_id,
+        already_active=result.already_active,
+        restored_at=result.restored_at,
+        previous_status=result.previous_status,
+        message=(
+            "Campaign already active."
+            if result.already_active
+            else "Campaign restored; explicit Start required."
+        ),
+        details=result.details,
+    )
+
+
 @router.post("/{campaign_id}/start", response_model=CampaignStartResponse)
 async def start_campaign_endpoint(
     campaign_id: int,
+    payload: CampaignStartRequest = Body(default_factory=CampaignStartRequest),
     db: Annotated[Session, Depends(get_db)] = None,
     current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))] = None,
+    x_request_id: Annotated[str | None, Header()] = None,
 ):
     """شروع کمپین: RUNNING در DB + حذف pause از Redis + push اولیه staged items."""
+    request_id = (x_request_id or "").strip() or str(uuid.uuid4())
     campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found.")
 
+    from core_engine.services.archive import require_campaign_not_archived
+
+    require_campaign_not_archived(campaign)
+
     try:
-        result = await start_campaign(db, campaign)
+        result = await start_campaign(
+            db,
+            campaign,
+            confirm_controlled_production=bool(payload.confirm_controlled_production),
+            request_id=request_id,
+        )
         record_audit(
             db,
             current_user["username"],
             "start_campaign",
             "campaign",
             str(campaign.id),
-            {"bridge_result": result.get("bridge_result")},
+            {
+                "bridge_result": result.get("bridge_result"),
+                "request_id": request_id,
+                "controlled_confirmation_received": bool(
+                    payload.confirm_controlled_production
+                ),
+            },
         )
         db.commit()
         db.refresh(campaign)
@@ -559,6 +763,114 @@ async def stop_campaign_endpoint(
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to stop campaign.") from exc
+
+
+_PREPARE_ALLOWED_STATUSES = frozenset(
+    {
+        CampaignStatus.DRAFT.value,
+        CampaignStatus.PREPARED.value,
+        CampaignStatus.PAUSED.value,
+    }
+)
+
+
+@router.post("/{campaign_id}/prepare", response_model=CampaignPrepareResponse)
+def prepare_campaign_endpoint(
+    campaign_id: int,
+    payload: CampaignPrepareRequest = CampaignPrepareRequest(),
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    """Render final messages and stage them for sending. Does not start delivery."""
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found.")
+    if campaign.status not in _PREPARE_ALLOWED_STATUSES:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "CAMPAIGN_STATUS_NOT_PREPAREABLE",
+                "message": "این کمپین در وضعیت فعلی قابل آماده‌سازی نیست.",
+            },
+        )
+
+    from core_engine.services.campaign_auto_prepare import try_auto_prepare_campaign
+
+    try:
+        if payload.force_mock_output or payload.limit is not None:
+            from core_engine.schemas.phase4 import PrepareMessagesRequest
+            from core_engine.services.phase4_prepare import prepare_campaign_messages
+
+            result = prepare_campaign_messages(
+                db,
+                campaign_id,
+                PrepareMessagesRequest(
+                    force_mock_output=payload.force_mock_output,
+                    limit=payload.limit,
+                ),
+            )
+        else:
+            auto_result = try_auto_prepare_campaign(
+                db, campaign_id, trigger="manual_prepare", force=True
+            )
+            if auto_result.error_code:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": auto_result.error_code,
+                        "message": auto_result.error_message or "Prepare failed.",
+                    },
+                )
+            if auto_result.blockers and not auto_result.prepared:
+                raise HTTPException(status_code=400, detail=auto_result.blockers[0])
+            result = auto_result.prepare_result
+            if result is None:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "code": "PREPARE_NOOP",
+                        "message": auto_result.skip_reason or "Prepare did not produce messages.",
+                    },
+                )
+        record_audit(
+            db,
+            current_user["username"],
+            "prepare_campaign",
+            "campaign",
+            str(campaign.id),
+            {
+                "staged_count": result.staged_count,
+                "ready_count": result.ready_count,
+                "real_gpt_called": result.real_gpt_called,
+            },
+        )
+        db.commit()
+        return CampaignPrepareResponse(
+            campaign_id=result.campaign_id,
+            total_contacts=result.total_contacts,
+            allowed_contacts=result.allowed_contacts,
+            skipped_contacts=result.skipped_contacts,
+            staged_count=result.staged_count,
+            ready_count=result.ready_count,
+            blocked_count=result.blocked_count,
+            already_staged_count=result.already_staged_count,
+            limit_applied=result.limit_applied,
+            product_snapshot_id=result.product_snapshot_id,
+            product_snapshot_valid=result.product_snapshot_valid,
+            force_mock_output=result.force_mock_output,
+            real_gpt_called=result.real_gpt_called,
+            message="پیام‌های کمپین آماده شد.",
+        )
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail="Failed to prepare campaign messages."
+        ) from exc
 
 
 @router.get("/{campaign_id}/recipients/export")
@@ -680,7 +992,8 @@ def create_campaign_from_import(
     eligible_contacts = [
         contact
         for contact in all_import_contacts
-        if not contact.blacklisted
+        if not is_contact_deleted(contact)
+        and not contact.blacklisted
         and contact.consent_status != ConsentStatus.BLOCKED.value
     ]
 
@@ -693,7 +1006,7 @@ def create_campaign_from_import(
     skipped_contacts_count = len(all_import_contacts) - len(eligible_contacts)
 
     try:
-        campaign, contacts_attached_count, senders = (
+        campaign, contacts_attached_count, senders, auto_prepare = (
             _create_campaign_draft_from_eligible_contacts(
                 db=db,
                 current_user=current_user,
@@ -718,6 +1031,7 @@ def create_campaign_from_import(
             message="Campaign draft created from import successfully",
             account_ids=[sender.account_id for sender in senders],
             sender_accounts=senders,
+            auto_prepare=auto_prepare,
         )
     except HTTPException:
         db.rollback()
@@ -756,6 +1070,11 @@ def create_campaign_from_contacts(
     skipped_contacts: list[dict[str, object]] = []
     for cid in contact_ids:
         contact = by_id[cid]
+        if is_contact_deleted(contact):
+            skipped_contacts.append(
+                {"contact_id": cid, "reason_code": "deleted"}
+            )
+            continue
         if contact.blacklisted:
             skipped_contacts.append(
                 {"contact_id": cid, "reason_code": "blacklisted"}
@@ -779,7 +1098,7 @@ def create_campaign_from_contacts(
         )
 
     try:
-        campaign, contacts_attached_count, senders = (
+        campaign, contacts_attached_count, senders, auto_prepare = (
             _create_campaign_draft_from_eligible_contacts(
                 db=db,
                 current_user=current_user,
@@ -805,6 +1124,7 @@ def create_campaign_from_contacts(
             account_ids=[sender.account_id for sender in senders],
             sender_accounts=senders,
             skipped_contacts=skipped_contacts,  # type: ignore[arg-type]
+            auto_prepare=auto_prepare,
         )
     except HTTPException:
         db.rollback()

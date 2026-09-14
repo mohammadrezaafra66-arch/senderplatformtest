@@ -130,6 +130,7 @@ def load_active_whatsapp_account_ids(
             .filter(
                 Account.platform == PlatformType.WHATSAPP,
                 Account.status == AccountStatus.ACTIVE,
+                Account.archived_at.is_(None),
             )
             .all()
         )

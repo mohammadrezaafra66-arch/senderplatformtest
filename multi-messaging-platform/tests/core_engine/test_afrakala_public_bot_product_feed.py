@@ -45,11 +45,15 @@ def _cash_price(
     amount: int,
     computed_at: str,
     price_type: str = "نقدی",
+    price_type_code: str = "cash_price",
+    settlement_type_code: str = "cash",
     final: int | None = None,
     rounded: int | None = None,
 ) -> dict:
     return {
         "sale_price_type_title": price_type,
+        "sale_price_type_code": price_type_code,
+        "settlement_type_code": settlement_type_code,
         "final_sale_price": final if final is not None else amount,
         "rounded_sale_price": rounded if rounded is not None else amount,
         "computed_at": computed_at,
@@ -72,6 +76,7 @@ def _product(
         "name": name,
         "brand": "Samsung",
         "category": "TV",
+        "status": "active",
         "stock_status": stock_status,
         "labels": labels
         if labels is not None
@@ -116,7 +121,7 @@ def test_nested_labels_with_whitespace():
 def test_only_site_price_rejected():
     raw = _product(
         product_id=4,
-        prices=[_cash_price(amount=1, computed_at="2026-08-22T10:00:00+00:00", price_type="سایت")],
+        prices=[_cash_price(amount=1, computed_at="2026-08-22T10:00:00+00:00", price_type="سایت", price_type_code="site_price")],
     )
     flat, reason = normalize_public_bot_product(raw, default_currency="IRR")
     assert flat is None
@@ -136,16 +141,48 @@ def test_multiple_cash_prices_select_newest():
     assert computed_at == datetime(2026, 8, 22, 12, 0, tzinfo=timezone.utc)
 
 
-def test_prefers_final_sale_price_over_rounded():
+def test_uses_rounded_prepayment_price_not_final_sale_price():
     record = {
-        "sale_price_type_title": "نقدی",
+        "sale_price_type_code": "cash_price",
+        "settlement_type_code": "cash",
         "final_sale_price": 28_500_000,
         "rounded_sale_price": 28_000_000,
         "computed_at": "2026-08-22T10:00:00+00:00",
     }
     selected = select_cash_price([record])
     assert selected is not None
-    assert selected[0] == Decimal("28500000")
+    assert selected[0] == Decimal("28000000")
+
+
+def test_other_cash_settlement_is_rejected():
+    record = {
+        "sale_price_type_code": "cash_price",
+        "settlement_type_code": "three_day",
+        "final_sale_price": 30_500_000,
+        "rounded_sale_price": 30_000_000,
+        "computed_at": "2026-08-22T12:00:00+00:00",
+    }
+    assert select_cash_price([record]) is None
+
+
+def test_missing_settlement_metadata_is_rejected():
+    record = {
+        "sale_price_type_code": "cash_price",
+        "rounded_sale_price": 28_000_000,
+        "computed_at": "2026-08-22T10:00:00+00:00",
+    }
+    assert select_cash_price([record]) is None
+
+
+def test_missing_rounded_price_does_not_fallback_to_final():
+    record = {
+        "sale_price_type_code": "cash_price",
+        "settlement_type_code": "cash",
+        "final_sale_price": 28_500_000,
+        "rounded_sale_price": None,
+        "computed_at": "2026-08-22T10:00:00+00:00",
+    }
+    assert select_cash_price([record]) is None
 
 
 def test_malformed_price_rejected():
@@ -154,6 +191,9 @@ def test_malformed_price_rejected():
         prices=[
             {
                 "sale_price_type_title": "نقدی",
+                "sale_price_type_code": "cash_price",
+                "settlement_type_code": "cash",
+                "rounded_sale_price": 12.5,
                 "final_sale_price": 12.5,
                 "computed_at": "2026-08-22T10:00:00+00:00",
             }
@@ -176,6 +216,14 @@ def test_available_stock_retained():
     flat, reason = normalize_public_bot_product(raw, default_currency="IRR")
     assert reason is None
     assert flat is not None
+
+
+def test_inactive_product_discarded():
+    raw = _product(product_id=8, stock_status="available")
+    raw["status"] = "inactive"
+    flat, reason = normalize_public_bot_product(raw, default_currency="IRR")
+    assert flat is None
+    assert reason == "inactive_product"
 
 
 def test_canonical_maps_eligible_product_fields():

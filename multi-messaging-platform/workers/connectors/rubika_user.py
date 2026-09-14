@@ -14,6 +14,7 @@ exceptions.NotRegistered هرگز exception واقعی را نمی‌گیرد. �
 
 from __future__ import annotations
 
+import binascii
 import logging
 import random
 from typing import TYPE_CHECKING, Any
@@ -103,6 +104,57 @@ async def load_rubika_user_client(account_id: int, db: Session | None = None) ->
     return Client(name=string_session, display_welcome=False)
 
 
+def _import_rubika_signing_key(private_key: str):
+    """Import PEM/DER private_key for rubpy request signing.
+
+    Raises SessionInvalidError on malformed key material. Never logs key bytes.
+    """
+    from Crypto.PublicKey import RSA
+    from Crypto.Signature import pkcs1_15
+
+    if private_key is None:
+        raise SessionInvalidError(
+            "Rubika session private_key is null (RSA import refused)."
+        )
+    if not isinstance(private_key, str):
+        raise SessionInvalidError(
+            f"Rubika session private_key has invalid type "
+            f"{type(private_key).__name__} (RSA import refused)."
+        )
+    if not private_key.strip():
+        raise SessionInvalidError(
+            "Rubika session private_key is empty (RSA import refused)."
+        )
+
+    try:
+        rsa_key = RSA.import_key(private_key.encode("utf-8"))
+    except (ValueError, TypeError, IndexError, binascii.Error) as exc:
+        # Exact production failure shape for corrupt PEM body:
+        # Crypto.IO.PEM.decode → a2b_base64(''.join(lines[1:-1]))
+        logger.error(
+            "event=rubika_private_key_import_failed "
+            "exc_type=%s source=Crypto.PublicKey.RSA.import_key "
+            "via=Crypto.IO.PEM.decode detail=%s",
+            type(exc).__name__,
+            str(exc)[:200],
+        )
+        raise SessionInvalidError(
+            "Rubika session private_key is not a valid RSA PEM/DER key "
+            f"({type(exc).__name__})."
+        ) from exc
+    except Exception as exc:  # noqa: BLE001 — classify unknown import failures
+        logger.exception(
+            "event=rubika_private_key_import_unexpected "
+            "exc_type=%s source=Crypto.PublicKey.RSA.import_key",
+            type(exc).__name__,
+        )
+        raise SessionInvalidError(
+            "Rubika session private_key could not be imported for signing."
+        ) from exc
+
+    return pkcs1_15.new(rsa_key)
+
+
 async def _connect_authenticated(client: "rubpy.Client") -> None:
     """connect() در rubpy فقط auth/guid/private_key را از session می‌خواند —
 
@@ -115,16 +167,12 @@ async def _connect_authenticated(client: "rubpy.Client") -> None:
     این تابع همان دو خط را که start() بعد از ورود موفق روی self انجام می‌دهد،
     اینجا برای یک Client از قبل احراز‌شده تکرار می‌کند.
     """
-    from Crypto.PublicKey import RSA
-    from Crypto.Signature import pkcs1_15
     from rubpy.crypto import Crypto as RubikaCrypto
 
     await client.connect()
     client.decode_auth = RubikaCrypto.decode_auth(client.auth) if client.auth else None
     client.import_key = (
-        pkcs1_15.new(RSA.import_key(client.private_key.encode()))
-        if client.private_key
-        else None
+        _import_rubika_signing_key(client.private_key) if client.private_key else None
     )
 
 
@@ -366,7 +414,24 @@ async def deliver_rubika_user_live(
                 retryable=False,
             )
 
-        await _connect_authenticated(client)
+        try:
+            await _connect_authenticated(client)
+        except SessionInvalidError as exc:
+            await release_reservation(redis, reservation)
+            reservation = None
+            pool.mark_account_failed(
+                account_id=account.id,
+                error_message=str(exc),
+                requires_relogin=True,
+            )
+            return WorkerResult(
+                success=False,
+                status="failed_permanent",
+                error_code="rubika_user_session_invalid",
+                error_message=str(exc),
+                retryable=False,
+            )
+
         try:
             try:
                 guid = await _resolve_object_guid(client, session, contact=contact)

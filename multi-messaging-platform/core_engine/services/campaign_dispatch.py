@@ -100,6 +100,7 @@ def running_campaign_ids_with_ready_items(db: Session) -> list[int]:
         .filter(
             StagedQueueItem.status == StagedQueueItemStatus.READY.value,
             Campaign.status == CampaignStatus.RUNNING.value,
+            Campaign.archived_at.is_(None),
             StagedQueueItem.rendered_message_id.isnot(None),
         )
         .distinct()
@@ -131,6 +132,7 @@ def _ready_account_ids_for_campaigns(db: Session, campaign_ids: Sequence[int]) -
             StagedQueueItem.campaign_id.in_(list(campaign_ids)),
             StagedQueueItem.status == StagedQueueItemStatus.READY.value,
             Campaign.status == CampaignStatus.RUNNING.value,
+            Campaign.archived_at.is_(None),
             StagedQueueItem.rendered_message_id.isnot(None),
             Campaign.platform == PlatformType.RUBIKA,
         )
@@ -255,6 +257,7 @@ def claim_ready_items(
                 StagedQueueItem.campaign_id == int(campaign_id),
                 StagedQueueItem.status == StagedQueueItemStatus.READY.value,
                 Campaign.status == CampaignStatus.RUNNING.value,
+                Campaign.archived_at.is_(None),
                 StagedQueueItem.rendered_message_id.isnot(None),
             )
         )

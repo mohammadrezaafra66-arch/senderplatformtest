@@ -68,6 +68,16 @@ class Settings(BaseSettings):
     AFRAKALA_PRODUCT_PRICE_CURRENCY: str = "IRR"
     AFRAKALA_PRODUCT_PRICE_DISPLAY_UNIT: str = "ریال"
 
+    # Canonical immutable campaign footer (campaign-render-v2).
+    # Off by default; production enables it explicitly through environment.
+    CAMPAIGN_FOOTER_ENABLED: bool = False
+    CAMPAIGN_CONTACT_PHONE: str = ""
+    CAMPAIGN_WHATSAPP_CHANNEL_URL: str = ""
+    CAMPAIGN_TELEGRAM_CHANNEL_URL: str = ""
+    CAMPAIGN_RUBIKA_CHANNEL_URL: str = ""
+    CAMPAIGN_BALE_CHANNEL_URL: str = ""
+    CAMPAIGN_SOROUSH_CHANNEL_URL: str = ""
+
     # Phase 6 — campaign dispatch pacing (not per-account send quota).
     CAMPAIGN_DISPATCH_BATCH_SIZE: int = 50
     CAMPAIGN_DISPATCH_MAX_IN_FLIGHT: int = 200
@@ -75,6 +85,10 @@ class Settings(BaseSettings):
     CAMPAIGN_DISPATCH_INTERVAL_MS: int = 0
     RUBIKA_MAX_IN_FLIGHT_PER_ACCOUNT: int = 8
     RUBIKA_INFLIGHT_TTL_SECONDS: int = 180
+
+    # Post-R10 controlled production defaults (first limited real campaign).
+    CONTROLLED_PRODUCTION_ENABLED: bool = True
+    CONTROLLED_PRODUCTION_DEFAULT_MAX_TOTAL_MESSAGES: int = 5
 
     # Phase 4 safety gates — defaults must remain dry-run safe.
     REAL_QUEUE_PUSH_ENABLED: bool = False
@@ -95,6 +109,27 @@ class Settings(BaseSettings):
     # روبیکا — حالت ارسال (قرارداد مشترک با workers/config.py و rubika_mode).
     RUBIKA_DELIVERY_MODE: str = "bot_api"
     RUBIKA_USER_ACCOUNT_ENABLED: bool = False
+    # L2+/L3: login state-machine / prover fencing (not the sole runtime cohort switch).
+    RUBIKA_CANONICAL_SESSION_V1: bool = False
+    # L16: comma-separated account IDs that use L3 login while global V1 remains off.
+    # L17: remains as emergency/operator override when RUBIKA_L3_LOGIN_ROUTING=auto_evidence.
+    RUBIKA_CANONICAL_LOGIN_PILOT_ACCOUNT_IDS: str = ""
+    # L17: pilot (default, backward-compatible) | auto_evidence (zero-session + canonical-managed).
+    RUBIKA_L3_LOGIN_ROUTING: str = "pilot"
+    # L7: controlled runtime cohort — off | shadow | enforce (default off = legacy).
+    RUBIKA_CANONICAL_SESSION_MODE: str = "off"
+    # Comma-separated account IDs for shadow observation / enforce cohort.
+    RUBIKA_CANONICAL_SESSION_ACCOUNT_IDS: str = ""
+    # L17: allowlist (default) | canonical_active (auto-enforce proven ACTIVE+identity).
+    RUBIKA_CANONICAL_SESSION_SCOPE: str = "allowlist"
+    # L11: successful login must NOT auto-enroll into pool unless explicitly enabled.
+    AUTO_ENROLL_RUBIKA_POOL: bool = False
+    DEFAULT_RUBIKA_POOL: str = "day"
+    # L3 OTP challenge controls
+    RUBIKA_OTP_CHALLENGE_TTL_SECONDS: int = 600
+    RUBIKA_OTP_RESEND_COOLDOWN_SECONDS: int = 60
+    # L4 candidate reconnect proof (no send / no OTP)
+    RUBIKA_CANDIDATE_PROVE_TIMEOUT_SECONDS: int = 25
 
     # Evolution API (WhatsApp) integration.
     EVOLUTION_API_URL: str = "http://localhost:8080"
@@ -116,6 +151,16 @@ class Settings(BaseSettings):
     # Emergency stop for all WhatsApp Web sends (UI, worker, scripts). Requires process restart
     # to take effect in long-running workers unless Redis kill switch is also used.
     WHATSAPP_SENDING_DISABLED: bool = False
+
+    @field_validator("RUBIKA_CANONICAL_SESSION_MODE", mode="before")
+    @classmethod
+    def normalize_canonical_session_mode(cls, value: object) -> str:
+        mode = str(value or "off").strip().lower()
+        if mode not in {"off", "shadow", "enforce"}:
+            raise ValueError(
+                "RUBIKA_CANONICAL_SESSION_MODE must be 'off', 'shadow', or 'enforce'."
+            )
+        return mode
 
     @field_validator("SESSION_SECRET")
     @classmethod

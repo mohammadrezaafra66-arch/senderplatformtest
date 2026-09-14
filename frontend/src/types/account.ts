@@ -2,17 +2,90 @@ export type PlatformOption = "whatsapp" | "telegram" | "rubika" | "bale";
 
 export type AccountStatusOption = "active" | "resting" | "banned" | "requires_login";
 
+export type AccountRuntimeAuth = {
+  state: string;
+  reason: string | null;
+};
+
+export type AccountRuntimeCredential = {
+  type: string | null;
+  state: string;
+};
+
+export type AccountRuntimeIdentity = {
+  state: string;
+};
+
+export type AccountRuntimeWorker = {
+  state: string;
+  covered: boolean | null;
+  heartbeat_fresh: boolean | null;
+};
+
+export type AccountRuntimeDispatch = {
+  ready: boolean;
+  blocker: string | null;
+};
+
+export type AccountRuntimeOperatorAction = {
+  code: string;
+  label: string;
+};
+
+export type AccountRuntimeBlock = {
+  runtime_status: string;
+  runtime_status_label: string;
+  enabled: boolean;
+  auth: AccountRuntimeAuth;
+  credential: AccountRuntimeCredential;
+  identity: AccountRuntimeIdentity;
+  worker: AccountRuntimeWorker;
+  dispatch: AccountRuntimeDispatch;
+  operator_action: AccountRuntimeOperatorAction;
+  reason_code: string;
+  last_verified_at: string | null;
+};
+
 export type AccountItem = {
   id: number;
   platform: PlatformOption;
   account_identifier: string | null;
   label: string | null;
+  display_identity?: string | null;
   status: AccountStatusOption;
   proxy_url: string | null;
   policy_id: number | null;
   created_at: string;
   updated_at: string;
   last_used_at: string | null;
+  runtime?: AccountRuntimeBlock | null;
+  runtime_status?: string | null;
+  runtime_status_label?: string | null;
+  account_enabled?: boolean | null;
+  campaign_eligible?: boolean | null;
+  campaign_blocker_code?: string | null;
+  campaign_blocker_label?: string | null;
+  campaign_status_label?: string | null;
+  archived_at?: string | null;
+  archived_by?: string | null;
+  archive_reason?: string | null;
+};
+
+export type ArchiveActionResult = {
+  status: string;
+  entity_type: string;
+  entity_id: number;
+  already_archived?: boolean;
+  already_active?: boolean;
+  archived_at?: string | null;
+  restored_at?: string | null;
+  previous_status?: string | null;
+  queued_items_cancelled?: number;
+  pending_recipients_stopped?: number;
+  already_sent_count?: number;
+  in_flight_count?: number;
+  message: string;
+  details?: Record<string, unknown>;
 };
 
 export type AccountsListResult = {
@@ -41,6 +114,11 @@ export type AccountTestConnectionResult = {
   platform: PlatformOption;
   message: string;
   error: string | null;
+  status?: string | null;
+  reason_code?: string | null;
+  verified_at?: string | null;
+  runtime_status?: string | null;
+  runtime_status_label?: string | null;
 };
 
 export type WhatsAppWebStatus = {
@@ -101,6 +179,13 @@ export type AccountSessionStatus = {
   profile_exists?: boolean | null;
   profile_dir?: string | null;
   linked_at?: string | null;
+  credential_type?: string | null;
+  credential_state?: string | null;
+  runtime_status?: string | null;
+  runtime_status_label?: string | null;
+  requires_relogin?: boolean | null;
+  last_verified_at?: string | null;
+  session_id?: number | null;
 };
 
 export type AccountSessionRegisterResult = {

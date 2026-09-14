@@ -73,6 +73,23 @@ async def deliver_platform_message(
             retryable=False,
         )
 
+    # Race-safe archive guard: re-read DB immediately before provider send.
+    from workers.db import check_archive_blocks_provider_send
+
+    archive_block = check_archive_blocks_provider_send(
+        account_id=payload.account_id,
+        campaign_id=payload.campaign_id,
+    )
+    if archive_block:
+        code = archive_block.upper()
+        return WorkerResult(
+            success=False,
+            status="failed_permanent",
+            error_code=archive_block,
+            error_message=f"{code}: entity archived; provider send refused.",
+            retryable=False,
+        )
+
     if platform == "bale":
         return await deliver_bale_live(payload, settings)
 

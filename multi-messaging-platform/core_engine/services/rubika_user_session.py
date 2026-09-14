@@ -151,6 +151,10 @@ async def start_rubika_user_login(
     - تکمیل pass_key: registration_token (از پاسخ قبلی با stage=pass_key_required)
       + pass_key بده؛ phone_number از حالت ذخیره‌شده در Redis خوانده می‌شود.
     """
+    from core_engine.services.rubika_login_state_machine import assert_legacy_login_allowed
+
+    assert_legacy_login_allowed(account_id)
+
     from rubpy import Client
     from rubpy.crypto import Crypto as RubikaCrypto
     from rubpy.sessions import StringSession
@@ -234,6 +238,10 @@ async def verify_rubika_user_login(
     db: Session, *, registration_token: str, phone_code: str
 ) -> dict[str, Any]:
     """مرحله ۲ — تأیید کد، ذخیره session رمزنگاری‌شده، register_device."""
+    from core_engine.services.rubika_login_state_machine import assert_legacy_login_allowed
+
+    assert_legacy_login_allowed()
+
     from rubpy import Client
     from rubpy.crypto import Crypto as RubikaCrypto
     from rubpy.sessions import StringSession

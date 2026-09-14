@@ -86,6 +86,19 @@ def policy_now(*, clock: datetime | None = None) -> datetime:
     return datetime.now(IRAN_TZ)
 
 
+
+# Python weekday(): Monday=0 ... Sunday=6
+# Business sending days in Iran for this installation:
+# Saturday(5), Sunday(6), Monday(0), Tuesday(1), Wednesday(2).
+RUBIKA_ALLOWED_SEND_WEEKDAYS = frozenset({0, 1, 2, 5, 6})
+
+
+def is_rubika_send_day(*, clock: datetime | None = None) -> bool:
+    """Return True only on Saturday-Wednesday in Asia/Tehran."""
+    local = policy_now(clock=clock)
+    return local.weekday() in RUBIKA_ALLOWED_SEND_WEEKDAYS
+
+
 def rubika_day_bucket(now: datetime | None = None) -> str:
     return policy_now(clock=now).strftime("%Y%m%d")
 

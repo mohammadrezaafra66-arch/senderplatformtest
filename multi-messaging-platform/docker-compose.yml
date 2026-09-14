@@ -1,4 +1,4 @@
-services:
+﻿services:
 
   # ============================================================
   # PostgreSQL
@@ -14,7 +14,7 @@ services:
       POSTGRES_PASSWORD: mmp_pass
 
     ports:
-      - "5433:5432"
+      - "5434:5432"
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -549,7 +549,7 @@ services:
       WEBHOOK_URL: ${EVOLUTION_WEBHOOK_URL:-http://core_api:8000/webhooks/whatsapp/evolution}
 
     ports:
-      - "8080:8080"
+      - "8081:8080"
 
     restart: unless-stopped
 
@@ -639,6 +639,7 @@ services:
     volumes:
       - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./monitoring/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+      - prometheus_data:/prometheus
 
 
   # ============================================================
@@ -682,3 +683,7 @@ volumes:
   postgres_data:
   evolution_instances:
   grafana_data:
+  prometheus_data:
+
+
+

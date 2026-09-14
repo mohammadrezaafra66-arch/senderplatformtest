@@ -18,7 +18,15 @@ from core_engine.models import (
     ImportRowStatus,
     ImportStatus,
 )
-from core_engine.services.excel_processor import ExcelProcessor
+from core_engine.services.contact_delete import (
+    is_contact_deleted,
+    reactivate_deleted_contact_from_import,
+)
+from core_engine.services.excel_processor import (
+    NORMALIZED_COLUMN_ALIASES,
+    PHONE_SOURCE_KEYS,
+    ExcelProcessor,
+)
 
 router = APIRouter(prefix="/imports", tags=["imports"])
 
@@ -58,6 +66,74 @@ def _map_row_status(status_value: str | None) -> ImportRowStatus:
     if not status_value:
         return ImportRowStatus.PENDING
     return ROW_STATUS_MAP.get(status_value.lower(), ImportRowStatus.INVALID)
+
+
+def _extract_import_phone_raw(raw_data: dict[str, Any]) -> str | None:
+    """Extract a single phone cell from known phone columns only.
+
+    Fail closed when zero or multiple phone cells are present. Never scans
+    non-phone fields (names, notes, etc.).
+    """
+    phone_values: list[str] = []
+    for column, value in raw_data.items():
+        if value in (None, ""):
+            continue
+        standard = NORMALIZED_COLUMN_ALIASES.get(str(column).strip().casefold())
+        if standard not in PHONE_SOURCE_KEYS:
+            continue
+        text = str(value).strip()
+        if text:
+            phone_values.append(text)
+    if len(phone_values) != 1:
+        return None
+    return phone_values[0]
+
+
+def _exact_phone_identity_candidates(raw_phone: str) -> list[str]:
+    """Deterministic exact identity forms only — no truncation or fuzzy variants."""
+    text = raw_phone.strip()
+    if not text:
+        return []
+    identities = [text]
+    # Allow the single deterministic + prefix when the stored canonical uses it.
+    if text.startswith("98") and not text.startswith("+"):
+        identities.append(f"+{text}")
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for identity in identities:
+        if identity not in seen:
+            seen.add(identity)
+            deduped.append(identity)
+    return deduped
+
+
+def _lookup_deleted_contact_by_exact_phone(db: Session, raw_phone: str) -> Contact | None:
+    """Match soft-deleted contacts by exact canonical phone_e164 only.
+
+    Fail closed when:
+    - no exact match
+    - any active Contact matches the same identity
+    - more than one Contact matches across identity candidates
+    - more than one soft-deleted match
+    """
+    identities = _exact_phone_identity_candidates(raw_phone)
+    if not identities:
+        return None
+
+    matches = (
+        db.query(Contact)
+        .filter(Contact.phone_e164.in_(identities))
+        .all()
+    )
+    if not matches:
+        return None
+    # Ambiguity / active conflict → fail closed (no mutation).
+    if len(matches) != 1:
+        return None
+    contact = matches[0]
+    if not is_contact_deleted(contact):
+        return None
+    return contact
 
 
 @router.post("/contacts/preview")
@@ -186,14 +262,28 @@ def commit_contacts_import(
                     .first()
                 )
                 if existing_contact:
-                    import_row.status = ImportRowStatus.DUPLICATE
-                    import_row.is_valid = False
-                    import_row.error_code = "duplicate_phone_existing_contact"
-                    import_row.error_message = (
-                        f"Contact with phone {phone_e164} already exists in database."
-                    )
-                    import_row.duplicate_of_contact_id = existing_contact.id
-                    duplicate_rows_count += 1
+                    if is_contact_deleted(existing_contact):
+                        reactivate_deleted_contact_from_import(
+                            existing_contact,
+                            import_batch_id=import_batch.id,
+                            import_row_id=import_row.id,
+                            normalized=normalized,
+                        )
+                        import_row.status = ImportRowStatus.VALID
+                        import_row.is_valid = True
+                        import_row.error_code = None
+                        import_row.error_message = None
+                        created_contacts_count += 1
+                        valid_rows_count += 1
+                    else:
+                        import_row.status = ImportRowStatus.DUPLICATE
+                        import_row.is_valid = False
+                        import_row.error_code = "duplicate_phone_existing_contact"
+                        import_row.error_message = (
+                            f"Contact with phone {phone_e164} already exists in database."
+                        )
+                        import_row.duplicate_of_contact_id = existing_contact.id
+                        duplicate_rows_count += 1
                 else:
                     bale_phone = normalized.get("chat_id") or normalized.get("phone_bale") or ""
                     contact = Contact(
@@ -214,7 +304,34 @@ def commit_contacts_import(
                     created_contacts_count += 1
                     valid_rows_count += 1
             elif row_status == ImportRowStatus.INVALID:
-                invalid_rows_count += 1
+                reactivated = False
+                if row.get("error_code") == "invalid_phone":
+                    raw_data = row.get("raw_data") or {}
+                    raw_phone = _extract_import_phone_raw(raw_data)
+                    existing_contact = (
+                        _lookup_deleted_contact_by_exact_phone(db, raw_phone)
+                        if raw_phone
+                        else None
+                    )
+                    if existing_contact:
+                        normalized = dict(row.get("normalized_data") or {})
+                        normalized["phone_e164"] = existing_contact.phone_e164
+                        reactivate_deleted_contact_from_import(
+                            existing_contact,
+                            import_batch_id=import_batch.id,
+                            import_row_id=import_row.id,
+                            normalized=normalized,
+                        )
+                        import_row.status = ImportRowStatus.VALID
+                        import_row.is_valid = True
+                        import_row.error_code = None
+                        import_row.error_message = None
+                        import_row.normalized_data = normalized
+                        created_contacts_count += 1
+                        valid_rows_count += 1
+                        reactivated = True
+                if not reactivated:
+                    invalid_rows_count += 1
             elif row_status == ImportRowStatus.DUPLICATE:
                 duplicate_rows_count += 1
 

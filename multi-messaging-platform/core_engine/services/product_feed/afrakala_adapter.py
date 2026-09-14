@@ -14,6 +14,8 @@ from core_engine.services.product_feed.canonical import (
 
 ADVERTISING_LABEL_TITLE = "تبلیغات"
 CASH_PRICE_TYPE_TITLE = "نقدی"
+CASH_PRICE_TYPE_CODE = "cash_price"
+PREPAYMENT_SETTLEMENT_TYPE_CODE = "cash"
 SOURCE_PUBLIC_BOT_API = "afrakala_public_bot_api"
 
 _UNAVAILABLE_STOCK_STATUSES = frozenset(
@@ -65,17 +67,20 @@ def is_unavailable_stock(stock_status: Any) -> bool:
     return normalized in _UNAVAILABLE_STOCK_STATUSES
 
 
-def _price_from_cash_record(record: dict[str, Any]) -> Decimal | None:
-    final_price = parse_price(record.get("final_sale_price"))
-    if final_price is not None:
-        return final_price
+def _price_from_prepayment_record(
+    record: dict[str, Any],
+) -> Decimal | None:
+    """Use only AfraKala's rounded/display price for the exact prepayment row."""
     return parse_price(record.get("rounded_sale_price"))
 
 
 def select_cash_price(
     prices: Any,
 ) -> tuple[Decimal, datetime | None] | None:
-    """Pick newest نقدی price by computed_at; never use unrelated price types."""
+    """Select only cash_price + cash (prepayment), using rounded_sale_price.
+
+    Do not fall back to another settlement type or final_sale_price.
+    """
     if not isinstance(prices, list):
         return None
 
@@ -83,17 +88,30 @@ def select_cash_price(
     for record in prices:
         if not isinstance(record, dict):
             continue
-        if normalize_whitespace(record.get("sale_price_type_title")) != CASH_PRICE_TYPE_TITLE:
+
+        price_type_code = normalize_whitespace(
+            record.get("sale_price_type_code")
+        ).lower()
+        settlement_type_code = normalize_whitespace(
+            record.get("settlement_type_code")
+        ).lower()
+
+        if price_type_code != CASH_PRICE_TYPE_CODE:
             continue
-        price = _price_from_cash_record(record)
+        if settlement_type_code != PREPAYMENT_SETTLEMENT_TYPE_CODE:
+            continue
+
+        price = _price_from_prepayment_record(record)
         if price is None:
             continue
+
         computed_at = _parse_dt(record.get("computed_at"))
         sort_key = computed_at or datetime.min.replace(tzinfo=timezone.utc)
         candidates.append((sort_key, price, computed_at))
 
     if not candidates:
         return None
+
     candidates.sort(key=lambda item: item[0], reverse=True)
     _, price, computed_at = candidates[0]
     return price, computed_at
@@ -110,6 +128,10 @@ def normalize_public_bot_product(
 
     if not has_explicit_advertising_label(raw.get("labels")):
         return None, "not_advertising"
+
+    status = normalize_whitespace(raw.get("status")).lower()
+    if status != "active":
+        return None, "inactive_product"
 
     stock_status = raw.get("stock_status")
     if is_unavailable_stock(stock_status):

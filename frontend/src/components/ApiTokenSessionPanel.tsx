@@ -120,12 +120,35 @@ export function ApiTokenSessionPanel({
       {status ? (
         <div style={{ fontSize: 13, lineHeight: 1.7, opacity: 0.9 }}>
           <div>{status.message}</div>
+          {status.runtime_status_label || status.runtime_status ? (
+            <div>
+              {t("connectionStatus")}:{" "}
+              {status.runtime_status_label ?? status.runtime_status}
+            </div>
+          ) : null}
           <div>
             {t("sessionRegistered")}: {status.session_registered ? t("yes") : t("no")}
           </div>
           <div>
-            {t("sessionType")}: {status.session_type}
+            {t("credentialTypeLabel")}: {status.credential_type ?? status.session_type}
           </div>
+          <div>
+            {t("credentialStateLabel")}: {status.credential_state ?? status.code ?? "—"}
+          </div>
+          <div>
+            {t("requiresReloginLabel")}:{" "}
+            {status.requires_relogin ? t("yes") : t("no")}
+          </div>
+          {status.session_id != null ? (
+            <div>
+              {t("safeSessionIdLabel")}: {status.session_id}
+            </div>
+          ) : null}
+          {status.last_verified_at ? (
+            <div>
+              {t("lastVerifiedAt")}: {status.last_verified_at}
+            </div>
+          ) : null}
           {status.delivery_mode ? (
             <div>
               {t("sessionDeliveryMode")}: {status.delivery_mode}

@@ -13,12 +13,21 @@ from core_engine.api.schemas import (
     AccountCreateRequest,
     AccountCreateResponse,
     AccountResponse,
+    AccountRuntimeAuthBlock,
+    AccountRuntimeBlock,
+    AccountRuntimeCredentialBlock,
+    AccountRuntimeDispatchBlock,
+    AccountRuntimeIdentityBlock,
+    AccountRuntimeOperatorActionBlock,
+    AccountRuntimeWorkerBlock,
     AccountsListResponse,
     AccountSessionRegisterRequest,
     AccountSessionRegisterResponse,
     AccountSessionStatusResponse,
     AccountSendTestRequest,
     AccountSendTestResponse,
+    ArchiveActionRequest,
+    ArchiveActionResponse,
     LiveSendPreflightCheckItem,
     RubikaUserLoginStartRequest,
     RubikaUserLoginStartResponse,
@@ -45,6 +54,14 @@ from core_engine.services.account_session_wiring import (
     register_api_token_session,
     required_session_type,
     resolve_whatsapp_delivery_mode,
+)
+from core_engine.services.account_runtime_status import (
+    compute_all_account_runtime_statuses,
+    run_connection_test,
+)
+from core_engine.services.campaign_sender_eligibility import (
+    evaluate_campaign_sender_eligibility,
+    resolve_display_identity,
 )
 from core_engine.services.operational_send import (
     OperationalSendError,
@@ -87,18 +104,70 @@ def _create_evolution_instance(instance_name: str) -> None:
         logger.warning("Evolution instance create error: %s", exc)
 
 
-def _account_to_response(account: Account) -> AccountResponse:
+def _runtime_to_block(runtime) -> AccountRuntimeBlock:
+    return AccountRuntimeBlock(
+        runtime_status=runtime.runtime_status,
+        runtime_status_label=runtime.runtime_status_label,
+        enabled=runtime.enabled,
+        auth=AccountRuntimeAuthBlock(state=runtime.auth_state, reason=runtime.auth_reason),
+        credential=AccountRuntimeCredentialBlock(
+            type=runtime.credential_type, state=runtime.credential_state
+        ),
+        identity=AccountRuntimeIdentityBlock(state=runtime.identity_state),
+        worker=AccountRuntimeWorkerBlock(
+            state=runtime.worker_state,
+            covered=runtime.worker_covered,
+            heartbeat_fresh=runtime.worker_heartbeat_fresh,
+        ),
+        dispatch=AccountRuntimeDispatchBlock(
+            ready=runtime.dispatch_ready, blocker=runtime.dispatch_blocker
+        ),
+        operator_action=AccountRuntimeOperatorActionBlock(
+            code=runtime.operator_action_code, label=runtime.operator_action_label
+        ),
+        reason_code=runtime.reason_code,
+        last_verified_at=runtime.last_verified_at,
+    )
+
+
+def _account_to_response(account: Account, runtime=None) -> AccountResponse:
+    block = _runtime_to_block(runtime) if runtime is not None else None
+    # Base campaign eligibility without campaign/capacity context (picker parity).
+    elig = None
+    if runtime is not None:
+        elig = evaluate_campaign_sender_eligibility(
+            None,
+            account,
+            runtime=runtime,
+        )
+    display = resolve_display_identity(
+        account_id=int(account.id),
+        phone_number=account.phone_number,
+        label=account.label,
+    )
     return AccountResponse(
         id=account.id,
         platform=account.platform,
         account_identifier=account.phone_number,
         label=account.label,
+        display_identity=display,
         status=account.status,
         proxy_url=account.proxy_url,
         policy_id=account.policy_id,
         created_at=account.created_at,
         updated_at=account.updated_at,
         last_used_at=account.last_used_at,
+        archived_at=account.archived_at,
+        archived_by=account.archived_by,
+        archive_reason=account.archive_reason,
+        runtime=block,
+        runtime_status=runtime.runtime_status if runtime is not None else None,
+        runtime_status_label=runtime.runtime_status_label if runtime is not None else None,
+        account_enabled=runtime.enabled if runtime is not None else (account.status == AccountStatus.ACTIVE),
+        campaign_eligible=elig.campaign_eligible if elig is not None else None,
+        campaign_blocker_code=elig.blocker_code if elig is not None else None,
+        campaign_blocker_label=elig.blocker_label if elig is not None else None,
+        campaign_status_label=elig.runtime_status_label if elig is not None else None,
     )
 
 
@@ -121,17 +190,35 @@ def _find_duplicate_account(
 @router.get("", response_model=AccountsListResponse)
 def list_accounts(
     platform: PlatformType | None = None,
+    archived: bool = False,
+    q: str | None = None,
     db: Annotated[Session, Depends(get_db)] = None,
-    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
 ):
-    """لیست اکانت‌ها با فیلتر اختیاری platform."""
+    """لیست اکانت‌ها با فیلتر اختیاری platform + وضعیت runtime (L18).
+
+    By default excludes archived accounts. Pass archived=true for the Archive list.
+    """
     query = db.query(Account)
     if platform:
         query = query.filter(Account.platform == platform)
+    if archived:
+        query = query.filter(Account.archived_at.isnot(None))
+    else:
+        query = query.filter(Account.archived_at.is_(None))
+    if q:
+        needle = f"%{q.strip()}%"
+        query = query.filter(
+            (Account.phone_number.ilike(needle)) | (Account.label.ilike(needle))
+        )
 
     accounts = query.order_by(Account.created_at.desc()).all()
+    runtimes = compute_all_account_runtime_statuses(db, accounts)
+    by_id = {r.account_id: r for r in runtimes}
     return AccountsListResponse(
-        items=[_account_to_response(account) for account in accounts],
+        items=[_account_to_response(account, by_id.get(int(account.id))) for account in accounts],
         total_count=len(accounts),
     )
 
@@ -195,7 +282,100 @@ def create_account(
         raise
     except Exception as exc:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to create account.") from exc
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create account.: {str(exc)}"
+        ) from exc
+
+
+@router.post("/{account_id}/archive", response_model=ArchiveActionResponse)
+def archive_account_endpoint(
+    account_id: int,
+    payload: ArchiveActionRequest | None = None,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    """Soft-archive an account. Idempotent. Does not delete session or history."""
+    from core_engine.services.archive import archive_account
+
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found.")
+    reason = payload.reason if payload else None
+    result = archive_account(
+        db,
+        account,
+        actor=current_user["username"],
+        reason=reason,
+    )
+    db.commit()
+    return ArchiveActionResponse(
+        status="archived",
+        entity_type=result.entity_type,
+        entity_id=result.entity_id,
+        already_archived=result.already_archived,
+        archived_at=result.archived_at,
+        previous_status=result.previous_status,
+        queued_items_cancelled=result.queued_items_cancelled,
+        message=(
+            "Account already archived."
+            if result.already_archived
+            else "Account archived successfully."
+        ),
+        details=result.details,
+    )
+
+
+@router.post("/{account_id}/restore", response_model=ArchiveActionResponse)
+def restore_account_endpoint(
+    account_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    """Restore an archived account. Does not claim READY; runtime is recomputed."""
+    from core_engine.services.archive import restore_account
+
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found.")
+    result = restore_account(db, account, actor=current_user["username"])
+    db.commit()
+    db.refresh(account)
+    runtime_status = None
+    runtime_status_label = None
+    try:
+        runtime = compute_all_account_runtime_statuses(db, [account])
+        rt = runtime[0] if runtime else None
+        if rt is not None:
+            runtime_status = rt.runtime_status
+            runtime_status_label = rt.runtime_status_label
+    except Exception:
+        # Restore must succeed even if runtime evaluation is unavailable.
+        pass
+    return ArchiveActionResponse(
+        status="restored",
+        entity_type=result.entity_type,
+        entity_id=result.entity_id,
+        already_active=result.already_active,
+        restored_at=result.restored_at,
+        previous_status=result.previous_status,
+        message=(
+            "Account already active."
+            if result.already_active
+            else "Account restored from archive."
+        ),
+        details={
+            **result.details,
+            "runtime_status": runtime_status,
+            "runtime_status_label": runtime_status_label,
+        },
+    )
 
 
 @router.patch("/{account_id}", response_model=AccountResponse)
@@ -252,7 +432,8 @@ def update_account(
         )
         db.commit()
         db.refresh(account)
-        return _account_to_response(account)
+        runtimes = compute_all_account_runtime_statuses(db, [account])
+        return _account_to_response(account, runtimes[0] if runtimes else None)
     except HTTPException:
         db.rollback()
         raise
@@ -268,28 +449,13 @@ def test_account_connection(
     db: Annotated[Session, Depends(get_db)] = None,
     current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
 ):
-    """تست اتصال اکانت — فعلاً بدون اتصال واقعی به کانال."""
+    """تست اتصال امن — بدون ارسال پیام، بدون درخواست OTP، بدون mutation غیرضروری سشن."""
     account = db.query(Account).filter(Account.id == account_id).first()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found.")
 
     body = payload or AccountTestConnectionRequest()
-    readiness = evaluate_account_session_readiness(db, account)
-
-    success = readiness.ready
-    message = readiness.message
-    error: str | None = readiness.error
-
-    if body.force_fail:
-        success = False
-        error = "forced_failure"
-        message = "Connection test failed (forced)."
-    elif account.status == AccountStatus.BANNED:
-        success = False
-        error = "account_banned"
-        message = "Connection test failed: account is banned."
-    elif not success and error is None:
-        error = "session_not_ready"
+    result = run_connection_test(db, account, force_fail=bool(body.force_fail))
 
     record_audit(
         db,
@@ -297,16 +463,26 @@ def test_account_connection(
         "test_account_connection",
         "account",
         str(account.id),
-        {"success": success, "error": error},
+        {
+            "success": result.get("success"),
+            "error": result.get("error"),
+            "reason_code": result.get("reason_code"),
+            "runtime_status": result.get("runtime_status"),
+        },
     )
     db.commit()
 
     return AccountTestConnectionResponse(
-        success=success,
+        success=bool(result.get("success")),
         account_id=account.id,
         platform=account.platform,
-        message=message,
-        error=error,
+        message=str(result.get("message") or ""),
+        error=result.get("error"),
+        status=result.get("status"),
+        reason_code=result.get("reason_code"),
+        verified_at=result.get("verified_at"),
+        runtime_status=result.get("runtime_status"),
+        runtime_status_label=result.get("runtime_status_label"),
     )
 
 
@@ -418,11 +594,30 @@ def account_session_status(
     db: Annotated[Session, Depends(get_db)] = None,
     current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
 ):
-    """وضعیت یکپارچه سشن اکانت (همه کانال‌ها)."""
+    """وضعیت یکپارچه سشن اکانت — بدون افشای secret/token."""
     account = db.query(Account).filter(Account.id == account_id).first()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found.")
-    return AccountSessionStatusResponse(**build_account_session_status(db, account))
+    base = build_account_session_status(db, account)
+    runtimes = compute_all_account_runtime_statuses(db, [account])
+    runtime = runtimes[0] if runtimes else None
+    requires_relogin = False
+    if runtime is not None:
+        requires_relogin = runtime.runtime_status in {
+            "LOGIN_REQUIRED",
+            "SESSION_ERROR",
+            "OTP_WAITING",
+        }
+        base["credential_type"] = runtime.credential_type
+        base["credential_state"] = runtime.credential_state
+        base["runtime_status"] = runtime.runtime_status
+        base["runtime_status_label"] = runtime.runtime_status_label
+        base["requires_relogin"] = requires_relogin
+        base["last_verified_at"] = runtime.last_verified_at
+        sid = (runtime.details or {}).get("session_id")
+        if sid is not None:
+            base["session_id"] = int(sid)
+    return AccountSessionStatusResponse(**base)
 
 
 @router.post(
@@ -520,6 +715,39 @@ async def register_rubika_user_session(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    from core_engine.config import get_settings
+
+    from core_engine.services.rubika_login_state_machine import (
+        account_uses_l3_login,
+        request_rubika_login,
+    )
+
+    if account_uses_l3_login(account_id, db):
+        from core_engine.services.rubika_login_live_provider import LiveRubikaLoginProvider
+
+        result = await request_rubika_login(
+            db,
+            account_id,
+            phone_number=payload.phone_number,
+            provider=LiveRubikaLoginProvider(),
+        )
+        if not result.ok:
+            raise HTTPException(status_code=400, detail=result.code)
+        record_audit(
+            db,
+            current_user["username"],
+            "request_rubika_login",
+            "account",
+            str(account.id),
+            {"challenge_id": result.challenge_id, "state": result.state},
+        )
+        db.commit()
+        return RubikaUserLoginStartResponse(
+            registration_token=result.challenge_id or "",
+            stage="code_required",
+            message=result.message or result.code,
+        )
+
     try:
         result = await start_rubika_user_login(
             account_id=account_id,
@@ -569,6 +797,50 @@ async def verify_rubika_user_session(
         assert_rubika_user_login_allowed()
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    from core_engine.config import get_settings
+
+    from core_engine.services.rubika_login_state_machine import (
+        account_uses_l3_login,
+        submit_rubika_login_code,
+    )
+
+    if account_uses_l3_login(account_id, db):
+        from core_engine.services.rubika_candidate_prover import resolve_canonical_candidate_prover
+        from core_engine.services.rubika_login_live_provider import LiveRubikaLoginProvider
+
+        result = await submit_rubika_login_code(
+            db,
+            account_id,
+            challenge_id=payload.registration_token,
+            code=payload.phone_code,
+            provider=LiveRubikaLoginProvider(),
+            prover=resolve_canonical_candidate_prover(),
+        )
+        if not result.ok:
+            db.rollback()
+            raise HTTPException(status_code=400, detail=result.code)
+        record_audit(
+            db,
+            current_user["username"],
+            "submit_rubika_login_code",
+            "account",
+            str(account.id),
+            {
+                "challenge_id": result.challenge_id,
+                "state": result.state,
+                "auth_ready": result.auth_ready,
+                "dispatch_ready": result.dispatch_ready,
+            },
+        )
+        db.commit()
+        return RubikaUserLoginVerifyResponse(
+            success=True,
+            account_id=account_id,
+            guid="",  # never echo secrets; GUID is bound on Account
+            phone_number="",
+            message=result.message or result.code,
+        )
 
     try:
         result = await verify_rubika_user_login(
@@ -622,6 +894,10 @@ async def send_test_message(
     account = db.query(Account).filter(Account.id == account_id).first()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found.")
+
+    from core_engine.services.archive import require_account_not_archived
+
+    require_account_not_archived(account)
 
     try:
         result = await send_account_test_message(

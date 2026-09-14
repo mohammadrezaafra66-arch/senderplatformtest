@@ -68,6 +68,18 @@ class CampaignSkippedContactInfo(BaseModel):
     reason_code: str
 
 
+class CampaignAutoPrepareSummary(BaseModel):
+    attempted: bool = False
+    prepared: bool = False
+    skipped: bool = False
+    skip_reason: str | None = None
+    blockers: list[dict] = Field(default_factory=list)
+    error_code: str | None = None
+    error_message: str | None = None
+    ready_count: int | None = None
+    staged_count: int | None = None
+
+
 class CampaignFromContactsResponse(BaseModel):
     status: str
     campaign_id: int
@@ -77,6 +89,7 @@ class CampaignFromContactsResponse(BaseModel):
     account_ids: list[int] = Field(default_factory=list)
     sender_accounts: list["SenderAccountResponse"] = Field(default_factory=list)
     skipped_contacts: list[CampaignSkippedContactInfo] = Field(default_factory=list)
+    auto_prepare: CampaignAutoPrepareSummary | None = None
 
 
 class ContactSearchItemResponse(BaseModel):
@@ -89,6 +102,39 @@ class ContactSearchItemResponse(BaseModel):
     blacklisted: bool
     eligible: bool
     ineligible_reason: str | None = None
+
+
+class ContactListItemResponse(BaseModel):
+    contact_id: int
+    first_name: str | None = None
+    last_name: str | None = None
+    full_name: str | None = None
+    phone: str
+    consent_status: str
+    blacklisted: bool
+    eligible: bool
+    ineligible_reason: str | None = None
+    created_at: datetime
+    source_import_id: int | None = None
+    source_import_file_name: str | None = None
+    source_imported_at: datetime | None = None
+    import_count: int = 0
+    campaign_count: int = 0
+
+
+class ContactsListResponse(BaseModel):
+    items: list[ContactListItemResponse]
+    total_count: int
+    limit: int
+    offset: int
+
+
+class ContactDeleteResponse(BaseModel):
+    success: bool
+    contact_id: int
+    already_deleted: bool
+    deleted_at: datetime | None = None
+    message: str
 
 
 class ContactsSearchResponse(BaseModel):
@@ -125,11 +171,21 @@ class SenderAccountResponse(BaseModel):
     account_id: int
     label: str | None = None
     account_identifier: str | None = None
+    display_identity: str | None = None
     platform: PlatformType
     status: AccountStatus
     priority: int
     weight: int
     enabled: bool
+    # C1 — L18-backed campaign eligibility (assigned ≠ ready)
+    runtime_status: str | None = None
+    runtime_status_label: str | None = None
+    campaign_eligible: bool | None = None
+    blocker_code: str | None = None
+    blocker_label: str | None = None
+    auth_ready: bool | None = None
+    worker_ready: bool | None = None
+    dispatch_ready: bool | None = None
 
 
 class CampaignAccountsUpdateRequest(BaseModel):
@@ -145,6 +201,8 @@ class CampaignAccountsResponse(BaseModel):
     campaign_id: int
     account_ids: list[int]
     sender_accounts: list[SenderAccountResponse]
+    assignment_warnings: list[dict[str, str | int | None]] = Field(default_factory=list)
+    auto_prepare: CampaignAutoPrepareSummary | None = None
 
 
 class CampaignFromImportResponse(BaseModel):
@@ -156,6 +214,7 @@ class CampaignFromImportResponse(BaseModel):
     message: str
     account_ids: list[int] = Field(default_factory=list)
     sender_accounts: list[SenderAccountResponse] = Field(default_factory=list)
+    auto_prepare: CampaignAutoPrepareSummary | None = None
 
 
 class CampaignStatsData(BaseModel):
@@ -202,6 +261,8 @@ class CampaignListItemResponse(BaseModel):
     total_recipients: int
     account_ids: list[int] = Field(default_factory=list)
     sender_accounts: list[SenderAccountResponse] = Field(default_factory=list)
+    archived_at: datetime | None = None
+    archived_by: str | None = None
 
 
 class CampaignDetailResponse(BaseModel):
@@ -229,6 +290,9 @@ class CampaignDetailResponse(BaseModel):
     latest_render_batch_id: str | None = None
     render_version: str | None = None
     committed_renders: list[CommittedRenderSampleResponse] = Field(default_factory=list)
+    archived_at: datetime | None = None
+    archived_by: str | None = None
+    archive_reason: str | None = None
 
 
 class CampaignsListResponse(BaseModel):
@@ -240,12 +304,24 @@ class CampaignsListResponse(BaseModel):
     offset: int
 
 
+class CampaignStartRequest(BaseModel):
+    """Explicit operator approval required when controlled production mode is on."""
+
+    confirm_controlled_production: bool = False
+
+
 class CampaignStartResponse(BaseModel):
     status: str
     campaign_id: int
     message: str
     bridge_result: dict[str, int | str] | None = None
     preflight: dict | None = None
+    request_id: str | None = None
+    accepted: bool = True
+    campaign_status: str | None = None
+    queue_jobs_created: int | None = None
+    messages_scheduled: int | None = None
+    controlled_confirmation_accepted: bool = False
 
 
 class CampaignPreflightResponse(BaseModel):
@@ -283,8 +359,41 @@ class CampaignPreflightResponse(BaseModel):
     redis_ok: bool = True
     ready_accounts: int = 0
     execution_usable_accounts: int = 0
+    campaign_eligible_accounts: int = 0
     assignment_materialized: bool = False
     capacity_applicable: bool = False
+    campaign_prepared: bool = False
+    prepared_messages: int = 0
+    preparation_ready: bool = True
+    preparation_blockers: list[dict] = Field(default_factory=list)
+    technical_ready: bool = False
+    controlled_production_enabled: bool = False
+    controlled_production_confirmation_required: bool = False
+    allowed_to_start_after_confirmation: bool = False
+    controlled_production_max_messages: int | None = None
+    controlled_production_label: str | None = None
+
+
+class CampaignPrepareRequest(BaseModel):
+    force_mock_output: bool = False
+    limit: int | None = None
+
+
+class CampaignPrepareResponse(BaseModel):
+    campaign_id: int
+    total_contacts: int
+    allowed_contacts: int
+    skipped_contacts: int
+    staged_count: int
+    ready_count: int
+    blocked_count: int
+    already_staged_count: int
+    limit_applied: int | None = None
+    product_snapshot_id: int | None = None
+    product_snapshot_valid: bool
+    force_mock_output: bool
+    real_gpt_called: bool = False
+    message: str = "Campaign messages prepared."
 
 
 class CampaignStopResponse(BaseModel):
@@ -354,6 +463,52 @@ class CampaignRecipientsListResponse(BaseModel):
     offset: int
 
 
+class AccountRuntimeAuthBlock(BaseModel):
+    state: str
+    reason: str | None = None
+
+
+class AccountRuntimeCredentialBlock(BaseModel):
+    type: str | None = None
+    state: str
+
+
+class AccountRuntimeIdentityBlock(BaseModel):
+    state: str
+
+
+class AccountRuntimeWorkerBlock(BaseModel):
+    state: str
+    covered: bool | None = None
+    heartbeat_fresh: bool | None = None
+
+
+class AccountRuntimeDispatchBlock(BaseModel):
+    ready: bool
+    blocker: str | None = None
+
+
+class AccountRuntimeOperatorActionBlock(BaseModel):
+    code: str
+    label: str
+
+
+class AccountRuntimeBlock(BaseModel):
+    """L18 authoritative runtime truth — separate from Account.status lifecycle."""
+
+    runtime_status: str
+    runtime_status_label: str
+    enabled: bool
+    auth: AccountRuntimeAuthBlock
+    credential: AccountRuntimeCredentialBlock
+    identity: AccountRuntimeIdentityBlock
+    worker: AccountRuntimeWorkerBlock
+    dispatch: AccountRuntimeDispatchBlock
+    operator_action: AccountRuntimeOperatorActionBlock
+    reason_code: str
+    last_verified_at: datetime | str | None = None
+
+
 class AccountResponse(BaseModel):
     """نمایش یک اکانت پیام‌رسان."""
 
@@ -361,12 +516,47 @@ class AccountResponse(BaseModel):
     platform: PlatformType
     account_identifier: str | None = None
     label: str | None = None
+    display_identity: str | None = None
     status: AccountStatus
     proxy_url: str | None = None
     policy_id: int | None = None
     created_at: datetime
     updated_at: datetime
     last_used_at: datetime | None = None
+    archived_at: datetime | None = None
+    archived_by: str | None = None
+    archive_reason: str | None = None
+    # L18 — connection/auth/worker truth (optional for backward compatibility)
+    runtime: AccountRuntimeBlock | None = None
+    runtime_status: str | None = None
+    runtime_status_label: str | None = None
+    account_enabled: bool | None = None
+    # C1 — same base predicate as campaign picker / auto-select
+    campaign_eligible: bool | None = None
+    campaign_blocker_code: str | None = None
+    campaign_blocker_label: str | None = None
+    campaign_status_label: str | None = None
+
+
+class ArchiveActionRequest(BaseModel):
+    reason: str | None = Field(default=None, max_length=512)
+
+
+class ArchiveActionResponse(BaseModel):
+    status: str
+    entity_type: str
+    entity_id: int
+    already_archived: bool = False
+    already_active: bool = False
+    archived_at: datetime | None = None
+    restored_at: datetime | None = None
+    previous_status: str | None = None
+    queued_items_cancelled: int = 0
+    pending_recipients_stopped: int = 0
+    already_sent_count: int = 0
+    in_flight_count: int = 0
+    message: str
+    details: dict = Field(default_factory=dict)
 
 
 class AccountCreateRequest(BaseModel):
@@ -402,6 +592,11 @@ class AccountTestConnectionResponse(BaseModel):
     platform: PlatformType
     message: str
     error: str | None = None
+    status: str | None = None
+    reason_code: str | None = None
+    verified_at: datetime | str | None = None
+    runtime_status: str | None = None
+    runtime_status_label: str | None = None
 
 
 class WhatsAppWebStatusResponse(BaseModel):
@@ -459,6 +654,14 @@ class AccountSessionStatusResponse(BaseModel):
     profile_exists: bool | None = None
     profile_dir: str | None = None
     linked_at: str | None = None
+    # L18 safe credential metadata (never secrets)
+    credential_type: str | None = None
+    credential_state: str | None = None
+    runtime_status: str | None = None
+    runtime_status_label: str | None = None
+    requires_relogin: bool | None = None
+    last_verified_at: datetime | str | None = None
+    session_id: int | None = None  # safe metadata id only
 
 
 class AccountSessionRegisterRequest(BaseModel):
@@ -636,6 +839,7 @@ class RubikaGroupMessagesResponse(BaseModel):
 
 class RubikaScheduleItem(BaseModel):
     phase: str
+    slot: int
     start_hour: int
     end_hour: int
     max_per_hour: int

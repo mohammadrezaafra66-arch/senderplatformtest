@@ -14,6 +14,30 @@ def _postgres_url() -> str | None:
     return url if url and url.startswith("postgresql") else None
 
 
+@pytest.fixture(autouse=True)
+def _disable_controlled_production_for_api_tests(monkeypatch):
+    monkeypatch.setenv("CONTROLLED_PRODUCTION_ENABLED", "false")
+    try:
+        from core_engine.config import get_settings
+
+        get_settings.cache_clear()
+    except Exception:
+        pass
+
+
+@pytest.fixture(autouse=True)
+def _fail_fast_production_database_api():
+    url = os.environ.get("DATABASE_URL") or ""
+    if not url:
+        return
+    from tests.isolation import PRODUCTION_DB_NAME, is_production_database_url
+
+    if is_production_database_url(url):
+        raise RuntimeError(
+            f"REFUSE: API tests DATABASE_URL targets production DB '{PRODUCTION_DB_NAME}'."
+        )
+
+
 @pytest.fixture
 def pg_engine():
     url = _postgres_url()

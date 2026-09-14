@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Sequence
 
-from core_engine.services.rubika_policy import IRAN_TZ, policy_now
+from core_engine.services.rubika_policy import IRAN_TZ, is_rubika_send_day, policy_now
 
 TIMEZONE_NAME = "Asia/Tehran"
 
@@ -151,6 +151,8 @@ def current_window_phase(
     now: datetime,
 ) -> str | None:
     local = policy_now(clock=now)
+    if not is_rubika_send_day(clock=local):
+        return None
     hour = local.hour
     for window in windows:
         if hour_in_window(hour, window.start_hour, window.end_hour):
@@ -182,6 +184,8 @@ def remaining_window_hours_today(
 ) -> int:
     """Whole Iran hours from the current hour through 23 that sit in a window."""
     local = policy_now(clock=now)
+    if not is_rubika_send_day(clock=local):
+        return 0
     if not windows:
         return 24 - local.hour
     count = 0

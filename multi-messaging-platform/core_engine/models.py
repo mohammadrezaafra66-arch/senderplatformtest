@@ -105,6 +105,48 @@ class SessionType(str, enum.Enum):
     RUBIKA_SESSION = "rubika_session"
 
 
+class RubikaSessionStatus(str, enum.Enum):
+    """Canonical Rubika ChannelSession lifecycle (L1/L2).
+
+    ACTIVE is the only runtime-loadable status. Legacy rows start as
+    LEGACY_UNCLASSIFIED and must never be auto-promoted.
+    """
+
+    LEGACY_UNCLASSIFIED = "legacy_unclassified"
+    PENDING_LOGIN = "pending_login"
+    VALIDATING = "validating"
+    ACTIVE = "active"
+    SUPERSEDED = "superseded"
+    INVALID = "invalid"
+    DECRYPT_FAILED = "decrypt_failed"
+    REVOKED = "revoked"
+
+
+class RubikaIdentityStatus(str, enum.Enum):
+    """Account↔Rubika GUID binding state."""
+
+    UNBOUND = "unbound"
+    VERIFIED = "verified"
+    MISMATCH_LOCKED = "mismatch_locked"
+    OPERATOR_OVERRIDE = "operator_override"
+
+
+class RubikaLoginChallengeState(str, enum.Enum):
+    """Account-scoped Rubika OTP/login challenge states (L3)."""
+
+    LOGIN_NOT_STARTED = "login_not_started"
+    OTP_REQUESTED = "otp_requested"
+    OTP_WAITING_FOR_OPERATOR = "otp_waiting_for_operator"
+    OTP_SUBMITTED = "otp_submitted"
+    AUTHENTICATING = "authenticating"
+    IDENTITY_VERIFYING = "identity_verifying"
+    SESSION_PERSISTING = "session_persisting"
+    READY = "ready"
+    LOGIN_FAILED = "login_failed"
+    LOGIN_EXPIRED = "login_expired"
+    MANUAL_REVIEW_REQUIRED = "manual_review_required"
+
+
 class ImportStatus(str, enum.Enum):
     PENDING = "pending"
     PREVIEWED = "previewed"
@@ -164,7 +206,28 @@ class Account(Base):
         nullable=True,
     )
 
+    # L2 — Rubika identity binding (GUID). Never silent overwrite once VERIFIED.
+    rubika_guid: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    rubika_identity_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    rubika_identity_status: Mapped[RubikaIdentityStatus | None] = mapped_column(
+        Enum(RubikaIdentityStatus, values_callable=lambda x: [e.value for e in x]),
+        nullable=True,
+        default=RubikaIdentityStatus.UNBOUND,
+    )
+
     evolution_metadata: Mapped[dict | None] = mapped_column(JSON_TYPE, nullable=True, default=dict)
+
+    # Soft archive — orthogonal to AccountStatus / runtime readiness.
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+    archived_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    archive_reason: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     policy: Mapped["RatePolicy | None"] = relationship(
         "RatePolicy",
@@ -213,6 +276,10 @@ class AccountSendSettings(Base):
 
 class ChannelSession(Base):
     __tablename__ = "channel_sessions"
+    # Partial unique index uq_channel_sessions_one_active_rubika is created by
+    # Alembic revision rubika_l2_canonical_session_001 (not via create_all):
+    #   UNIQUE(account_id) WHERE session_status='active'
+    #   AND session_type IN (rubika_session, RUBIKA_SESSION) — see migration SQL.
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     account_id: Mapped[int] = mapped_column(
@@ -225,6 +292,19 @@ class ChannelSession(Base):
     file_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     key_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     last_refresh_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # L2 — canonical Rubika session lifecycle (NULL only for non-Rubika / pre-migration).
+    session_status: Mapped[RubikaSessionStatus | None] = mapped_column(
+        Enum(RubikaSessionStatus, values_callable=lambda x: [e.value for e in x]),
+        nullable=True,
+        default=RubikaSessionStatus.LEGACY_UNCLASSIFIED,
+        index=True,
+    )
+    validated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    invalidated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    validation_error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    identity_guid: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    login_attempt_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
@@ -260,6 +340,48 @@ class ChannelSession(Base):
     proxy_assigned_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     account: Mapped["Account"] = relationship("Account", back_populates="channel_sessions")
+
+
+class RubikaLoginChallenge(Base):
+    """Account-scoped Rubika OTP/login challenge (L3). Never stores OTP codes."""
+
+    __tablename__ = "rubika_login_challenges"
+    __table_args__ = (
+        Index("ix_rubika_login_challenges_account_state", "account_id", "state"),
+    )
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id"),
+        nullable=False,
+        index=True,
+    )
+    state: Mapped[RubikaLoginChallengeState] = mapped_column(
+        Enum(RubikaLoginChallengeState, values_callable=lambda x: [e.value for e in x]),
+        nullable=False,
+        default=RubikaLoginChallengeState.LOGIN_NOT_STARTED,
+        index=True,
+    )
+    provider_challenge_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    phone_e164: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_submit_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    failure_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    candidate_session_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    completed_session_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
 
 
 class ImportBatch(Base):
@@ -414,6 +536,13 @@ class Contact(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+    deleted_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    delete_reason: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     campaign: Mapped["Campaign | None"] = relationship(
         "Campaign",
@@ -504,6 +633,15 @@ class Campaign(Base):
         default=datetime.utcnow,
         onupdate=datetime.utcnow,
     )
+
+    # Soft archive — orthogonal to Campaign.status execution state.
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+    archived_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    archive_reason: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     contacts: Mapped[list["Contact"]] = relationship(
         "Contact",
@@ -1118,7 +1256,8 @@ class RubikaSenderSchedule(Base):
     __tablename__ = "rubika_sender_schedules"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    phase: Mapped[str] = mapped_column(String(16), nullable=False, unique=True, default="day")
+    phase: Mapped[str] = mapped_column(String(16), nullable=False, default="day")
+    slot: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     start_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=8)
     end_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=22)
     max_per_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=50)

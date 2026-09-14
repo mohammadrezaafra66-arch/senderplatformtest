@@ -43,6 +43,15 @@ class WorkerSettings(BaseSettings):
     # پنجره‌های روز/شب از rubika_sender_schedules در دیتابیس خوانده می‌شوند، نه از اینجا.
     RUBIKA_DELIVERY_MODE: str = "bot_api"
     RUBIKA_USER_ACCOUNT_ENABLED: bool = False
+    # L7 cohort gating (mirrors core_engine.config; default off = legacy loader).
+    RUBIKA_CANONICAL_SESSION_V1: bool = False
+    RUBIKA_CANONICAL_SESSION_MODE: str = "off"
+    RUBIKA_CANONICAL_SESSION_ACCOUNT_IDS: str = ""
+    # L17: allowlist (default) | canonical_active
+    RUBIKA_CANONICAL_SESSION_SCOPE: str = "allowlist"
+    # Mirrored from core for L17 deploy env uptake (pool enroll is core_api path).
+    AUTO_ENROLL_RUBIKA_POOL: bool = False
+    DEFAULT_RUBIKA_POOL: str = "day"
     RUBIKA_MIN_SEND_DELAY_SECONDS: int = 5
     RUBIKA_MAX_SEND_DELAY_SECONDS: int = 15
     RUBIKA_HOURLY_SEND_CAP: int = 50
@@ -92,6 +101,14 @@ class WorkerSettings(BaseSettings):
     RUBIKA_ACCOUNT_IDS: str = ""
     RUBIKA_ACCOUNT_REFRESH_INTERVAL_SECONDS: int = 60
     RUBIKA_MULTI_ACCOUNT_WORKER: bool = False
+    # L11 — worker discovery mode. Default pinned preserves RUBIKA_ACCOUNT_IDS.
+    # shadow: pin remains authoritative for coverage; dynamic set compared read-only.
+    # dynamic: coverage uses get_dispatch_eligible_rubika_account_ids (+ optional cohort).
+    RUBIKA_WORKER_DISCOVERY_MODE: str = "pinned"
+    # Temporary canary filter for dynamic mode only (when SCOPE=cohort). Empty = all eligible.
+    RUBIKA_WORKER_DISCOVERY_COHORT_IDS: str = ""
+    # L17: cohort (default, backward-compatible) | all_eligible (pin ∪ dynamic eligible).
+    RUBIKA_WORKER_DISCOVERY_SCOPE: str = "cohort"
 
     # WA-5 — retry, rate limit, distributed lock, heartbeat.
     WHATSAPP_MAX_RETRY_ATTEMPTS: int = 3
@@ -128,6 +145,23 @@ class WorkerSettings(BaseSettings):
         from core_engine.services.rubika_mode import normalize_rubika_delivery_mode
 
         return normalize_rubika_delivery_mode(value)
+
+    @field_validator("RUBIKA_CANONICAL_SESSION_MODE", mode="before")
+    @classmethod
+    def normalize_canonical_session_mode(cls, value: object) -> str:
+        mode = str(value or "off").strip().lower()
+        if mode not in {"off", "shadow", "enforce"}:
+            raise ValueError(
+                "RUBIKA_CANONICAL_SESSION_MODE must be 'off', 'shadow', or 'enforce'."
+            )
+        return mode
+
+    @field_validator("RUBIKA_WORKER_DISCOVERY_MODE", mode="before")
+    @classmethod
+    def normalize_worker_discovery_mode(cls, value: object) -> str:
+        from workers.rubika_worker_discovery import normalize_discovery_mode
+
+        return normalize_discovery_mode(str(value) if value is not None else None)
 
     @field_validator("SHADOW_PHONE_NUMBER", mode="before")
     @classmethod

@@ -8,6 +8,7 @@ import type {
   AccountSendTestResult,
   AccountTestConnectionResult,
   AccountUpdatePayload,
+  ArchiveActionResult,
   EvolutionInstanceStatus,
   EvolutionQrLinkSession,
   LiveSendPreflight,
@@ -20,10 +21,48 @@ import type {
   WhatsAppWebStatus,
 } from "@/types/account";
 
-export async function fetchAccounts(platform?: PlatformOption): Promise<AccountsListResult> {
-  const search = platform ? `?platform=${encodeURIComponent(platform)}` : "";
-  const response = await apiFetch(`/accounts${search}`);
+export type FetchAccountsParams = {
+  platform?: PlatformOption;
+  archived?: boolean;
+  q?: string;
+  token?: string | null;
+};
+
+export async function fetchAccounts(params: FetchAccountsParams = {}): Promise<AccountsListResult> {
+  const search = new URLSearchParams();
+  if (params.platform) search.set("platform", params.platform);
+  if (params.archived) search.set("archived", "true");
+  if (params.q?.trim()) search.set("q", params.q.trim());
+  const query = search.toString();
+  const response = await apiFetch(`/accounts${query ? `?${query}` : ""}`, {
+    token: params.token,
+  });
   return response.json() as Promise<AccountsListResult>;
+}
+
+export async function archiveAccount(
+  id: number,
+  options: { token?: string | null; reason?: string } = {},
+): Promise<ArchiveActionResult> {
+  const body = options.reason ? JSON.stringify({ reason: options.reason }) : undefined;
+  const response = await apiFetch(`/accounts/${id}/archive`, {
+    method: "POST",
+    token: options.token,
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body,
+  });
+  return response.json() as Promise<ArchiveActionResult>;
+}
+
+export async function restoreAccount(
+  id: number,
+  token?: string | null,
+): Promise<ArchiveActionResult> {
+  const response = await apiFetch(`/accounts/${id}/restore`, {
+    method: "POST",
+    token,
+  });
+  return response.json() as Promise<ArchiveActionResult>;
 }
 
 export async function createAccount(

@@ -116,6 +116,7 @@ export type RubikaGroupMessagesResult = {
 
 export type RubikaScheduleItem = {
   phase: string;
+  slot: number;
   start_hour: number;
   end_hour: number;
   max_per_hour: number;

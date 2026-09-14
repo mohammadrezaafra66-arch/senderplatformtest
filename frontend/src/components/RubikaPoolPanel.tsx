@@ -118,39 +118,65 @@ export function RubikaPoolPanel({ canManage }: RubikaPoolPanelProps) {
 
   const [scheduleDraft, setScheduleDraft] = useState<Record<string, RubikaScheduleItem>>({});
 
-  function draftFor(phase: "day" | "night"): RubikaScheduleItem {
-    if (scheduleDraft[phase]) return scheduleDraft[phase];
-    const existing = schedule.find((s) => s.phase === phase);
-    return (
-      existing ?? {
-        phase,
-        start_hour: phase === "day" ? 8 : 22,
-        end_hour: phase === "day" ? 22 : 8,
-        max_per_hour: 50,
-        is_active: true,
-      }
-    );
+  function scheduleKey(slot: number) {
+    return `day:${slot}`;
   }
 
-  function updateDraft(phase: "day" | "night", patch: Partial<RubikaScheduleItem>) {
-    setScheduleDraft((cur) => ({ ...cur, [phase]: { ...draftFor(phase), ...patch } }));
+  function draftFor(slot: number): RubikaScheduleItem {
+    const key = scheduleKey(slot);
+
+    if (scheduleDraft[key]) {
+      return scheduleDraft[key];
+    }
+
+    const existing = schedule.find(
+      (item) => item.phase === "day" && item.slot === slot,
+    );
+
+    if (existing) {
+      return existing;
+    }
+
+    return {
+      phase: "day",
+      slot,
+      start_hour: slot === 1 ? 10 : slot === 2 ? 16 : 0,
+      end_hour: slot === 1 ? 14 : slot === 2 ? 20 : 0,
+      max_per_hour: 20,
+      is_active: slot !== 3,
+    };
+  }
+
+  function updateDraft(slot: number, patch: Partial<RubikaScheduleItem>) {
+    const key = scheduleKey(slot);
+
+    setScheduleDraft((current) => ({
+      ...current,
+      [key]: {
+        ...draftFor(slot),
+        ...patch,
+      },
+    }));
   }
 
   async function handleScheduleSave(item: RubikaScheduleItem) {
     setError(null);
     setNotice(null);
+
     try {
-      await updateRubikaSchedule(item.phase, {
+      await updateRubikaSchedule(item.phase, item.slot, {
         start_hour: item.start_hour,
         end_hour: item.end_hour,
         max_per_hour: item.max_per_hour,
         is_active: item.is_active,
       });
-      setScheduleDraft((cur) => {
-        const next = { ...cur };
-        delete next[item.phase];
+
+      setScheduleDraft((current) => {
+        const next = { ...current };
+        delete next[scheduleKey(item.slot)];
         return next;
       });
+
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("actionFailed"));
@@ -297,13 +323,20 @@ export function RubikaPoolPanel({ canManage }: RubikaPoolPanelProps) {
       </div>
 
       <div>
-        <strong style={{ display: "block", marginBottom: 8 }}>{t("rubikaScheduleTitle")}</strong>
+        <strong style={{ display: "block", marginBottom: 8 }}>
+          زمان‌بندی ارسال روبیکا
+        </strong>
+
+        <div style={{ marginBottom: 12, fontSize: 13, opacity: 0.8 }}>
+          شنبه تا چهارشنبه فعال — پنجشنبه و جمعه ارسال انجام نمی‌شود.
+        </div>
+
         <div style={{ display: "grid", gap: 12, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>
-          {(["day", "night"] as const).map((phase) => {
-            const draft = draftFor(phase);
+          {([1, 2, 3] as const).map((slot) => {
+            const draft = draftFor(slot);
             return (
               <div
-                key={phase}
+                key={`day-${slot}`}
                 style={{
                   border: "1px solid rgba(0,0,0,0.1)",
                   borderRadius: 10,
@@ -312,7 +345,20 @@ export function RubikaPoolPanel({ canManage }: RubikaPoolPanelProps) {
                   gap: 8,
                 }}
               >
-                <strong>{t(`rubikaPhase_${phase}`)}</strong>
+                <strong>{`بازه ${slot}`}</strong>
+
+                <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input
+                    type="checkbox"
+                    checked={draft.is_active}
+                    disabled={!canManage}
+                    onChange={(e) =>
+                      updateDraft(slot, { is_active: e.target.checked })
+                    }
+                  />
+                  فعال
+                </label>
+
                 <div style={{ display: "flex", gap: 8 }}>
                   <FormField label={t("rubikaScheduleStart")}>
                     <input
@@ -322,7 +368,7 @@ export function RubikaPoolPanel({ canManage }: RubikaPoolPanelProps) {
                       max={24}
                       value={draft.start_hour}
                       disabled={!canManage}
-                      onChange={(e) => updateDraft(phase, { start_hour: Number(e.target.value) })}
+                      onChange={(e) => updateDraft(slot, { start_hour: Number(e.target.value) })}
                     />
                   </FormField>
                   <FormField label={t("rubikaScheduleEnd")}>
@@ -333,7 +379,7 @@ export function RubikaPoolPanel({ canManage }: RubikaPoolPanelProps) {
                       max={24}
                       value={draft.end_hour}
                       disabled={!canManage}
-                      onChange={(e) => updateDraft(phase, { end_hour: Number(e.target.value) })}
+                      onChange={(e) => updateDraft(slot, { end_hour: Number(e.target.value) })}
                     />
                   </FormField>
                 </div>
@@ -345,7 +391,7 @@ export function RubikaPoolPanel({ canManage }: RubikaPoolPanelProps) {
                     max={1000}
                     value={draft.max_per_hour}
                     disabled={!canManage}
-                    onChange={(e) => updateDraft(phase, { max_per_hour: Number(e.target.value) })}
+                    onChange={(e) => updateDraft(slot, { max_per_hour: Number(e.target.value) })}
                   />
                 </FormField>
                 {canManage ? (

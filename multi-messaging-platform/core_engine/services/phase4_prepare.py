@@ -15,7 +15,9 @@ from core_engine.models import (
     CampaignStatus,
     Contact,
     Message,
+    PlatformType,
     RenderedMessage,
+    RenderStatus,
     StagedQueueItem,
 )
 from core_engine.schemas.phase4 import PrepareMessagesRequest, PrepareMessagesResultResponse
@@ -115,6 +117,10 @@ def _persist_metadata(result: FinalRenderResult) -> dict:
     return build_persisted_render_metadata(result)
 
 
+def _mark_recipient_rendered(recipient: CampaignRecipient) -> None:
+    recipient.render_status = RenderStatus.RENDERED
+
+
 def prepare_campaign_messages(
     db: Session,
     campaign_id: int,
@@ -151,6 +157,43 @@ def prepare_campaign_messages(
         for recipient, contact in recipient_rows
         if contact.id in allowed_contact_ids
     ]
+
+    # Rubika: reject invalid IR phones before any Message/stage materialization.
+    if campaign.platform == PlatformType.RUBIKA:
+        from core_engine.services.campaign_production_guards import (
+            INVALID_RECIPIENT_PHONE,
+            validate_rubika_contact_phone,
+        )
+
+        invalid_phone_contacts: list[dict] = []
+        filtered_rows: list = []
+        for recipient, contact in allowed_recipient_rows:
+            phone_ok = validate_rubika_contact_phone(contact)
+            if phone_ok.ok:
+                filtered_rows.append((recipient, contact))
+            else:
+                invalid_phone_contacts.append(
+                    {
+                        "contact_id": int(contact.id),
+                        "code": INVALID_RECIPIENT_PHONE,
+                        "digit_len": phone_ok.digit_len,
+                    }
+                )
+        if invalid_phone_contacts:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": INVALID_RECIPIENT_PHONE,
+                    "message": "One or more Rubika recipients have invalid Iranian mobile numbers.",
+                    "invalid_recipient_count": len(invalid_phone_contacts),
+                    "valid_recipient_count": len(filtered_rows),
+                    "invalid_recipients": invalid_phone_contacts,
+                },
+            )
+        allowed_recipient_rows = filtered_rows
+        allowed_contacts_list = [c for _r, c in allowed_recipient_rows]
+        allowed_contact_ids = {c.id for c in allowed_contacts_list}
+
     allowed_contacts = len(allowed_contacts_list)
     blocked_count = sum(
         1
@@ -187,11 +230,24 @@ def prepare_campaign_messages(
         else {}
     )
 
+    from core_engine.services.campaign_production_guards import (
+        resolve_campaign_max_total_messages,
+    )
+
+    production_max = resolve_campaign_max_total_messages(campaign)
+    effective_max_contacts = campaign.max_contacts
+    if production_max is not None:
+        effective_max_contacts = (
+            production_max
+            if effective_max_contacts is None
+            else min(int(effective_max_contacts), int(production_max))
+        )
+
     effective_limit = _compute_effective_limit(
         allowed_contacts=allowed_contacts,
         request_limit=request.limit,
         daily_limit=campaign.daily_limit,
-        max_contacts=campaign.max_contacts,
+        max_contacts=effective_max_contacts,
     )
     limit_was_applied = effective_limit < allowed_contacts
 
@@ -325,6 +381,22 @@ def prepare_campaign_messages(
                     result = _render(contact, sender_account_id=assigned_account.id)
                     current_text = result.final_text
                     product_meta = _persist_metadata(result)
+                    from core_engine.services.campaign_production_guards import (
+                        UNRESOLVED_TEMPLATE_PLACEHOLDER,
+                        find_unresolved_placeholders,
+                    )
+
+                    unresolved = find_unresolved_placeholders(current_text)
+                    if unresolved:
+                        raise HTTPException(
+                            status_code=400,
+                            detail={
+                                "code": UNRESOLVED_TEMPLATE_PLACEHOLDER,
+                                "message": "Rendered message still contains unresolved placeholders.",
+                                "contact_id": int(contact.id),
+                                "placeholder_names": unresolved,
+                            },
+                        )
                     message = (
                         existing_messages.get(recipient.final_message_id)
                         if recipient.final_message_id is not None
@@ -385,6 +457,7 @@ def prepare_campaign_messages(
                         existing_item.status = "ready"
                         existing_item.skip_reason = None
 
+                    _mark_recipient_rendered(recipient)
                     already_staged_count += 1
                     returned_items.append(existing_item)
                 continue
@@ -395,6 +468,23 @@ def prepare_campaign_messages(
             result = _render(contact, sender_account_id=assigned_account.id)
             final_text = result.final_text
             product_meta = _persist_metadata(result)
+
+            from core_engine.services.campaign_production_guards import (
+                UNRESOLVED_TEMPLATE_PLACEHOLDER,
+                find_unresolved_placeholders,
+            )
+
+            unresolved = find_unresolved_placeholders(final_text)
+            if unresolved:
+                raise HTTPException(
+                    status_code=400,
+                    detail={
+                        "code": UNRESOLVED_TEMPLATE_PLACEHOLDER,
+                        "message": "Rendered message still contains unresolved placeholders.",
+                        "contact_id": int(contact.id),
+                        "placeholder_names": unresolved,
+                    },
+                )
 
             rendered_message = RenderedMessage(
                 campaign_id=campaign_id,
@@ -422,6 +512,7 @@ def prepare_campaign_messages(
             db.add(message)
             db.flush()
             recipient.final_message_id = message.id
+            _mark_recipient_rendered(recipient)
 
             queue_payload = build_staged_queue_payload(
                 campaign_id=campaign_id,

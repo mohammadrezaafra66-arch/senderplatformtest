@@ -450,7 +450,7 @@ def get_rubika_schedule(
     rows = db.query(RubikaSenderSchedule).order_by(RubikaSenderSchedule.id.asc()).all()
     items = [
         RubikaScheduleItem(
-            phase=r.phase, start_hour=r.start_hour, end_hour=r.end_hour,
+            phase=r.phase, slot=r.slot, start_hour=r.start_hour, end_hour=r.end_hour,
             max_per_hour=r.max_per_hour, is_active=r.is_active,
         )
         for r in rows
@@ -462,12 +462,24 @@ def get_rubika_schedule(
 def update_rubika_schedule(
     phase: str,
     payload: RubikaScheduleUpdateRequest,
+    slot: int = 1,
     db: Annotated[Session, Depends(get_db)] = None,
     current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
 ):
-    row = db.query(RubikaSenderSchedule).filter(RubikaSenderSchedule.phase == phase).first()
+    if slot not in (1, 2, 3):
+        from fastapi import HTTPException
+        raise HTTPException(status_code=422, detail="slot must be between 1 and 3")
+
+    row = (
+        db.query(RubikaSenderSchedule)
+        .filter(
+            RubikaSenderSchedule.phase == phase,
+            RubikaSenderSchedule.slot == slot,
+        )
+        .first()
+    )
     if row is None:
-        row = RubikaSenderSchedule(phase=phase)
+        row = RubikaSenderSchedule(phase=phase, slot=slot)
         db.add(row)
 
     row.start_hour = payload.start_hour
@@ -483,7 +495,7 @@ def update_rubika_schedule(
     db.refresh(row)
 
     return RubikaScheduleItem(
-        phase=row.phase, start_hour=row.start_hour, end_hour=row.end_hour,
+        phase=row.phase, slot=row.slot, start_hour=row.start_hour, end_hour=row.end_hour,
         max_per_hour=row.max_per_hour, is_active=row.is_active,
     )
 

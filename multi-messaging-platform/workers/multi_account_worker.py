@@ -355,6 +355,34 @@ class MultiAccountWorker(ABC):
         if self._redis is None:
             await self.connect()
 
+        # Rubika delayed retries must be drained by the long-running worker.
+        # Without this, transient MIN_INTERVAL / quota denials can remain
+        # stranded in the delayed-retry ZSET until an unrelated queue bridge runs.
+        if str(self.platform).strip().lower() == "rubika":
+            try:
+                from time import time
+                from core_engine.services.campaign_inflight import (
+                    flush_due_delayed_retries,
+                )
+
+                flushed = await flush_due_delayed_retries(
+                    self._redis,
+                    now_unix=time(),
+                    limit=100,
+                )
+                if flushed:
+                    self.logger.info(
+                        "event=rubika_delayed_retries_flushed count=%s",
+                        flushed,
+                    )
+            except Exception as exc:
+                # Do not crash the worker if retry draining itself has a
+                # transient Redis/runtime problem.
+                self.logger.warning(
+                    "event=rubika_delayed_retry_flush_failed error=%s",
+                    type(exc).__name__,
+                )
+
         payload: WorkerPayload | None = None
         active_account_id: int | None = None
         try:

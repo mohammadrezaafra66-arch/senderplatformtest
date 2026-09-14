@@ -9,14 +9,13 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from core_engine.models import Campaign, CampaignStatus, PlatformType
-from core_engine.schemas.phase4 import PrepareMessagesRequest
 from core_engine.services.campaign_preflight import (
     CAMPAIGN_CAPACITY_UNKNOWN,
     CAMPAIGN_DEPENDENCY_ERROR,
+    CONTROLLED_PRODUCTION_APPROVAL_REQUIRED,
     evaluate_campaign_send_preflight,
     log_campaign_safety_event,
 )
-from core_engine.services.phase4_prepare import prepare_campaign_messages
 from core_engine.services.queue_bridge import push_staged_items_to_worker_queue
 from core_engine.services.redis_client import get_redis_client, ping_redis
 from core_engine.config import get_settings
@@ -71,51 +70,37 @@ async def set_campaign_pause(campaign_id: int) -> None:
 
 
 def _auto_prepare(db: Session, campaign_id: int) -> None:
-    """Render and stage any contacts that don't have a staged item yet.
+    """Render and stage messages before start — delegates to auto-prepare service."""
+    from core_engine.services.campaign_auto_prepare import try_auto_prepare_campaign
 
-    Renders the campaign's own ``template_text`` — starting a campaign must
-    never substitute the placeholder dry-run text for what the operator wrote.
-    Ready-but-unsent items are refreshed if the text changed since staging.
-
-    Soft not-ready-yet cases (empty campaign / missing template text with no
-    coded failure) may be skipped. Any coded prepare failure is re-raised so
-    start surfaces TEMPLATE_MISSING / RENDER_FAILED / sender codes instead of
-    collapsing later into CAMPAIGN_NOT_PREPARED (R6).
-    """
-    _SOFT_SKIP_CODES = frozenset(
-        {
-            "no_contacts",
-            "NO_CONTACTS",
-            "empty_campaign",
-            "EMPTY_CAMPAIGN",
-            "template_text_empty",
-            "TEMPLATE_TEXT_EMPTY",
-        }
-    )
-    try:
-        result = prepare_campaign_messages(
-            db,
-            campaign_id,
-            PrepareMessagesRequest(force_mock_output=False),
+    result = try_auto_prepare_campaign(db, campaign_id, trigger="start", force=True)
+    if result.error_code and result.error_code not in {
+        "no_contacts",
+        "NO_CONTACTS",
+        "empty_campaign",
+        "EMPTY_CAMPAIGN",
+        "template_text_empty",
+        "TEMPLATE_TEXT_EMPTY",
+    }:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": result.error_code,
+                "message": result.error_message or "Prepare failed.",
+            },
         )
-    except HTTPException as exc:
-        db.rollback()
-        detail = exc.detail if isinstance(exc.detail, dict) else {}
-        code = detail.get("code") if isinstance(detail, dict) else None
-        if code and str(code) not in _SOFT_SKIP_CODES:
-            raise
+    if result.blockers and not result.prepared and not result.skipped:
+        blocker = result.blockers[0]
+        raise HTTPException(status_code=400, detail=blocker)
+
+    if result.prepare_result is not None:
         logger.info(
-            "auto-prepare skipped for campaign=%s: %s", campaign_id, exc.detail
+            "auto-prepare campaign=%s staged=%s ready=%s already_staged=%s",
+            campaign_id,
+            result.prepare_result.staged_count,
+            result.prepare_result.ready_count,
+            result.prepare_result.already_staged_count,
         )
-        return
-
-    logger.info(
-        "auto-prepare campaign=%s staged=%s ready=%s already_staged=%s",
-        campaign_id,
-        result.staged_count,
-        result.ready_count,
-        result.already_staged_count,
-    )
 
 
 async def start_campaign(
@@ -123,11 +108,57 @@ async def start_campaign(
     campaign: Campaign,
     *,
     trigger_bridge: bool = True,
+    confirm_controlled_production: bool = False,
+    request_id: str | None = None,
 ) -> dict[str, Any]:
+    from core_engine.services.archive import require_campaign_not_archived
+
+    require_campaign_not_archived(campaign)
+
     if campaign.status not in _STARTABLE_STATUSES:
         raise HTTPException(
             status_code=400,
             detail=f"Campaign cannot be started from status '{campaign.status}'.",
+        )
+
+    from core_engine.services.campaign_production_guards import (
+        controlled_production_default_max,
+        controlled_production_enabled,
+        resolve_campaign_max_total_messages,
+    )
+
+    cp_enabled = bool(controlled_production_enabled())
+    log_campaign_safety_event(
+        "campaign_start_received",
+        campaign_id=campaign.id,
+        code=None,
+        extra={
+            "request_id": request_id,
+            "controlled_confirmation_received": bool(confirm_controlled_production),
+            "controlled_production_enabled": cp_enabled,
+            "platform": getattr(campaign.platform, "value", str(campaign.platform)),
+        },
+    )
+
+    if (
+        cp_enabled
+        and campaign.platform == PlatformType.RUBIKA
+        and not confirm_controlled_production
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": CONTROLLED_PRODUCTION_APPROVAL_REQUIRED,
+                "message": (
+                    "Controlled production mode requires explicit operator approval "
+                    "(confirm_controlled_production=true) before start."
+                ),
+                "default_max_total_messages": controlled_production_default_max(),
+                "campaign_max_total_messages": resolve_campaign_max_total_messages(
+                    campaign
+                ),
+                "request_id": request_id,
+            },
         )
 
     already_running = campaign.status == CampaignStatus.RUNNING.value
@@ -147,17 +178,38 @@ async def start_campaign(
                 "campaign_preflight_blocked",
                 campaign_id=campaign.id,
                 code=CAMPAIGN_DEPENDENCY_ERROR,
-                extra={"error": type(exc).__name__},
+                extra={"error": type(exc).__name__, "request_id": request_id},
             )
             raise HTTPException(
                 status_code=503,
                 detail={
                     "code": CAMPAIGN_DEPENDENCY_ERROR,
                     "message": "خطای وابستگی سیستمی؛ وضعیت کمپین تغییر نکرد.",
+                    "request_id": request_id,
                 },
             ) from exc
         preflight_payload = preflight.to_dict()
-        if not preflight.allowed_to_start:
+
+        # GET /preflight keeps allowed_to_start=False while Controlled Production
+        # still needs an explicit Confirm. After Confirm, that advisory blocker is
+        # satisfied — enforce technical readiness only (implied by confirmation_required).
+        cp_confirmation_satisfied = bool(
+            confirm_controlled_production
+            and getattr(preflight, "controlled_production_confirmation_required", False)
+        )
+        if cp_confirmation_satisfied:
+            log_campaign_safety_event(
+                "campaign_controlled_production_confirmed",
+                campaign_id=campaign.id,
+                code=CONTROLLED_PRODUCTION_APPROVAL_REQUIRED,
+                extra={
+                    "request_id": request_id,
+                    "controlled_confirmation_received": True,
+                    "technical_ready": bool(getattr(preflight, "technical_ready", False)),
+                    "preflight_result": preflight.code,
+                },
+            )
+        elif not preflight.allowed_to_start:
             status_code = 503 if preflight.code in {
                 CAMPAIGN_CAPACITY_UNKNOWN,
                 CAMPAIGN_DEPENDENCY_ERROR,
@@ -166,6 +218,12 @@ async def start_campaign(
                 "campaign_preflight_blocked",
                 campaign_id=campaign.id,
                 code=preflight.code,
+                extra={
+                    "request_id": request_id,
+                    "controlled_confirmation_received": bool(
+                        confirm_controlled_production
+                    ),
+                },
             )
             raise HTTPException(
                 status_code=status_code,
@@ -175,6 +233,7 @@ async def start_campaign(
                     "blockers": preflight.blockers,
                     "warnings": preflight.warnings,
                     "execution_safety_state": preflight.execution_safety_state,
+                    "request_id": request_id,
                 },
             )
 
@@ -201,13 +260,44 @@ async def start_campaign(
         batch = int(getattr(settings, "CAMPAIGN_DISPATCH_BATCH_SIZE", 50) or 50)
         bridge_result = await push_staged_items_to_worker_queue(db, batch_size=batch)
 
+    queue_jobs_created = 0
+    if isinstance(bridge_result, dict):
+        try:
+            queue_jobs_created = int(bridge_result.get("pushed") or 0)
+        except (TypeError, ValueError):
+            queue_jobs_created = 0
+
     message = "Campaign is already running." if already_running else "Campaign started successfully."
     result: dict[str, Any] = {
         "status": "running",
         "campaign_id": campaign.id,
         "message": message,
         "bridge_result": bridge_result,
+        "request_id": request_id,
+        "accepted": True,
+        "campaign_status": CampaignStatus.RUNNING.value,
+        "queue_jobs_created": queue_jobs_created,
+        "messages_scheduled": queue_jobs_created,
+        "controlled_confirmation_accepted": bool(
+            confirm_controlled_production
+            and cp_enabled
+            and campaign.platform == PlatformType.RUBIKA
+        ),
     }
+    log_campaign_safety_event(
+        "campaign_start_accepted",
+        campaign_id=campaign.id,
+        code="CAMPAIGN_STARTED",
+        extra={
+            "request_id": request_id,
+            "controlled_confirmation_received": bool(confirm_controlled_production),
+            "controlled_confirmation_accepted": result["controlled_confirmation_accepted"],
+            "queue_job_created": queue_jobs_created > 0,
+            "queue_jobs_created": queue_jobs_created,
+            "start_result": "accepted",
+            "campaign_status": CampaignStatus.RUNNING.value,
+        },
+    )
     if preflight_payload is not None:
         result["preflight"] = {
             "code": preflight_payload.get("code"),
@@ -216,6 +306,10 @@ async def start_campaign(
             "execution_safety_state": preflight_payload.get("execution_safety_state"),
             "estimated_completion_at": preflight_payload.get("estimated_completion_at"),
             "estimated_today_capacity": preflight_payload.get("estimated_today_capacity"),
+            "technical_ready": preflight_payload.get("technical_ready"),
+            "controlled_production_confirmation_required": preflight_payload.get(
+                "controlled_production_confirmation_required"
+            ),
         }
         if preflight_payload.get("warnings"):
             log_campaign_safety_event(

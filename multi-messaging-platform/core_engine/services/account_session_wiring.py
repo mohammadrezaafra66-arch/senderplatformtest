@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass
 from typing import Any
 
@@ -25,6 +26,7 @@ from core_engine.services.session_storage import (
 )
 from core_engine.services.whatsapp_web_session import build_whatsapp_web_status
 
+logger = logging.getLogger("core_engine.services.account_session_wiring")
 _API_TOKEN_PLATFORMS = frozenset({
     PlatformType.BALE,
     PlatformType.TELEGRAM,
@@ -119,7 +121,20 @@ def _latest_session_row(
     account_id: int,
     session_type: SessionType,
 ) -> ChannelSession | None:
-    """Deterministic current session: highest ChannelSession.id wins."""
+    """LEGACY loader: highest ChannelSession.id wins.
+
+    L2 fence: Rubika callers should migrate to
+    ``load_canonical_rubika_session``. This path remains until
+    ``RUBIKA_CANONICAL_SESSION_V1`` cutover; emits a structured warning.
+    """
+    if session_type == SessionType.RUBIKA_SESSION:
+        logger.warning(
+            "event=rubika_legacy_session_loader "
+            "account_id=%s session_type=%s "
+            "hint=migrate_to_load_canonical_rubika_session",
+            account_id,
+            session_type.value,
+        )
     return (
         db.query(ChannelSession)
         .filter(
@@ -129,6 +144,14 @@ def _latest_session_row(
         .order_by(ChannelSession.id.desc())
         .first()
     )
+
+
+def legacy_latest_rubika_session_row(
+    db: Session,
+    account_id: int,
+) -> ChannelSession | None:
+    """Explicit legacy max(id) selector for migrators/audits only — not runtime send."""
+    return _latest_session_row(db, account_id, SessionType.RUBIKA_SESSION)
 
 
 def has_encrypted_session(

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from core_engine.services.campaign_footer import append_campaign_footer
+
 import logging
 import time
 import uuid
@@ -281,7 +283,7 @@ def build_gpt_preview(
                         "label": item.label,
                         "prose_text": composed.prose_text,
                         "immutable_product_block": composed.immutable_product_block,
-                        "final_text": composed.final_text,
+                        "final_text": append_campaign_footer(composed.final_text),
                         "heading": composed.heading,
                     }
                 )
@@ -295,7 +297,7 @@ def build_gpt_preview(
                     "label": item.label,
                     "prose_text": item.text,
                     "immutable_product_block": "",
-                    "final_text": item.text,
+                    "final_text": append_campaign_footer(item.text),
                     "heading": "",
                 }
             )

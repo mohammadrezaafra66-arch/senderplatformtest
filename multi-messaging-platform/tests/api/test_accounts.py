@@ -164,14 +164,15 @@ def test_test_connection_banned_account_fails(client, admin_auth, sample_account
     assert data["success"] is False
 
 
-def test_operator_cannot_list_accounts(client, pg_session_factory):
+def test_operator_can_list_accounts(client, pg_session_factory):
     async def _fake_operator():
         return {"username": "operator", "password": "operator123", "role": "operator"}
 
     app.dependency_overrides[get_current_user] = _fake_operator
     try:
         response = client.get("/accounts", headers=AUTH_HEADERS)
-        assert response.status_code == 403
+        assert response.status_code == 200
+        assert "items" in response.json()
     finally:
         app.dependency_overrides.pop(get_current_user, None)
 

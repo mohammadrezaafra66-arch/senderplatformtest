@@ -12,11 +12,20 @@ export type CampaignSenderAccount = {
   account_id: number;
   label: string | null;
   account_identifier: string | null;
+  display_identity?: string | null;
   platform: PlatformOption;
   status: string;
   priority: number;
   weight: number;
   enabled: boolean;
+  runtime_status?: string | null;
+  runtime_status_label?: string | null;
+  campaign_eligible?: boolean | null;
+  blocker_code?: string | null;
+  blocker_label?: string | null;
+  auth_ready?: boolean | null;
+  worker_ready?: boolean | null;
+  dispatch_ready?: boolean | null;
 };
 
 export type CampaignListItem = {
@@ -29,6 +38,9 @@ export type CampaignListItem = {
   total_recipients: number;
   account_ids?: number[];
   sender_accounts?: CampaignSenderAccount[];
+  archived_at?: string | null;
+  archived_by?: string | null;
+  archive_reason?: string | null;
 };
 
 export type CampaignDetail = {
@@ -49,6 +61,9 @@ export type CampaignDetail = {
   latest_render_batch_id?: string | null;
   render_version?: string | null;
   committed_renders?: CommittedRenderSample[];
+  archived_at?: string | null;
+  archived_by?: string | null;
+  archive_reason?: string | null;
 };
 
 export type CampaignRecipientItem = {
@@ -196,6 +211,12 @@ export type PlatformOption = "bale" | "telegram" | "whatsapp" | "rubika";
 export type CampaignPreflightAccount = {
   account_id: number;
   label: string | null;
+  display_identity?: string | null;
+  runtime_status?: string | null;
+  runtime_status_label?: string | null;
+  campaign_eligible?: boolean;
+  blocker_code?: string | null;
+  blocker_label?: string | null;
   health: string | null;
   readiness: string | null;
   lifecycle: string | null;
@@ -211,6 +232,11 @@ export type CampaignPreflightAccount = {
   eligible_now: boolean;
   block_code: string | null;
   reason_code?: string | null;
+  account_health_label?: string | null;
+  execution_ready?: boolean;
+  execution_blocker_code?: string | null;
+  execution_blocker_label?: string | null;
+  execution_status_label?: string | null;
   bottleneck: boolean;
   reason: string | null;
   delivery_mode?: string | null;
@@ -257,8 +283,20 @@ export type CampaignPreflight = {
   redis_ok: boolean;
   ready_accounts?: number;
   execution_usable_accounts?: number;
+  campaign_eligible_accounts?: number;
   assignment_materialized?: boolean;
   capacity_applicable?: boolean;
+  campaign_prepared?: boolean;
+  prepared_messages?: number;
+  total_recipients?: number;
+  preparation_ready?: boolean;
+  preparation_blockers?: CampaignPreflightIssue[];
+  technical_ready?: boolean;
+  controlled_production_enabled?: boolean;
+  controlled_production_confirmation_required?: boolean;
+  allowed_to_start_after_confirmation?: boolean;
+  controlled_production_max_messages?: number | null;
+  controlled_production_label?: string | null;
 };
 
 export type CreateCampaignFromImportPayload = {

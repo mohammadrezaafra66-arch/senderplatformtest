@@ -42,8 +42,17 @@ def store_channel_session(
     session_type: SessionType,
     plaintext: bytes | str,
     key_version: int = 1,
+    session_status: "RubikaSessionStatus | None" = None,
+    identity_guid: str | None = None,
+    login_attempt_id: str | None = None,
 ) -> ChannelSession:
-    """Persist encrypted session material in channel_sessions.ciphertext."""
+    """Persist encrypted session material in channel_sessions.ciphertext.
+
+    L2: new Rubika rows default to LEGACY_UNCLASSIFIED unless caller sets
+    VALIDATING (login candidate) or another explicit status. Never defaults to ACTIVE.
+    """
+    from core_engine.models import RubikaSessionStatus
+
     if isinstance(plaintext, str):
         plaintext_bytes = plaintext.encode("utf-8")
     else:
@@ -52,11 +61,18 @@ def store_channel_session(
     encrypted = encrypt_session_data(plaintext_bytes)
     ciphertext = encode_ciphertext_blob(encrypted)
 
+    status = session_status
+    if status is None and session_type == SessionType.RUBIKA_SESSION:
+        status = RubikaSessionStatus.LEGACY_UNCLASSIFIED
+
     row = ChannelSession(
         account_id=account_id,
         session_type=session_type,
         ciphertext=ciphertext,
         key_version=key_version,
+        session_status=status,
+        identity_guid=identity_guid,
+        login_attempt_id=login_attempt_id,
     )
     db.add(row)
     db.flush()

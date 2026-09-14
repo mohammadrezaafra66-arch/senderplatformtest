@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from core_engine.models import Contact
+from core_engine.services.campaign_footer import append_campaign_footer
 from core_engine.services.message_variation.assignment import assign_variation
 from core_engine.services.message_variation.dto import FrozenVariation, FrozenVariationPool
 from core_engine.services.message_variation.placeholders import TEMPLATE_PLACEHOLDER
@@ -33,7 +34,7 @@ from core_engine.services.product_feed.service import (
 
 logger = logging.getLogger("core_engine.services.campaign_render")
 
-RENDER_VERSION = "campaign-render-v1"
+RENDER_VERSION = "campaign-render-v2"
 RENDER_CONTENT_MISMATCH = "RENDER_CONTENT_MISMATCH"
 LIST_EXCERPT_MAX_CHARS = 180
 DEFAULT_PREVIEW_COUNT = 3
@@ -252,6 +253,10 @@ def compose_final_render(
         else:
             raise ProductFeedError("PRODUCT_FEED_UNAVAILABLE")
         final_text = composition.final_text
+
+    # Operator-controlled footer is appended after prose/products.
+    # GPT cannot rewrite it; SHA-256 freezes the complete final text.
+    final_text = append_campaign_footer(final_text)
 
     product = _product_fields(composition)
     gpt_meta = None

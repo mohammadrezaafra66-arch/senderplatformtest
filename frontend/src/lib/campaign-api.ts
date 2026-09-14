@@ -1,4 +1,5 @@
 import { apiFetch } from "@/lib/api";
+import type { ArchiveActionResult } from "@/types/account";
 import type {
   CampaignDetail,
   CampaignAccountsResult,
@@ -22,14 +23,46 @@ export async function fetchCampaigns(params: {
   limit?: number;
   offset?: number;
   status?: string;
+  archived?: boolean;
+  q?: string;
+  token?: string | null;
 }): Promise<CampaignsListResult> {
   const search = new URLSearchParams();
   search.set("limit", String(params.limit ?? 20));
   search.set("offset", String(params.offset ?? 0));
   if (params.status) search.set("status", params.status);
+  if (params.archived) search.set("archived", "true");
+  if (params.q?.trim()) search.set("q", params.q.trim());
 
-  const response = await apiFetch(`/campaigns?${search.toString()}`);
+  const response = await apiFetch(`/campaigns?${search.toString()}`, {
+    token: params.token,
+  });
   return response.json() as Promise<CampaignsListResult>;
+}
+
+export async function archiveCampaign(
+  id: number,
+  options: { token?: string | null; reason?: string } = {},
+): Promise<ArchiveActionResult> {
+  const body = options.reason ? JSON.stringify({ reason: options.reason }) : undefined;
+  const response = await apiFetch(`/campaigns/${id}/archive`, {
+    method: "POST",
+    token: options.token,
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body,
+  });
+  return response.json() as Promise<ArchiveActionResult>;
+}
+
+export async function restoreCampaign(
+  id: number,
+  token?: string | null,
+): Promise<ArchiveActionResult> {
+  const response = await apiFetch(`/campaigns/${id}/restore`, {
+    method: "POST",
+    token,
+  });
+  return response.json() as Promise<ArchiveActionResult>;
 }
 
 export async function fetchCampaignDetail(campaignId: number): Promise<CampaignDetail> {
@@ -42,14 +75,69 @@ export async function fetchCampaignPreflight(campaignId: number): Promise<Campai
   return response.json() as Promise<CampaignPreflight>;
 }
 
-export async function startCampaign(campaignId: number): Promise<{ message: string }> {
-  const response = await apiFetch(`/campaigns/${campaignId}/start`, { method: "POST" });
-  return response.json() as Promise<{ message: string }>;
+export type CampaignStartResult = {
+  status: string;
+  campaign_id: number;
+  message: string;
+  bridge_result?: Record<string, number | string> | null;
+  preflight?: Record<string, unknown> | null;
+  request_id?: string | null;
+  accepted?: boolean;
+  campaign_status?: string | null;
+  queue_jobs_created?: number | null;
+  messages_scheduled?: number | null;
+  controlled_confirmation_accepted?: boolean;
+};
+
+function newStartRequestId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `start-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+export async function startCampaign(
+  campaignId: number,
+  options: { confirmControlledProduction?: boolean } = {},
+): Promise<CampaignStartResult> {
+  const confirm = Boolean(options.confirmControlledProduction);
+  const body = { confirm_controlled_production: confirm };
+  const requestId = newStartRequestId();
+  const response = await apiFetch(`/campaigns/${campaignId}/start`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Request-Id": requestId,
+    },
+    body: JSON.stringify(body),
+  });
+  return response.json() as Promise<CampaignStartResult>;
 }
 
 export async function stopCampaign(campaignId: number): Promise<{ message: string }> {
   const response = await apiFetch(`/campaigns/${campaignId}/stop`, { method: "POST" });
   return response.json() as Promise<{ message: string }>;
+}
+
+export type CampaignPrepareResult = {
+  campaign_id: number;
+  staged_count: number;
+  ready_count: number;
+  already_staged_count: number;
+  real_gpt_called: boolean;
+  message: string;
+};
+
+export async function prepareCampaign(
+  campaignId: number,
+  options: { force_mock_output?: boolean } = {},
+): Promise<CampaignPrepareResult> {
+  const response = await apiFetch(`/campaigns/${campaignId}/prepare`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(options),
+  });
+  return response.json() as Promise<CampaignPrepareResult>;
 }
 
 export async function fetchCampaignRecipients(

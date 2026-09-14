@@ -1,5 +1,29 @@
 import { apiFetch } from "@/lib/api";
-import type { ContactsSearchResponse } from "@/types/contacts";
+import type { ContactDeleteResponse, ContactSort, ContactsListResponse, ContactsSearchResponse } from "@/types/contacts";
+
+export async function fetchContacts(params?: {
+  q?: string;
+  limit?: number;
+  offset?: number;
+  import_batch_id?: number;
+  date_from?: string;
+  date_to?: string;
+  sort?: ContactSort;
+}): Promise<ContactsListResponse> {
+  const search = new URLSearchParams();
+  search.set("limit", String(params?.limit ?? 50));
+  search.set("offset", String(params?.offset ?? 0));
+  if (params?.q?.trim()) search.set("q", params.q.trim());
+  if (params?.import_batch_id != null) {
+    search.set("import_batch_id", String(params.import_batch_id));
+  }
+  if (params?.date_from) search.set("date_from", params.date_from);
+  if (params?.date_to) search.set("date_to", params.date_to);
+  if (params?.sort) search.set("sort", params.sort);
+
+  const response = await apiFetch(`/contacts?${search.toString()}`);
+  return response.json() as Promise<ContactsListResponse>;
+}
 
 export async function searchContacts(params: {
   q: string;
@@ -15,3 +39,9 @@ export async function searchContacts(params: {
   return response.json() as Promise<ContactsSearchResponse>;
 }
 
+export async function deleteContact(contactId: number): Promise<ContactDeleteResponse> {
+  const response = await apiFetch(`/contacts/${contactId}/delete`, {
+    method: "POST",
+  });
+  return response.json() as Promise<ContactDeleteResponse>;
+}

@@ -114,12 +114,15 @@ def test_old_computed_at_preserved_in_source_updated_at_metadata():
         "id": 285,
         "sku": "AFK-2026-00285",
         "name": "جارو رباتیک شیاومی X20 PLUS رنگ سفید",
+        "status": "active",
         "stock_status": "available",
         "labels": [{"title": "تبلیغات"}],
         "updated_at": OLD_PRODUCT_UPDATED_AT,
         "prices": [
             {
                 "sale_price_type_title": "نقدی",
+                "sale_price_type_code": "cash_price",
+                "settlement_type_code": "cash",
                 "final_sale_price": 76_548_750,
                 "rounded_sale_price": 76_500_000,
                 "computed_at": OLD_COMPUTED_AT,
