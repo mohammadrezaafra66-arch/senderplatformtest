@@ -18,6 +18,7 @@ STANDARD_COLUMN_KEYS = (
     "phone_bale",
     "phone_rubika",
     "chat_id",
+    "tags",
 )
 
 COLUMN_ALIASES: dict[str, str] = {
@@ -61,6 +62,14 @@ COLUMN_ALIASES: dict[str, str] = {
     "chat_id": "chat_id",
     "bale_chat_id": "chat_id",
     "شناسه بله": "chat_id",
+    # Explicit tag headers. If none match, column C (third column) is the tag column.
+    "تگ": "tags",
+    "برچسب": "tags",
+    "برچسب‌ها": "tags",
+    "tag": "tags",
+    "tags": "tags",
+    "label": "tags",
+    "labels": "tags",
 }
 
 NORMALIZED_COLUMN_ALIASES = {
@@ -172,6 +181,11 @@ class ExcelProcessor:
             standard_key = NORMALIZED_COLUMN_ALIASES.get(lookup_key)
             if standard_key and standard_key not in mapping:
                 mapping[standard_key] = column
+        # Column C is the business tag column only when no tag header was found.
+        if "tags" not in mapping and len(columns) >= 3:
+            candidate = columns[2]
+            if candidate not in mapping.values():
+                mapping["tags"] = candidate
         return mapping
 
     def _has_phone_column(self, column_mapping: dict[str, str]) -> bool:
@@ -272,6 +286,11 @@ class ExcelProcessor:
 
         chat_id_raw = mapped_values.get("chat_id")
         chat_id = str(chat_id_raw).strip() if chat_id_raw not in (None, "") else None
+        from core_engine.services.contact_tags import parse_tag_cell
+
+        tags = parse_tag_cell(mapped_values.get("tags"))
+        if "tags" in column_mapping:
+            extra_variables.pop(column_mapping["tags"], None)
         normalized_data: dict[str, Any] = {
             "first_name": first_name,
             "last_name": last_name,
@@ -280,6 +299,7 @@ class ExcelProcessor:
             "locale": "fa-IR",
             "extra_variables": extra_variables,
             "chat_id": chat_id,
+            "tags": tags,
         }
 
         row_result: dict[str, Any] = {

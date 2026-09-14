@@ -9,6 +9,8 @@ import type {
   CampaignRenderPreview,
   CreateCampaignFromImportPayload,
   CreateCampaignFromContactsPayload,
+  CreateCampaignFromTagsPayload,
+  AudiencePreviewResult,
   MessageLogDetail,
 } from "@/types/campaign";
 
@@ -206,6 +208,33 @@ export async function createCampaignFromContacts(
     body: JSON.stringify(payload),
   });
   return response.json() as Promise<{ campaign_id: number; message: string }>;
+}
+
+export async function previewTagAudience(payload: {
+  selected_tags: string[];
+  tag_match: "any" | "all";
+}): Promise<AudiencePreviewResult> {
+  const response = await apiFetch("/campaigns/audience-preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return response.json() as Promise<AudiencePreviewResult>;
+}
+
+export async function createCampaignFromTags(
+  payload: CreateCampaignFromTagsPayload,
+): Promise<{ campaign_id: number; contacts_attached_count: number; message: string }> {
+  const response = await apiFetch("/campaigns/from-tags", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return response.json() as Promise<{
+    campaign_id: number;
+    contacts_attached_count: number;
+    message: string;
+  }>;
 }
 
 export async function updateCampaignAccounts(

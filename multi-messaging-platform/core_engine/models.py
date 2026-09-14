@@ -513,7 +513,7 @@ class Contact(Base):
         default=ConsentStatus.UNKNOWN.value,
     )
     blacklisted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    tags: Mapped[dict | None] = mapped_column(JSON_TYPE, nullable=True)
+    tags: Mapped[list | dict | None] = mapped_column(JSON_TYPE, nullable=True)
     raw_payload: Mapped[dict | None] = mapped_column(JSON_TYPE, nullable=True)
     extra_variables: Mapped[dict | None] = mapped_column(JSON_TYPE, nullable=True, default=dict)
     source_import_id: Mapped[int | None] = mapped_column(

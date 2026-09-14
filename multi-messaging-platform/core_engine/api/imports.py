@@ -22,6 +22,7 @@ from core_engine.services.contact_delete import (
     is_contact_deleted,
     reactivate_deleted_contact_from_import,
 )
+from core_engine.services.contact_import import apply_import_to_contact
 from core_engine.services.excel_processor import (
     NORMALIZED_COLUMN_ALIASES,
     PHONE_SOURCE_KEYS,
@@ -253,56 +254,48 @@ def commit_contacts_import(
             db.add(import_row)
             db.flush()
 
-            if row_status == ImportRowStatus.VALID:
+            if row_status in {ImportRowStatus.VALID, ImportRowStatus.DUPLICATE}:
                 normalized = row.get("normalized_data") or {}
                 phone_e164 = normalized.get("phone_e164")
-                existing_contact = (
-                    db.query(Contact)
-                    .filter(Contact.phone_e164 == phone_e164)
-                    .first()
-                )
-                if existing_contact:
-                    if is_contact_deleted(existing_contact):
-                        reactivate_deleted_contact_from_import(
-                            existing_contact,
-                            import_batch_id=import_batch.id,
-                            import_row_id=import_row.id,
-                            normalized=normalized,
-                        )
-                        import_row.status = ImportRowStatus.VALID
-                        import_row.is_valid = True
-                        import_row.error_code = None
-                        import_row.error_message = None
-                        created_contacts_count += 1
-                        valid_rows_count += 1
-                    else:
-                        import_row.status = ImportRowStatus.DUPLICATE
-                        import_row.is_valid = False
-                        import_row.error_code = "duplicate_phone_existing_contact"
-                        import_row.error_message = (
-                            f"Contact with phone {phone_e164} already exists in database."
-                        )
-                        import_row.duplicate_of_contact_id = existing_contact.id
+                if not phone_e164:
+                    if row_status == ImportRowStatus.DUPLICATE:
                         duplicate_rows_count += 1
-                else:
-                    bale_phone = normalized.get("chat_id") or normalized.get("phone_bale") or ""
-                    contact = Contact(
-                        first_name=normalized.get("first_name"),
-                        last_name=normalized.get("last_name"),
-                        phone=phone_e164 or "",
-                        phone_e164=phone_e164,
-                        channel_handle=str(bale_phone).strip() or None,
-                        telegram_hint=normalized.get("telegram_hint"),
-                        locale=normalized.get("locale") or "fa-IR",
-                        consent_status=ConsentStatus.ALLOWED.value,
-                        blacklisted=False,
-                        extra_variables=normalized.get("extra_variables") or {},
-                        source_import_id=import_batch.id,
-                        source_import_row_id=import_row.id,
-                    )
-                    db.add(contact)
+                    else:
+                        invalid_rows_count += 1
+                    continue
+                contact, action, tags_added = apply_import_to_contact(
+                    db,
+                    phone_e164=phone_e164,
+                    first_name=normalized.get("first_name"),
+                    last_name=normalized.get("last_name"),
+                    tags=normalized.get("tags") or [],
+                    import_batch_id=import_batch.id,
+                    import_row_id=import_row.id,
+                    telegram_hint=normalized.get("telegram_hint"),
+                    locale=normalized.get("locale"),
+                    extra_variables=normalized.get("extra_variables") or {},
+                    channel_handle=str(normalized.get("chat_id") or "").strip() or None,
+                )
+                normalized = dict(normalized)
+                normalized["tags_added"] = tags_added
+                normalized["merge_action"] = action
+                import_row.normalized_data = normalized
+                if action in {"created", "reactivated"}:
+                    import_row.status = ImportRowStatus.VALID
+                    import_row.is_valid = True
+                    import_row.error_code = None
+                    import_row.error_message = None
                     created_contacts_count += 1
                     valid_rows_count += 1
+                else:
+                    import_row.status = ImportRowStatus.DUPLICATE
+                    import_row.is_valid = True
+                    import_row.error_code = "merged_existing_contact"
+                    import_row.error_message = (
+                        f"شماره {phone_e164} با مخاطب موجود ادغام شد."
+                    )
+                    import_row.duplicate_of_contact_id = contact.id
+                    duplicate_rows_count += 1
             elif row_status == ImportRowStatus.INVALID:
                 reactivated = False
                 if row.get("error_code") == "invalid_phone":
@@ -332,8 +325,6 @@ def commit_contacts_import(
                         reactivated = True
                 if not reactivated:
                     invalid_rows_count += 1
-            elif row_status == ImportRowStatus.DUPLICATE:
-                duplicate_rows_count += 1
 
         errors_count = invalid_rows_count + duplicate_rows_count
 
@@ -342,7 +333,7 @@ def commit_contacts_import(
         import_batch.duplicate_rows_count = duplicate_rows_count
         import_batch.errors_count = errors_count
 
-        if created_contacts_count > 0:
+        if created_contacts_count > 0 or duplicate_rows_count > 0:
             import_batch.status = ImportStatus.COMMITTED
             import_batch.committed_at = datetime.utcnow()
             response_status = "committed"

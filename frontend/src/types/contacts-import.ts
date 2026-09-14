@@ -11,6 +11,7 @@ export type ImportPreviewRow = {
     telegram_hint?: string | null;
     locale?: string;
     extra_variables?: Record<string, string>;
+    tags?: string[];
   };
   raw_data: Record<string, string | null>;
 };

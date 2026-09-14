@@ -23,17 +23,26 @@ import { campaignAccountError } from "@/lib/campaign-account-errors";
 import {
   createCampaignFromImport,
   createCampaignFromContacts,
+  createCampaignFromTags,
   fetchGptStatus,
   fetchProductFeedStatus,
   previewCampaignRender,
   previewGptVariations,
+  previewTagAudience,
 } from "@/lib/campaign-api";
-import { searchContacts } from "@/lib/contacts-api";
+import { fetchContactTags, searchContacts } from "@/lib/contacts-api";
 import { useAuth } from "@/state/auth";
 import type { CampaignRenderPreviewSample, PlatformOption } from "@/types/campaign";
 import type { AccountItem } from "@/types/account";
 import type { ContactSearchItem } from "@/types/contacts";
+import type { TagMatch } from "@/types/campaign";
 import { canCreateCampaign } from "@/utils/permissions";
+import {
+  formatAudienceCount,
+  parseTagInput,
+  tagAudienceError,
+  uniqueContactTags,
+} from "@/utils/contact-tags";
 
 export default function CampaignCreatePage() {
   const { t } = useTranslation();
@@ -42,7 +51,7 @@ export default function CampaignCreatePage() {
   const canCreate = canCreateCampaign(role);
 
   const [importBatchId, setImportBatchId] = useState("");
-  const [recipientSource, setRecipientSource] = useState<"import" | "existing">("import");
+  const [recipientSource, setRecipientSource] = useState<"import" | "existing" | "tags">("import");
 
   const [contactsQuery, setContactsQuery] = useState("");
   const [contactsLoading, setContactsLoading] = useState(false);
@@ -74,6 +83,12 @@ export default function CampaignCreatePage() {
   const [accountsError, setAccountsError] = useState<string | null>(null);
   const [senderMode, setSenderMode] = useState<SenderMode>("auto");
   const [selectedAccountIds, setSelectedAccountIds] = useState<number[]>([]);
+  const [knownTags, setKnownTags] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagMatch, setTagMatch] = useState<TagMatch>("any");
+  const [audienceCount, setAudienceCount] = useState<number | null>(null);
+  const [audienceCountError, setAudienceCountError] = useState<string | null>(null);
+  const [tagDraft, setTagDraft] = useState("");
 
   const loadAccounts = useCallback(async () => {
     setAccountsLoading(true);
@@ -113,6 +128,40 @@ export default function CampaignCreatePage() {
   }, [loadAccounts]);
 
   useEffect(() => {
+    if (recipientSource !== "tags") return;
+    void fetchContactTags()
+      .then((result) => setKnownTags(uniqueContactTags(result.tags)))
+      .catch(() => setKnownTags([]));
+  }, [recipientSource]);
+
+  useEffect(() => {
+    if (recipientSource !== "tags") return;
+    const tags = uniqueContactTags(selectedTags);
+    if (tagAudienceError(tags, tagMatch)) {
+      setAudienceCount(null);
+      setAudienceCountError(null);
+      return;
+    }
+    let cancelled = false;
+    void previewTagAudience({ selected_tags: tags, tag_match: tagMatch })
+      .then((result) => {
+        if (!cancelled) {
+          setAudienceCount(result.eligible_count);
+          setAudienceCountError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setAudienceCount(null);
+          setAudienceCountError(err instanceof ApiError ? err.message : t("actionFailed"));
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [recipientSource, selectedTags, tagMatch, t]);
+
+  useEffect(() => {
     if (!router.isReady) return;
     const raw = router.query.import_batch_id;
     if (typeof raw === "string" && raw.trim()) {
@@ -131,6 +180,34 @@ export default function CampaignCreatePage() {
     }
     if (senderMode === "manual" && selectedAccountIds.length === 0) {
       setError(t("senderManualRequired"));
+      return;
+    }
+
+    if (recipientSource === "tags") {
+      const tags = uniqueContactTags(selectedTags);
+      const tagError = tagAudienceError(tags, tagMatch);
+      if (tagError) {
+        setError(tagError);
+        return;
+      }
+      setSubmitting(true);
+      setError(null);
+      try {
+        const result = await createCampaignFromTags({
+          selected_tags: tags,
+          tag_match: tagMatch,
+          title: title.trim(),
+          platform,
+          template_text: templateText.trim(),
+          use_gpt: useGpt,
+          include_products: includeProducts,
+          account_ids: senderMode === "auto" ? [] : selectedAccountIds,
+        });
+        void router.push(`/campaigns/${result.campaign_id}`);
+      } catch (err) {
+        setError(campaignAccountError(err, t));
+        setSubmitting(false);
+      }
       return;
     }
 
@@ -205,18 +282,21 @@ export default function CampaignCreatePage() {
                   className={selectClassName}
                   value={recipientSource}
                   onChange={(e) => {
-                    const next = e.target.value as "import" | "existing";
+                    const next = e.target.value as "import" | "existing" | "tags";
                     setRecipientSource(next);
                     setSelectedContactIds([]);
                     setContacts([]);
                     setContactsQuery("");
                     setContactsError(null);
                     setError(null);
+                    setAudienceCount(null);
+                    setAudienceCountError(null);
                   }}
                   disabled={submitting}
                 >
-                  <option value="import">از فایل / دسته import</option>
-                  <option value="existing">از مخاطبان موجود</option>
+                  <option value="import">{t("audienceSourceImport")}</option>
+                  <option value="existing">{t("audienceSourceContacts")}</option>
+                  <option value="tags">{t("audienceSourceTags")}</option>
                 </select>
               </FormField>
 
@@ -231,7 +311,7 @@ export default function CampaignCreatePage() {
                     required
                   />
                 </FormField>
-              ) : (
+              ) : recipientSource === "existing" ? (
                 <>
                   <FormField label="جستجوی مخاطب">
                     <input
@@ -315,6 +395,71 @@ export default function CampaignCreatePage() {
                       );
                     })}
                   </div>
+                </>
+              ) : (
+                <>
+                  <FormField label={t("tagMatch")}>
+                    <select
+                      className={selectClassName}
+                      value={tagMatch}
+                      onChange={(e) => setTagMatch(e.target.value as TagMatch)}
+                      disabled={submitting}
+                    >
+                      <option value="any">{t("tagMatchAny")}</option>
+                      <option value="all">{t("tagMatchAll")}</option>
+                    </select>
+                  </FormField>
+                  <FormField label={t("selectedTags")}>
+                    <input
+                      className={inputClassName}
+                      value={tagDraft}
+                      onChange={(e) => setTagDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        e.preventDefault();
+                        setSelectedTags((prev) => uniqueContactTags([...prev, ...parseTagInput(tagDraft)]));
+                        setTagDraft("");
+                      }}
+                      placeholder="طلایی، تهران"
+                      disabled={submitting}
+                    />
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+                      {uniqueContactTags(knownTags).map((tag) => {
+                        const selected = selectedTags.includes(tag);
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            disabled={submitting}
+                            onClick={() => {
+                              setSelectedTags((prev) =>
+                                prev.includes(tag) ? prev.filter((item) => item !== tag) : [...prev, tag],
+                              );
+                            }}
+                            style={{
+                              border: "1px solid rgba(0,0,0,0.15)",
+                              borderRadius: 999,
+                              padding: "4px 10px",
+                              background: selected ? "rgba(22,101,52,0.12)" : "transparent",
+                            }}
+                          >
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    </div>
+                  </FormField>
+                  <p className="mmp-muted" style={{ margin: 0 }}>
+                    {t("tagImportAdditiveHint")}
+                  </p>
+                  <p style={{ margin: 0 }} data-audience-count={audienceCount ?? ""}>
+                    {formatAudienceCount(audienceCount)}
+                  </p>
+                  {audienceCountError ? <Alert>{audienceCountError}</Alert> : null}
+                  {tagAudienceError(selectedTags, tagMatch) ? (
+                    <p style={{ color: "crimson", margin: 0 }}>{tagAudienceError(selectedTags, tagMatch)}</p>
+                  ) : null}
                 </>
               )}
 

@@ -18,7 +18,7 @@ import {
   tableClassName,
 } from "@/components/ui";
 import { ApiError } from "@/lib/api";
-import { fetchContacts, deleteContact } from "@/lib/contacts-api";
+import { fetchContacts, deleteContact, updateContact } from "@/lib/contacts-api";
 import {
   commitContactsImport,
   isAllowedImportFile,
@@ -29,6 +29,7 @@ import type { ContactListItem, ContactSort } from "@/types/contacts";
 import type { ContactsPreviewResponse, ImportCommitResult } from "@/types/contacts-import";
 import { toJalaliDateTime } from "@/utils/jalali";
 import { canCreateCampaign, canDeleteContacts, canUploadContacts, canViewContacts } from "@/utils/permissions";
+import { parseTagInput, previewRowTags, recognizedTagColumn, uniqueContactTags } from "@/utils/contact-tags";
 
 const PREVIEW_ROW_LIMIT = 40;
 const PAGE_SIZE = 50;
@@ -76,6 +77,12 @@ export default function ContactsPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [sort, setSort] = useState<ContactSort>("created_at_desc");
+  const [tagInput, setTagInput] = useState("");
+  const [tagQuery, setTagQuery] = useState("");
+  const [tagMatch, setTagMatch] = useState<"any" | "all">("any");
+  const [editingContact, setEditingContact] = useState<ContactListItem | null>(null);
+  const [tagDraft, setTagDraft] = useState("");
+  const [tagSaving, setTagSaving] = useState(false);
 
   const [dragActive, setDragActive] = useState(false);
   const [sheetName, setSheetName] = useState("");
@@ -106,6 +113,8 @@ export default function ContactsPage() {
         date_from: dateFrom || undefined,
         date_to: dateTo || undefined,
         sort,
+        tags: tagQuery || undefined,
+        tag_match: tagQuery ? tagMatch : undefined,
       });
       setItems(data.items);
       setTotal(data.total_count);
@@ -114,7 +123,7 @@ export default function ContactsPage() {
     } finally {
       setLoading(false);
     }
-  }, [canView, searchQuery, offset, importBatchFilter, dateFrom, dateTo, sort, t]);
+  }, [canView, searchQuery, offset, importBatchFilter, dateFrom, dateTo, sort, tagQuery, tagMatch, t]);
 
   useEffect(() => {
     void loadContacts();
@@ -197,6 +206,7 @@ export default function ContactsPage() {
   function applySearch() {
     setOffset(0);
     setSearchQuery(searchInput.trim());
+    setTagQuery(tagInput.trim());
   }
 
   function clearFilters() {
@@ -206,7 +216,32 @@ export default function ContactsPage() {
     setDateFrom("");
     setDateTo("");
     setSort("created_at_desc");
+    setTagInput("");
+    setTagQuery("");
+    setTagMatch("any");
     setOffset(0);
+  }
+
+  async function saveTags() {
+    if (!editingContact || !canUpload) return;
+    setTagSaving(true);
+    setListError(null);
+    try {
+      const updated = await updateContact(editingContact.contact_id, {
+        tags: parseTagInput(tagDraft),
+      });
+      setItems((prev) =>
+        prev.map((item) =>
+          item.contact_id === updated.contact_id ? { ...item, tags: updated.tags } : item,
+        ),
+      );
+      setEditingContact(null);
+      setListNotice(t("tagEditHint"));
+    } catch (err) {
+      setListError(err instanceof ApiError ? err.message : t("actionFailed"));
+    } finally {
+      setTagSaving(false);
+    }
   }
 
   async function handleDeleteConfirmed() {
@@ -276,6 +311,31 @@ export default function ContactsPage() {
                     </div>
 
                     <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                      <FormField label={t("tagFilter")}>
+                        <input
+                          className={inputClassName}
+                          value={tagInput}
+                          onChange={(e) => setTagInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") applySearch();
+                          }}
+                          placeholder="طلایی، تهران"
+                          style={{ minWidth: 180 }}
+                        />
+                      </FormField>
+                      <FormField label={t("tagMatch")}>
+                        <select
+                          className={selectClassName}
+                          value={tagMatch}
+                          onChange={(e) => {
+                            setTagMatch(e.target.value as "any" | "all");
+                            setOffset(0);
+                          }}
+                        >
+                          <option value="any">{t("tagMatchAny")}</option>
+                          <option value="all">{t("tagMatchAll")}</option>
+                        </select>
+                      </FormField>
                       <FormField label="دسته Import">
                         <input
                           className={inputClassName}
@@ -344,12 +404,13 @@ export default function ContactsPage() {
                             <th>#</th>
                             <th>{t("name")}</th>
                             <th>{t("phone")}</th>
+                            <th>{t("tags")}</th>
                             <th>تاریخ ورود</th>
                             <th>منبع Import</th>
                             <th>تعداد Import</th>
                             <th>کمپین‌ها</th>
                             <th>{t("status")}</th>
-                            {canDelete ? <th>{t("actions")}</th> : null}
+                            {canDelete || canUpload ? <th>{t("actions")}</th> : null}
                           </tr>
                         </thead>
                         <tbody>
@@ -358,6 +419,11 @@ export default function ContactsPage() {
                               <td>{contact.contact_id}</td>
                               <td>{contactDisplayName(contact)}</td>
                               <td>{contact.phone}</td>
+                              <td>
+                                {uniqueContactTags(contact.tags).length === 0
+                                  ? "—"
+                                  : uniqueContactTags(contact.tags).join("، ")}
+                              </td>
                               <td>{toJalaliDateTime(contact.created_at)}</td>
                               <td>{importSourceLabel(contact)}</td>
                               <td>{contact.import_count > 0 ? contact.import_count : "—"}</td>
@@ -371,21 +437,36 @@ export default function ContactsPage() {
                                       ? "قابل استفاده"
                                       : (contact.ineligible_reason ?? "—")}
                               </td>
-                              {canDelete ? (
+                              {canDelete || canUpload ? (
                                 <td>
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    disabled={deleteLoading}
-                                    onClick={() => setDeleteConfirmContact(contact)}
-                                    style={{
-                                      color: "#991b1b",
-                                      borderColor: "rgba(153,27,27,0.35)",
-                                      background: "rgba(153,27,27,0.06)",
-                                    }}
-                                  >
-                                    حذف
-                                  </Button>
+                                  {canUpload ? (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      disabled={tagSaving}
+                                      onClick={() => {
+                                        setEditingContact(contact);
+                                        setTagDraft(uniqueContactTags(contact.tags).join("، "));
+                                      }}
+                                    >
+                                      {t("tagEdit")}
+                                    </Button>
+                                  ) : null}{" "}
+                                  {canDelete ? (
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      disabled={deleteLoading}
+                                      onClick={() => setDeleteConfirmContact(contact)}
+                                      style={{
+                                        color: "#991b1b",
+                                        borderColor: "rgba(153,27,27,0.35)",
+                                        background: "rgba(153,27,27,0.06)",
+                                      }}
+                                    >
+                                      حذف
+                                    </Button>
+                                  ) : null}
                                 </td>
                               ) : null}
                             </tr>
@@ -394,6 +475,30 @@ export default function ContactsPage() {
                       </table>
                     </TableWrap>
                   )}
+
+                  {editingContact ? (
+                    <div className="mmp-stack" style={{ marginTop: 12 }}>
+                      <p className="mmp-muted" style={{ margin: 0 }}>
+                        {t("tagEditHint")} {t("tagImportAdditiveHint")}
+                      </p>
+                      <FormField label={t("tags")}>
+                        <input
+                          className={inputClassName}
+                          value={tagDraft}
+                          onChange={(e) => setTagDraft(e.target.value)}
+                          placeholder="طلایی، تهران، سرخکن"
+                        />
+                      </FormField>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <Button type="button" disabled={tagSaving} onClick={() => void saveTags()}>
+                          {tagSaving ? t("loading") : t("tagSave")}
+                        </Button>
+                        <Button type="button" variant="ghost" onClick={() => setEditingContact(null)}>
+                          {t("close")}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
 
                   <div className="mmp-stack" style={{ marginTop: 12 }}>
                     <span className="mmp-muted">
@@ -502,7 +607,13 @@ export default function ContactsPage() {
                               <span style={{ color: "#b45309" }}>
                                 {t("duplicateRows")}: {preview.duplicate_rows_count}
                               </span>
+                              <span>
+                                {t("tagColumnRecognized")}: {recognizedTagColumn(preview.column_mapping) ?? "—"}
+                              </span>
                             </div>
+                            <p className="mmp-muted" style={{ margin: 0 }}>
+                              {t("tagImportAdditiveHint")}
+                            </p>
 
                             {previewResult.status === "preview_ready" ? (
                               <Button
@@ -523,6 +634,7 @@ export default function ContactsPage() {
                                     <th>#</th>
                                     <th>{t("name")}</th>
                                     <th>{t("phone")}</th>
+                                    <th>{t("tags")}</th>
                                     <th>{t("status")}</th>
                                     <th>{t("error")}</th>
                                   </tr>
@@ -537,6 +649,11 @@ export default function ContactsPage() {
                                         <td>{row.row_index}</td>
                                         <td>{fullName}</td>
                                         <td>{nd.phone_e164 ?? "—"}</td>
+                                        <td>
+                                          {previewRowTags(nd).length === 0
+                                            ? "—"
+                                            : previewRowTags(nd).join("، ")}
+                                        </td>
                                         <td style={{ color: rowStatusColor(row.status) }}>
                                           {row.status}
                                         </td>

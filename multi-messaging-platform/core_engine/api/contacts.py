@@ -12,6 +12,9 @@ from sqlalchemy.orm import Session, joinedload
 from core_engine.api.schemas import (
     ContactDeleteResponse,
     ContactListItemResponse,
+    ContactUpdateRequest,
+    ContactUpdateResponse,
+    ContactTagsResponse,
     ContactsListResponse,
     ContactsSearchResponse,
     ContactSearchItemResponse,
@@ -26,6 +29,12 @@ from core_engine.models import (
     RoleType,
 )
 from core_engine.services.contact_delete import is_contact_deleted, soft_delete_contact
+from core_engine.services.contact_tags import (
+    apply_tag_filter,
+    list_known_tags,
+    read_contact_tags,
+    replace_tags,
+)
 from core_engine.services.rbac import requires_role
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
@@ -122,6 +131,7 @@ def _build_list_item(
         ),
         import_count=import_count,
         campaign_count=campaign_count,
+        tags=read_contact_tags(contact.tags),
     )
 
 
@@ -139,6 +149,8 @@ def _apply_contact_sort(query, sort: ContactSort):
 @router.get("", response_model=ContactsListResponse)
 def list_contacts(
     q: str | None = Query(default=None, max_length=80),
+    tags: str | None = Query(default=None, max_length=500),
+    tag_match: Literal["any", "all"] = "any",
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     import_batch_id: int | None = None,
@@ -170,6 +182,10 @@ def list_contacts(
                 Contact.channel_handle.ilike(like),
             )
         )
+
+    tag_values = [part.strip() for part in (tags or "").split(",") if part.strip()]
+    if tag_values:
+        query = apply_tag_filter(query, tag_values, tag_match)
 
     if import_batch_id is not None:
         batch = db.query(ImportBatch.id).filter(ImportBatch.id == import_batch_id).first()
@@ -217,6 +233,18 @@ def list_contacts(
         limit=limit,
         offset=offset,
     )
+
+
+@router.get("/tags", response_model=ContactTagsResponse)
+def list_contact_tags(
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str],
+        Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR, RoleType.VIEWER)),
+    ] = None,
+):
+    """Distinct tags for filters and campaign audience selection."""
+    return ContactTagsResponse(tags=list_known_tags(db))
 
 
 @router.post("/{contact_id}/delete", response_model=ContactDeleteResponse)
@@ -288,4 +316,34 @@ def search_contacts(
         total_count=total_count,
         limit=limit,
         offset=offset,
+    )
+
+
+@router.patch("/{contact_id}", response_model=ContactUpdateResponse)
+def update_contact(
+    contact_id: int,
+    payload: ContactUpdateRequest,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str],
+        Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR)),
+    ] = None,
+):
+    """Manual edit. Setting tags replaces the list. Import remains additive."""
+    contact = db.query(Contact).filter(Contact.id == contact_id).first()
+    if contact is None or is_contact_deleted(contact):
+        raise HTTPException(status_code=404, detail="Contact not found.")
+    if payload.first_name is not None:
+        contact.first_name = payload.first_name.strip() or None
+    if payload.last_name is not None:
+        contact.last_name = payload.last_name.strip() or None
+    if payload.tags is not None:
+        contact.tags = replace_tags(payload.tags)
+    db.commit()
+    db.refresh(contact)
+    return ContactUpdateResponse(
+        contact_id=contact.id,
+        first_name=contact.first_name,
+        last_name=contact.last_name,
+        tags=read_contact_tags(contact.tags),
     )

@@ -319,6 +319,27 @@ export type CreateCampaignFromContactsPayload = {
   account_ids: number[];
 };
 
+export type TagMatch = "any" | "all";
+
+export type CreateCampaignFromTagsPayload = {
+  selected_tags: string[];
+  tag_match: TagMatch;
+  title: string;
+  platform: PlatformOption;
+  template_text: string;
+  use_gpt: boolean;
+  include_products: boolean;
+  account_ids: number[];
+};
+
+export type AudiencePreviewResult = {
+  selected_tags: string[];
+  tag_match: string;
+  eligible_count: number;
+  skipped_count: number;
+  contact_ids: number[];
+};
+
 export type CampaignAccountsResult = {
   campaign_id: number;
   account_ids: number[];

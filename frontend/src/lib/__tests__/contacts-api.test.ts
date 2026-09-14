@@ -43,6 +43,15 @@ describe("contacts API helpers", () => {
     );
   });
 
+  it("fetchContacts passes tag filter params for backend filtering", async () => {
+    await fetchContacts({ tags: "طلایی,تهران", tag_match: "all", limit: 10, offset: 10 });
+    const [path] = vi.mocked(apiFetch).mock.calls[0];
+    expect(String(path)).toContain("tags=");
+    expect(String(path)).toContain("tag_match=all");
+    expect(String(path)).toContain("limit=10");
+    expect(String(path)).toContain("offset=10");
+  });
+
   it("searchContacts still calls GET /contacts/search", async () => {
     await searchContacts({ q: "ali", limit: 10, offset: 0 });
     expect(apiFetch).toHaveBeenCalledTimes(1);

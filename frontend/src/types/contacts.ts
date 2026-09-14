@@ -33,6 +33,7 @@ export type ContactListItem = {
   source_imported_at: string | null;
   import_count: number;
   campaign_count: number;
+  tags: string[];
 };
 
 export type ContactsListResponse = {
@@ -48,6 +49,23 @@ export type ContactDeleteResponse = {
   already_deleted: boolean;
   deleted_at: string | null;
   message: string;
+};
+
+export type ContactUpdatePayload = {
+  first_name?: string | null;
+  last_name?: string | null;
+  tags?: string[];
+};
+
+export type ContactUpdateResult = {
+  contact_id: number;
+  first_name: string | null;
+  last_name: string | null;
+  tags: string[];
+};
+
+export type ContactTagsResult = {
+  tags: string[];
 };
 
 export type ContactSort = "created_at_desc" | "created_at_asc" | "name_asc" | "name_desc";

@@ -13,6 +13,10 @@ from core_engine.api.schemas import (
     ArchiveActionResponse,
     CampaignAccountsResponse,
     CampaignAccountsUpdateRequest,
+    AudiencePreviewRequest,
+    AudiencePreviewResponse,
+    CampaignFromTagsRequest,
+    CampaignFromTagsResponse,
     CampaignFromContactsRequest,
     CampaignFromContactsResponse,
     CampaignDetailResponse,
@@ -34,6 +38,7 @@ from core_engine.api.schemas import (
     SenderAccountResponse,
 )
 from core_engine.database import get_db
+from core_engine.services.contact_tags import read_contact_tags, resolve_tag_audience
 from core_engine.models import (
     Account,
     AccountStatus,
@@ -1134,4 +1139,83 @@ def create_campaign_from_contacts(
         raise HTTPException(
             status_code=500,
             detail="Failed to create campaign from existing contacts.",
+        ) from exc
+
+
+@router.post("/audience-preview", response_model=AudiencePreviewResponse)
+def preview_tag_audience(
+    payload: AudiencePreviewRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))],
+):
+    tags = read_contact_tags(payload.selected_tags)
+    if not tags:
+        raise HTTPException(status_code=400, detail="At least one tag is required.")
+    eligible, skipped = resolve_tag_audience(db, tags, match=payload.tag_match)
+    return AudiencePreviewResponse(
+        selected_tags=tags,
+        tag_match=payload.tag_match,
+        eligible_count=len(eligible),
+        skipped_count=len(skipped),
+        contact_ids=[int(contact.id) for contact in eligible],
+    )
+
+
+@router.post("/from-tags", response_model=CampaignFromTagsResponse)
+def create_campaign_from_tags(
+    payload: CampaignFromTagsRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))],
+):
+    eligible, skipped = resolve_tag_audience(
+        db, payload.selected_tags, match=payload.tag_match
+    )
+    if not eligible:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "no_eligible_contacts",
+                "message": "No eligible contacts found for the selected tags.",
+            },
+        )
+    try:
+        campaign, contacts_attached_count, senders, auto_prepare = (
+            _create_campaign_draft_from_eligible_contacts(
+                db=db,
+                current_user=current_user,
+                title=payload.title,
+                platform=payload.platform,
+                template_text=payload.template_text,
+                use_gpt=payload.use_gpt,
+                include_products=payload.include_products,
+                account_ids=payload.account_ids,
+                eligible_contacts=eligible,
+                skipped_contacts_count=len(skipped),
+                audit_source="tags",
+                audit_extra_details={
+                    "selected_tags": payload.selected_tags,
+                    "tag_match": payload.tag_match,
+                },
+            )
+        )
+        return CampaignFromTagsResponse(
+            status="draft_created",
+            campaign_id=campaign.id,
+            selected_tags=payload.selected_tags,
+            tag_match=payload.tag_match,
+            contacts_attached_count=contacts_attached_count,
+            skipped_contacts_count=len(skipped),
+            message="Campaign draft created from tags successfully",
+            account_ids=[sender.account_id for sender in senders],
+            sender_accounts=senders,
+            auto_prepare=auto_prepare,
+        )
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to create campaign from tags.",
         ) from exc

@@ -1,6 +1,7 @@
 """Schemaهای request/response برای API."""
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, PositiveInt, model_validator
 
@@ -63,6 +64,29 @@ class CampaignFromContactsRequest(BaseModel):
         return self
 
 
+class CampaignFromTagsRequest(BaseModel):
+    selected_tags: list[str] = Field(..., min_length=1)
+    tag_match: Literal["any", "all"] = "any"
+    title: str
+    platform: PlatformType
+    template_text: str
+    use_gpt: bool = False
+    include_products: bool = False
+    account_ids: list[PositiveInt] | None = None
+
+    @model_validator(mode="after")
+    def normalize_selected_tags(self) -> "CampaignFromTagsRequest":
+        from core_engine.services.contact_tags import read_contact_tags
+
+        tags = read_contact_tags(self.selected_tags)
+        if not tags:
+            raise ValueError("At least one non-empty tag is required.")
+        object.__setattr__(self, "selected_tags", tags)
+        if self.account_ids is not None:
+            object.__setattr__(self, "account_ids", list(dict.fromkeys(self.account_ids)))
+        return self
+
+
 class CampaignSkippedContactInfo(BaseModel):
     contact_id: int
     reason_code: str
@@ -78,6 +102,32 @@ class CampaignAutoPrepareSummary(BaseModel):
     error_message: str | None = None
     ready_count: int | None = None
     staged_count: int | None = None
+
+
+class AudiencePreviewRequest(BaseModel):
+    selected_tags: list[str] = Field(..., min_length=1)
+    tag_match: Literal["any", "all"] = "any"
+
+
+class AudiencePreviewResponse(BaseModel):
+    selected_tags: list[str]
+    tag_match: str
+    eligible_count: int
+    skipped_count: int
+    contact_ids: list[int]
+
+
+class CampaignFromTagsResponse(BaseModel):
+    status: str
+    campaign_id: int
+    selected_tags: list[str]
+    tag_match: str
+    contacts_attached_count: int
+    skipped_contacts_count: int
+    message: str
+    account_ids: list[int] = Field(default_factory=list)
+    sender_accounts: list["SenderAccountResponse"] = Field(default_factory=list)
+    auto_prepare: CampaignAutoPrepareSummary | None = None
 
 
 class CampaignFromContactsResponse(BaseModel):
@@ -120,6 +170,7 @@ class ContactListItemResponse(BaseModel):
     source_imported_at: datetime | None = None
     import_count: int = 0
     campaign_count: int = 0
+    tags: list[str] = Field(default_factory=list)
 
 
 class ContactsListResponse(BaseModel):
@@ -135,6 +186,25 @@ class ContactDeleteResponse(BaseModel):
     already_deleted: bool
     deleted_at: datetime | None = None
     message: str
+
+
+class ContactUpdateRequest(BaseModel):
+    """Manual edit. tags, when present, replaces the tag list. Import does not use this."""
+
+    first_name: str | None = None
+    last_name: str | None = None
+    tags: list[str] | None = None
+
+
+class ContactUpdateResponse(BaseModel):
+    contact_id: int
+    first_name: str | None = None
+    last_name: str | None = None
+    tags: list[str] = Field(default_factory=list)
+
+
+class ContactTagsResponse(BaseModel):
+    tags: list[str] = Field(default_factory=list)
 
 
 class ContactsSearchResponse(BaseModel):
