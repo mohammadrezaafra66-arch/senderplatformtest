@@ -201,10 +201,18 @@ def build_persisted_render_metadata(result: FinalRenderResult) -> dict[str, Any]
         meta.update(result.gpt_metadata)
     product = _product_fields(result.composition)
     if product.get("frozen_product_snapshot") is not None:
-        meta["frozen_product_snapshot"] = product["frozen_product_snapshot"]
+        snapshot = product["frozen_product_snapshot"]
+        meta["frozen_product_snapshot"] = snapshot
         meta["prose_text"] = product["prose_text"]
         meta["immutable_product_block"] = product["immutable_product_block"]
         meta["product_heading"] = product["product_heading"]
+        meta["selected_product_ids"] = [
+            str(item.get("external_id"))
+            for item in (snapshot.get("products") or [])
+            if isinstance(item, dict) and item.get("external_id")
+        ]
+        # Prepare stores identity. Outbound price is refreshed at send time.
+        meta["price_authoritative"] = False
     return meta
 
 
@@ -409,6 +417,11 @@ def build_campaign_render_preview(
                 "prose_text": composition.prose_text if composition is not None else result.final_text,
                 "unresolved_placeholders": list(result.unresolved_placeholders),
                 "sample_warning": "این متن پیش‌نمایش نمونه است و پیام نهایی ثبت‌شده نیست.",
+                "product_price_notice": (
+                    "قیمت محصول هنگام ارسال مجدداً از افراکالا بررسی می‌شود."
+                    if include_products
+                    else None
+                ),
             }
         )
 
@@ -432,6 +445,11 @@ def build_campaign_render_preview(
         "provider": gpt_pool.provider if gpt_pool else None,
         "model": gpt_pool.model if gpt_pool else None,
         "product_error": product_error,
+        "product_price_notice": (
+            "قیمت محصول هنگام ارسال مجدداً از افراکالا بررسی می‌شود."
+            if include_products
+            else None
+        ),
         "samples": samples,
         "message": (
             product_error.get("message")

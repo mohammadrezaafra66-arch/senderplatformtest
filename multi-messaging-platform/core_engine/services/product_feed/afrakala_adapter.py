@@ -129,51 +129,62 @@ def normalize_public_bot_product(
     if not has_explicit_advertising_label(raw.get("labels")):
         return None, "not_advertising"
 
-    status = normalize_whitespace(raw.get("status")).lower()
-    if status != "active":
-        return None, "inactive_product"
+    from core_engine.services.product_feed.advertising_eligibility import (
+        CASH_PREPAYMENT_PRICE_MISSING,
+        INVALID_PRICE,
+        INVALID_PRODUCT_DATA,
+        MISSING_ADVERTISING_TAG,
+        PRODUCT_UNAVAILABLE,
+        evaluate_advertising_product,
+    )
 
-    stock_status = raw.get("stock_status")
-    if is_unavailable_stock(stock_status):
-        return None, "unavailable_stock"
+    decision = evaluate_advertising_product(
+        raw,
+        default_currency=default_currency,
+        source=SOURCE_PUBLIC_BOT_API,
+    )
+    if not decision.eligible or decision.product is None:
+        codes = set(decision.reason_codes)
+        status = normalize_whitespace(raw.get("status")).lower()
+        if status and status != "active":
+            return None, "inactive_product"
+        if PRODUCT_UNAVAILABLE in codes:
+            stock = normalize_whitespace(raw.get("stock_status"))
+            if not stock:
+                return None, "unknown_availability"
+            return None, "unavailable_stock"
+        if CASH_PREPAYMENT_PRICE_MISSING in codes or INVALID_PRICE in codes:
+            return None, "missing_cash_price"
+        if MISSING_ADVERTISING_TAG in codes:
+            return None, "not_advertising"
+        if INVALID_PRODUCT_DATA in codes:
+            if not normalize_whitespace(raw.get("id")):
+                return None, "missing_external_id"
+            return None, "missing_name"
+        return None, "not_advertising"
 
-    cash = select_cash_price(raw.get("prices"))
-    if cash is None:
+    price = decision.cash_prepayment_price
+    if price is None:
         return None, "missing_cash_price"
-    price, price_computed_at = cash
-
-    external_id = normalize_whitespace(raw.get("id"))
-    if not external_id:
-        return None, "missing_external_id"
-
-    name = normalize_whitespace(raw.get("name"))
-    if not name:
-        return None, "missing_name"
-
-    product_code = normalize_whitespace(raw.get("sku")) or None
 
     source_updated_at = _parse_dt(raw.get("updated_at"))
+    cash = select_cash_price(raw.get("prices"))
+    price_computed_at = cash[1] if cash else None
     if price_computed_at is not None:
         if source_updated_at is None or price_computed_at > source_updated_at:
             source_updated_at = price_computed_at
-    # source_updated_at is last product/price update metadata — not an expiry signal.
 
     flat: dict[str, Any] = {
-        "id": external_id,
-        "sku": product_code,
-        "name": name,
+        "id": decision.product.external_id,
+        "sku": decision.product.product_code,
+        "name": decision.product.name,
         "cash_price": price,
         "currency": default_currency,
         "advertising": True,
         "source_updated_at": source_updated_at.isoformat() if source_updated_at else None,
-        "_stock_status": stock_status,
+        "_stock_status": raw.get("stock_status"),
+        "labels": raw.get("labels"),
+        "brand": decision.brand,
+        "category": decision.category,
     }
-    # Preserve nested-label path for canonical safety checks when bool is absent.
-    if has_explicit_advertising_label(raw.get("labels")):
-        flat["labels"] = raw.get("labels")
-
-    # Sanity: flat row must still pass explicit advertising checks.
-    if not is_explicitly_advertising(flat):
-        return None, "not_advertising"
-
     return flat, None

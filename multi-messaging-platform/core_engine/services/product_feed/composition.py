@@ -70,7 +70,9 @@ def freeze_products(
 def render_product_block(snapshot: FrozenProductSnapshot) -> str:
     lines = [snapshot.heading, ""]
     for fact in snapshot.products:
-        lines.append(f"{fact.name} — {fact.display_price}")
+        lines.append(fact.name)
+        lines.append(f"قیمت نقدی (پیش واریز): {fact.display_price}")
+        lines.append("")
     return "\n".join(lines).rstrip()
 
 

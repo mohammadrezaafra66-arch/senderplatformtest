@@ -131,6 +131,7 @@ def prepare_campaign_messages(
         raise HTTPException(status_code=404, detail="Campaign not found.")
 
     product_feed = None
+    locked_snapshot = None
     used_products = False
     snapshot_id = None
     snapshot_expires_at = None
@@ -284,10 +285,18 @@ def prepare_campaign_messages(
             gpt_called = True
 
     if campaign.include_products and will_render:
-        try:
-            product_feed = fetch_current_advertising_products()
-        except ProductFeedError as exc:
-            raise _product_http_error(exc) from exc
+        from core_engine.services.product_feed.service import snapshot_from_queue_payload
+
+        locked_snapshot = None
+        for staged in existing_staged.values():
+            locked_snapshot = snapshot_from_queue_payload(staged.queue_payload)
+            if locked_snapshot is not None:
+                break
+        if locked_snapshot is None:
+            try:
+                product_feed = fetch_current_advertising_products()
+            except ProductFeedError as exc:
+                raise _product_http_error(exc) from exc
         used_products = True
 
     returned_items: list[StagedQueueItem] = []
@@ -332,7 +341,7 @@ def prepare_campaign_messages(
             substitute = True
             use_gpt = False
         include_products = bool(campaign.include_products)
-        if include_products and product_feed is None:
+        if include_products and product_feed is None and locked_snapshot is None:
             raise HTTPException(
                 status_code=400,
                 detail={
@@ -340,11 +349,6 @@ def prepare_campaign_messages(
                     "message": "اطلاعات محصولات و قیمت‌های لحظه‌ای در دسترس نیست؛ آماده‌سازی کمپین شامل محصولات متوقف شد.",
                 },
             )
-        rng = (
-            random.Random(f"{campaign.id}:{contact.id}:{render_batch_id}")
-            if include_products
-            else None
-        )
         try:
             return compose_final_render(
                 prose=prose,
@@ -356,8 +360,9 @@ def prepare_campaign_messages(
                 substitute=substitute,
                 assigned_variation=assigned,
                 gpt_pool=gpt_pool if use_gpt else None,
-                product_feed=product_feed if include_products else None,
-                product_rng=rng,
+                product_feed=product_feed if include_products and locked_snapshot is None else None,
+                product_rng=random.Random(f"campaign-products:{campaign.id}") if include_products else None,
+                frozen_snapshot=locked_snapshot if include_products else None,
                 campaign_id=campaign.id,
                 contact_id=contact.id,
                 sender_account_id=sender_account_id,

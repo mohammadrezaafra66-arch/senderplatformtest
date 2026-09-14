@@ -103,6 +103,27 @@ def _ad_rows() -> list[dict]:
 
 
 @pytest.fixture(autouse=True)
+def _allow_fixture_sender(monkeypatch):
+    """GPT variation tests do not exercise Phase 1 sender readiness."""
+
+    def _resolve(db, campaign):
+        return (
+            db.query(Account)
+            .filter(
+                Account.platform == campaign.platform,
+                Account.status == AccountStatus.ACTIVE,
+            )
+            .order_by(Account.id.asc())
+            .all()
+        )
+
+    monkeypatch.setattr(
+        "core_engine.services.phase4_prepare.resolve_campaign_sender_accounts",
+        _resolve,
+    )
+
+
+@pytest.fixture(autouse=True)
 def _reset_providers():
     set_message_variation_provider(None)
     set_product_feed_provider(None)
@@ -343,10 +364,11 @@ def _campaign(session, *, use_gpt: bool, include_products: bool, n_contacts: int
     session.flush()
     contacts = []
     for i in range(n_contacts):
+        mobile = f"+989{(int(suffix, 16) % 10**7):07d}{i:02d}"
         contact = Contact(
             first_name=f"محمدرضا{i}",
-            phone=f"+9891{suffix[:7]}{i:02d}",
-            phone_e164=f"+9891{suffix[:7]}{i:02d}",
+            phone=mobile,
+            phone_e164=mobile,
             consent_status="allowed",
         )
         session.add(contact)
@@ -518,7 +540,16 @@ def test_retry_never_calls_gpt_or_products(pg_session_factory):
     product_calls = products.call_count
     gpt.fixed_variations = _variations(5)
     products.rows = [
-        {**row, "cash_price": 1} for row in _ad_rows()
+        {
+            **row,
+            "id": row.get("id") or row["sku"],
+            "name": row.get("name") or row["title"],
+            "cash_price": 1,
+            "status": "active",
+            "stock_status": "available",
+            "labels": [{"title": "تبلیغات"}],
+        }
+        for row in _ad_rows()
     ]
     staged = (
         session.query(StagedQueueItem)
@@ -530,16 +561,20 @@ def test_retry_never_calls_gpt_or_products(pg_session_factory):
         json.dumps(staged.queue_payload, ensure_ascii=False), payload
     )
     retry_normalized = normalize_queue_payload(json.loads(retry_raw))
-    transport = MagicMock()
-    transport.send(retry_normalized["message_text"])
-    transport.send.assert_called_once_with(original)
+    from core_engine.services.product_feed.send_time_refresh import render_outbound_from_selection
+
+    outbound = render_outbound_from_selection(retry_normalized, provider=products)
+    assert outbound.blocked is False
+    assert outbound.message_text is not None
+    assert "۱ ریال" in outbound.message_text
+    assert outbound.message_text != original
     session.refresh(first)
     assert first.final_text == original
     freeze = (first.queue_payload or {}).get("metadata") or {}
     assert freeze["gpt_variation"]["variation_id"] == variation_id
     assert freeze["gpt_variation"]["generation_batch_id"] == batch_id
     assert gpt.call_count == gpt_calls
-    assert products.call_count == product_calls
+    assert products.call_count == product_calls + 1
     session.close()
 
 

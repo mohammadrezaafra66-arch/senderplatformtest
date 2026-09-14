@@ -398,6 +398,17 @@ def _status_payload_from_result(
             if eligible_count >= MIN_PRODUCTS
             else "محصولات تبلیغاتی کافی نیست."
         ),
+        "products": [
+            {
+                "external_id": product.external_id,
+                "name": product.name,
+                "cash_prepayment_price": str(product.price),
+                "currency": product.currency,
+                "advertising_tag": "تبلیغات",
+                "eligible": True,
+            }
+            for product in result.products[:50]
+        ],
     }
     if stats.fetch_age_seconds is not None:
         payload["fetch_age_seconds"] = stats.fetch_age_seconds

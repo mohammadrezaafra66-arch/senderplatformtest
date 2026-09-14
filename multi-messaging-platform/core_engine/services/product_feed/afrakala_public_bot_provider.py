@@ -91,23 +91,13 @@ class AfraKalaPublicBotProductFeedProvider:
         if now.tzinfo is None:
             now = now.replace(tzinfo=timezone.utc)
 
-        headers = {"Accept": "application/json"}
-        if self._token:
-            headers["Authorization"] = f"Bearer {self._token}"
-
-        timeout = httpx.Timeout(
-            connect=min(3.0, self.timeout_seconds),
-            read=self.timeout_seconds,
-            write=3.0,
-            pool=3.0,
-        )
         logger.info(
             "event=product_feed_fetch_started provider=%s url_host=%s",
             self.name,
             parsed.netloc,
         )
 
-        raw_products = self._fetch_all_pages(headers, timeout, parsed.netloc)
+        raw_products = self.fetch_catalog_rows()
         products: list[AdvertisingProduct] = []
         discarded = 0
         diagnostics: list[str] = []
@@ -153,6 +143,36 @@ class AfraKalaPublicBotProductFeedProvider:
             source_updated_at=source_updated,
             diagnostics=tuple(diagnostics[:50]),
         )
+
+    def fetch_catalog_rows(
+        self,
+        *,
+        clock: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        """Read-only product pages. Does not create, update, or delete products."""
+        del clock
+        if not self.base_url:
+            raise ProductFeedError(
+                CONFIG_PENDING,
+                "قرارداد زنده API افراکالا پیکربندی نشده است.",
+                details={"live_binding": CONFIG_PENDING},
+            )
+        parsed = urlparse(self.base_url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ProductFeedError(
+                PRODUCT_FEED_UNAVAILABLE,
+                "آدرس API محصولات نامعتبر است.",
+            )
+        headers = {"Accept": "application/json"}
+        if self._token:
+            headers["Authorization"] = f"Bearer {self._token}"
+        timeout = httpx.Timeout(
+            connect=min(3.0, self.timeout_seconds),
+            read=self.timeout_seconds,
+            write=3.0,
+            pool=3.0,
+        )
+        return self._fetch_all_pages(headers, timeout, parsed.netloc)
 
     def _fetch_all_pages(
         self,

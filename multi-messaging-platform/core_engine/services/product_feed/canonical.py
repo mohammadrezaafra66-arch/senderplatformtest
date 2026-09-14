@@ -64,8 +64,8 @@ def is_explicitly_advertising(raw: dict[str, Any]) -> bool:
                 if _normalize_label_text(item.get("title")) == "تبلیغات":
                     return True
                 continue
-            token = _normalize_label_text(item).lower()
-            if token in {t.lower() for t in _AD_TAG_TOKENS} or token == "تبلیغات":
+            token = _normalize_label_text(item)
+            if token == "تبلیغات":
                 return True
     return False
 

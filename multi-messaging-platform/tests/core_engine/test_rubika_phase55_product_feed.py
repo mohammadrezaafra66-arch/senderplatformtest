@@ -7,8 +7,6 @@ import random
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from unittest.mock import MagicMock
-
 import httpx
 import pytest
 from fastapi import HTTPException
@@ -67,11 +65,16 @@ def _ad_row(
     updated_at: str | None = None,
 ) -> dict:
     row = {
+        "id": sku,
         "sku": sku,
         "title": title,
+        "name": title,
         "cash_price": price,
         "currency": currency,
         "advertising": advertising,
+        "status": "active",
+        "stock_status": "available",
+        "labels": [{"title": "تبلیغات"}] if advertising else [{"title": "سایر"}],
     }
     if updated_at:
         row["updated_at"] = updated_at
@@ -167,7 +170,7 @@ def test_advertising_false_excluded_and_not_inferred():
     assert product is None
     assert reason == "not_advertising"
 
-    tagged = dict(cheap, tags=["advertising"])
+    tagged = dict(cheap, tags=["تبلیغات"])
     product, reason = canonicalize_product_row(
         tagged, default_currency="IRR", default_source="t", fetched_at=now
     )
@@ -451,10 +454,11 @@ def _campaign(session, *, include_products: bool, n_contacts: int = 1, tag: str 
     session.flush()
     contacts = []
     for i in range(n_contacts):
+        mobile = f"+989{int(suffix, 16) % 10**8:08d}{i:01d}"
         contact = Contact(
             first_name=f"مشتری{i}",
-            phone=f"+9891{suffix[:7]}{i:02d}",
-            phone_e164=f"+9891{suffix[:7]}{i:02d}",
+            phone=mobile,
+            phone_e164=mobile,
             consent_status="allowed",
         )
         session.add(contact)
@@ -462,14 +466,23 @@ def _campaign(session, *, include_products: bool, n_contacts: int = 1, tag: str 
         session.add(CampaignRecipient(campaign_id=campaign.id, contact_id=contact.id))
         contacts.append(contact)
     session.commit()
-    return campaign, contacts
+    return campaign, contacts, account
 
 
-def test_include_products_false_never_calls_provider(pg_session_factory):
+def _allow_fixture_sender(monkeypatch, account: Account) -> None:
+    """Product tests do not exercise Phase 1 sender readiness."""
+    monkeypatch.setattr(
+        "core_engine.services.phase4_prepare.resolve_campaign_sender_accounts",
+        lambda db, campaign: [account],
+    )
+
+
+def test_include_products_false_never_calls_provider(pg_session_factory, monkeypatch):
     session = pg_session_factory()
     provider = FakeProductFeedProvider(_eligible_rows(5))
     set_product_feed_provider(provider)
-    campaign, _ = _campaign(session, include_products=False, tag="off")
+    campaign, _, account = _campaign(session, include_products=False, tag="off")
+    _allow_fixture_sender(monkeypatch, account)
     result = prepare_campaign_messages(
         session, campaign.id, PrepareMessagesRequest(force_mock_output=False)
     )
@@ -481,7 +494,7 @@ def test_include_products_false_never_calls_provider(pg_session_factory):
     session.close()
 
 
-def test_prepare_injects_frozen_products_and_retry_keeps_text(pg_session_factory):
+def test_prepare_injects_frozen_products_and_retry_keeps_text(pg_session_factory, monkeypatch):
     session = pg_session_factory()
     rows = [
         _ad_row(sku="A", title="محصول ABC مدل 123", price=28_500_000),
@@ -492,7 +505,8 @@ def test_prepare_injects_frozen_products_and_retry_keeps_text(pg_session_factory
     ]
     provider = FakeProductFeedProvider(rows)
     set_product_feed_provider(provider)
-    campaign, contacts = _campaign(session, include_products=True, n_contacts=2, tag="retry")
+    campaign, contacts, account = _campaign(session, include_products=True, n_contacts=2, tag="retry")
+    _allow_fixture_sender(monkeypatch, account)
     prepare_campaign_messages(
         session, campaign.id, PrepareMessagesRequest(force_mock_output=False)
     )
@@ -520,11 +534,10 @@ def test_prepare_injects_frozen_products_and_retry_keeps_text(pg_session_factory
         assert name in original_text
     assert all(price != "1" for price in original_prices)
 
-    # Provider later returns different prices — retry must not refetch/reselect.
+    # Prepare identity stays. A retry that has not been accepted must refresh price.
     provider.rows = [
         _ad_row(sku=row["sku"], title=row["title"], price=1) for row in rows
     ]
-    calls_after_render = provider.call_count
     staged = (
         session.query(StagedQueueItem)
         .filter(StagedQueueItem.rendered_message_id == first.id)
@@ -534,23 +547,28 @@ def test_prepare_injects_frozen_products_and_retry_keeps_text(pg_session_factory
     payload = WorkerPayload.model_validate(normalize_queue_payload(dict(staged.queue_payload)))
     retry_raw = build_retry_queue_payload(raw, payload)
     retry_normalized = normalize_queue_payload(json.loads(retry_raw))
-    transport = MagicMock()
-    transport.send(retry_normalized["message_text"])
-    transport.send.assert_called_once_with(original_text)
+    from core_engine.services.product_feed.send_time_refresh import render_outbound_from_selection
+
+    outbound = render_outbound_from_selection(retry_normalized, provider=provider)
+    assert outbound.blocked is False
+    assert outbound.message_text is not None
+    assert "۱ ریال" in outbound.message_text
+    assert outbound.message_text != original_text
+    selected_ids = [item["external_id"] for item in frozen["products"]]
+    assert [item["source_product_id"] for item in outbound.audit["products"]] == selected_ids
     session.refresh(first)
     assert first.final_text == original_text
-    assert provider.call_count == calls_after_render
     freeze_after = (first.queue_payload or {}).get("metadata", {}).get("frozen_product_snapshot")
-    assert freeze_after["products"] == frozen["products"]
-    assert all(item["price"] != "1" for item in freeze_after["products"])
+    assert [item["external_id"] for item in freeze_after["products"]] == selected_ids
     session.close()
 
 
-def test_feed_failure_blocks_prepare_and_queue(pg_session_factory):
+def test_feed_failure_blocks_prepare_and_queue(pg_session_factory, monkeypatch):
     session = pg_session_factory()
     provider = FakeProductFeedProvider(fail_code=PRODUCT_FEED_UNAVAILABLE)
     set_product_feed_provider(provider)
-    campaign, _ = _campaign(session, include_products=True, tag="fail")
+    campaign, _, account = _campaign(session, include_products=True, tag="fail")
+    _allow_fixture_sender(monkeypatch, account)
     with pytest.raises(HTTPException) as exc:
         prepare_campaign_messages(
             session, campaign.id, PrepareMessagesRequest(force_mock_output=False)
@@ -564,11 +582,12 @@ def test_feed_failure_blocks_prepare_and_queue(pg_session_factory):
     session.close()
 
 
-def test_queued_item_not_mutated_on_reprepare(pg_session_factory):
+def test_queued_item_not_mutated_on_reprepare(pg_session_factory, monkeypatch):
     session = pg_session_factory()
     provider = FakeProductFeedProvider(_eligible_rows(6, price_base=50_000))
     set_product_feed_provider(provider)
-    campaign, _ = _campaign(session, include_products=True, tag="queued")
+    campaign, _, account = _campaign(session, include_products=True, tag="queued")
+    _allow_fixture_sender(monkeypatch, account)
     prepare_campaign_messages(
         session, campaign.id, PrepareMessagesRequest(force_mock_output=False)
     )

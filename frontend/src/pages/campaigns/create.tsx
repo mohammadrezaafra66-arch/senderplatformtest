@@ -605,6 +605,9 @@ export default function CampaignCreatePage() {
               <p className="mmp-muted">{t("includeProductsHint")}</p>
               {includeProducts ? (
                 <div className="mmp-stack" style={{ gap: 8 }}>
+                  <p className="mmp-muted" style={{ margin: 0 }}>
+                    فقط محصولاتی وارد پیام می‌شوند که تگ آن‌ها دقیقاً {t("advertisingTagExact")} باشد، موجود باشند، و {t("cashPrepaymentPrice")} معتبر داشته باشند. {t("productUnavailable")} و {t("productMissingCashPrice")} قابل انتخاب نیستند. {t("productPriceRecheckedAtSend")}
+                  </p>
                   <Button
                     type="button"
                     disabled={feedChecking || submitting}
@@ -678,6 +681,9 @@ export default function CampaignCreatePage() {
                             {t("gptPreviewSample", { n: index + 1 })} — {t("samplePreviewLabel")}
                           </strong>
                           <p className="mmp-muted">{sample.sample_warning}</p>
+                          {sample.include_products ? (
+                            <p className="mmp-muted">{t("productPriceRecheckedAtSend")}</p>
+                          ) : null}
                           <p style={{ whiteSpace: "pre-wrap" }}>{sample.final_text}</p>
                           <p className="mmp-muted">
                             {t("useGpt")}: {sample.use_gpt ? t("yes") : t("no")}

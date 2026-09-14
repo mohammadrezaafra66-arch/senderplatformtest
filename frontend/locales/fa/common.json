@@ -585,5 +585,11 @@
   "tagSave": "ذخیره برچسب‌ها",
   "selectedTags": "برچسب‌های انتخاب‌شده",
   "eligibleRecipientCount": "تعداد گیرندگان واجد شرایط",
-  "zeroTagsBlocked": "حداقل یک برچسب انتخاب کنید."
+  "zeroTagsBlocked": "حداقل یک برچسب انتخاب کنید.",
+  "advertisingTagExact": "تبلیغات",
+  "cashPrepaymentPrice": "قیمت نقدی (پیش واریز)",
+  "productUnavailable": "ناموجود",
+  "productMissingCashPrice": "فاقد قیمت نقدی (پیش واریز)",
+  "productNotSelectable": "این محصول قابل انتخاب نیست",
+  "productPriceRecheckedAtSend": "قیمت محصول هنگام ارسال مجدداً از افراکالا بررسی می‌شود."
 }

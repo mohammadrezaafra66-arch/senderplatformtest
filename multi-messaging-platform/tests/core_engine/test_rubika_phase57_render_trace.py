@@ -7,8 +7,6 @@ from __future__ import annotations
 
 import json
 import uuid
-from unittest.mock import MagicMock
-
 import pytest
 from fastapi import HTTPException
 
@@ -50,11 +48,16 @@ GPT_VARIATION = "{{first_name}} عزیز سلام"
 def _ad_rows() -> list[dict]:
     return [
         {
+            "id": "TV-X",
             "sku": "TV-X",
             "title": "تلویزیون سامسونگ مدل X",
+            "name": "تلویزیون سامسونگ مدل X",
             "cash_price": 28_500_000,
             "currency": "IRR",
             "advertising": True,
+            "status": "active",
+            "stock_status": "available",
+            "labels": [{"title": "تبلیغات"}],
         },
         {
             "sku": "W-Y",
@@ -85,6 +88,28 @@ def _ad_rows() -> list[dict]:
             "advertising": True,
         },
     ]
+
+
+@pytest.fixture(autouse=True)
+def _allow_fixture_sender(monkeypatch):
+    """Render-trace tests do not exercise Phase 1 sender readiness."""
+
+    def _resolve(db, campaign):
+        accounts = (
+            db.query(Account)
+            .filter(
+                Account.platform == campaign.platform,
+                Account.status == AccountStatus.ACTIVE,
+            )
+            .order_by(Account.id.asc())
+            .all()
+        )
+        return accounts
+
+    monkeypatch.setattr(
+        "core_engine.services.phase4_prepare.resolve_campaign_sender_accounts",
+        _resolve,
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -128,10 +153,11 @@ def _campaign(
     session.flush()
     contacts = []
     for i in range(n_contacts):
+        mobile = f"+989{int(suffix, 16) % 10**8:08d}{i:01d}"
         contact = Contact(
             first_name=first_name if i == 0 else f"{first_name}{i}",
-            phone=f"+9891{suffix[:7]}{i:02d}",
-            phone_e164=f"+9891{suffix[:7]}{i:02d}",
+            phone=mobile,
+            phone_e164=mobile,
             consent_status="allowed",
         )
         session.add(contact)
@@ -238,7 +264,8 @@ def test_mode_c_products_appended(pg_session_factory):
     block = meta["immutable_product_block"]
     assert rendered.final_text.startswith("سلام مریم")
     assert rendered.final_text.endswith(block)
-    assert "تلویزیون سامسونگ مدل X" in block or "ماشین لباسشویی مدل Y" in block
+    assert "قیمت نقدی (پیش واریز)" in block
+    assert any(name in block for name in ("تلویزیون سامسونگ مدل X", "ماشین لباسشویی مدل Y", "یخچال مدل Z", "مایکروویو مدل E", "جاروبرقی مدل A"))
     assert _transport_text(staged) == rendered.final_text
     session.close()
 
@@ -285,20 +312,33 @@ def test_retry_and_restart_same_text(pg_session_factory):
     gpt_calls = gpt.call_count
     product_calls = products.call_count
     gpt.fixed_variations = ["باید عوض شود {{first_name}} متن کافی برای تنوع جدید."] * 3
-    products.rows = [{**row, "cash_price": 1} for row in _ad_rows()]
+    products.rows = [
+        {
+            **row,
+            "id": row.get("id") or row["sku"],
+            "name": row.get("name") or row["title"],
+            "cash_price": 1,
+            "status": "active",
+            "stock_status": "available",
+            "labels": [{"title": "تبلیغات"}],
+        }
+        for row in _ad_rows()
+    ]
 
-    transport = MagicMock()
-    transport.send(_transport_text(staged))
+    from core_engine.services.product_feed.send_time_refresh import render_outbound_from_selection
+
     retry_raw = build_retry_queue_payload(
         json.dumps(staged.queue_payload, ensure_ascii=False),
         WorkerPayload.model_validate(normalize_queue_payload(dict(staged.queue_payload))),
     )
     retry_payload = normalize_queue_payload(json.loads(retry_raw))
-    transport.send(retry_payload["message_text"])
-    assert transport.send.call_args_list[0].args[0] == original
-    assert transport.send.call_args_list[1].args[0] == original
+    outbound = render_outbound_from_selection(retry_payload, provider=products)
+    assert outbound.blocked is False
+    assert outbound.message_text is not None
+    assert "۱ ریال" in outbound.message_text
+    assert outbound.message_text != original
     assert gpt.call_count == gpt_calls
-    assert products.call_count == product_calls
+    assert products.call_count == product_calls + 1
 
     campaign_id = campaign.id
     session.close()

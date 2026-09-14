@@ -49,3 +49,28 @@ def select_advertising_products(
     if len(ids) != len(set(ids)):
         raise ProductFeedError(INSUFFICIENT_ADVERTISING_PRODUCTS)
     return tuple(selected)
+
+
+def select_explicit_products(
+    eligible: Sequence[AdvertisingProduct],
+    product_ids: Sequence[str],
+) -> tuple[AdvertisingProduct, ...]:
+    """Operator selection. Ineligible or unknown ids cannot be selected."""
+    by_id = {product.external_id: product for product in eligible if product.advertising}
+    selected: list[AdvertisingProduct] = []
+    missing: list[str] = []
+    for product_id in product_ids:
+        key = str(product_id).strip()
+        if not key:
+            continue
+        product = by_id.get(key)
+        if product is None:
+            missing.append(key)
+            continue
+        selected.append(product)
+    if missing or not selected:
+        raise ProductFeedError(
+            INSUFFICIENT_ADVERTISING_PRODUCTS,
+            details={"missing_or_ineligible": missing or list(product_ids)},
+        )
+    return tuple(selected)

@@ -59,7 +59,17 @@ def should_schedule_retry(
 
 
 def build_retry_queue_payload(raw_payload: str, payload: WorkerPayload) -> str:
-    """Return queue JSON with incremented attempt counter. Frozen text is copied as-is."""
+    """Increment attempt. Replay text already submitted to a connector.
+
+    If the live connector was not entered, message_text and metadata stay as
+    queued. Delivery refreshes AfraKala again before the next outbound render.
+    If external_send_submitted is set, the submitted text is kept so a retry
+    cannot become a second, different external message.
+    """
     data: dict[str, Any] = json.loads(raw_payload)
     data["attempt"] = payload.attempt + 1
+    metadata = payload.metadata if isinstance(payload.metadata, dict) else {}
+    if metadata.get("external_send_submitted") is True:
+        data["message_text"] = payload.message_text
+        data["metadata"] = metadata
     return json.dumps(data, ensure_ascii=False)

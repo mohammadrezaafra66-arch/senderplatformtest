@@ -29,6 +29,17 @@ class FakeProductFeedProvider:
         self.stale = stale
         self.call_count = 0
 
+    def fetch_catalog_rows(
+        self,
+        *,
+        clock: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        """Read-only catalog, including rows that are not advertising-eligible."""
+        self.call_count += 1
+        if self.fail_code:
+            raise ProductFeedError(self.fail_code, self.fail_message)
+        return [dict(row) for row in self.rows]
+
     def fetch_advertising_products(
         self,
         *,

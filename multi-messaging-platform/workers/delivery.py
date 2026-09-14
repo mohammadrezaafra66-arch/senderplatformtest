@@ -26,7 +26,28 @@ async def deliver_platform_message(
     payload: WorkerPayload,
     settings: WorkerSettings,
 ) -> WorkerResult:
-    """Send (or simulate) a message according to worker safety settings."""
+    """Send (or simulate) a message according to worker safety settings.
+
+    Product campaigns refresh AfraKala before the text is handed to a connector.
+    A blocked refresh never falls through to the prepare-time price.
+    """
+    from core_engine.services.product_feed.send_time_refresh import (
+        apply_send_time_product_refresh,
+    )
+
+    refresh = apply_send_time_product_refresh(payload)
+    if refresh.blocked:
+        return WorkerResult(
+            success=False,
+            status="failed_permanent",
+            error_code=refresh.reason_code,
+            error_message=refresh.reason_message,
+            retryable=refresh.retryable,
+        )
+    if refresh.refreshed and refresh.message_text:
+        payload.message_text = refresh.message_text
+        payload.metadata = refresh.payload.get("metadata") or payload.metadata
+
     if settings.DRY_RUN:
         return WorkerResult(
             success=True,
@@ -89,6 +110,14 @@ async def deliver_platform_message(
             error_message=f"{code}: entity archived; provider send refused.",
             retryable=False,
         )
+
+    if refresh.refreshed:
+        # The connector may accept this request even if the local result is lost.
+        # A later retry must replay this text instead of rendering a new price.
+        payload.metadata = {
+            **(payload.metadata or {}),
+            "external_send_submitted": True,
+        }
 
     if platform == "bale":
         return await deliver_bale_live(payload, settings)
