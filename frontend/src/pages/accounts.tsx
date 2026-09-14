@@ -533,6 +533,7 @@ export default function AccountsPage() {
                           runtimeStatus,
                           t,
                           account.runtime_status_label ?? account.runtime?.runtime_status_label,
+                          account.runtime?.reason_code,
                         );
                         const identity =
                           account.display_identity ??
@@ -596,6 +597,7 @@ export default function AccountsPage() {
                           runtimeStatus,
                           t,
                           account.runtime_status_label ?? account.runtime?.runtime_status_label,
+                          account.runtime?.reason_code,
                         );
                         const dispatchReady =
                           account.runtime?.dispatch?.ready === true || runtimeStatus === "READY";

@@ -49,7 +49,7 @@ class WorkerSettings(BaseSettings):
     RUBIKA_CANONICAL_SESSION_ACCOUNT_IDS: str = ""
     # L17: allowlist (default) | canonical_active
     RUBIKA_CANONICAL_SESSION_SCOPE: str = "allowlist"
-    # Mirrored from core for L17 deploy env uptake (pool enroll is core_api path).
+    # Deprecated. Core enrolls valid Rubika candidates after login regardless of this flag.
     AUTO_ENROLL_RUBIKA_POOL: bool = False
     DEFAULT_RUBIKA_POOL: str = "day"
     RUBIKA_MIN_SEND_DELAY_SECONDS: int = 5
@@ -101,10 +101,9 @@ class WorkerSettings(BaseSettings):
     RUBIKA_ACCOUNT_IDS: str = ""
     RUBIKA_ACCOUNT_REFRESH_INTERVAL_SECONDS: int = 60
     RUBIKA_MULTI_ACCOUNT_WORKER: bool = False
-    # L11 — worker discovery mode. Default pinned preserves RUBIKA_ACCOUNT_IDS.
-    # shadow: pin remains authoritative for coverage; dynamic set compared read-only.
-    # dynamic: coverage uses get_dispatch_eligible_rubika_account_ids (+ optional cohort).
-    RUBIKA_WORKER_DISCOVERY_MODE: str = "pinned"
+    # Canonical Rubika coverage is dynamic (eligible pool accounts, no pin fallback).
+    # pinned / shadow are explicit legacy/test modes. They never invent account 12.
+    RUBIKA_WORKER_DISCOVERY_MODE: str = "dynamic"
     # Temporary canary filter for dynamic mode only (when SCOPE=cohort). Empty = all eligible.
     RUBIKA_WORKER_DISCOVERY_COHORT_IDS: str = ""
     # L17: cohort (default, backward-compatible) | all_eligible (pin ∪ dynamic eligible).

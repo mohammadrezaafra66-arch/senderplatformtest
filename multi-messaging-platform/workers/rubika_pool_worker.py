@@ -55,7 +55,7 @@ def resolve_rubika_worker_account_ids_from_settings(
 ) -> tuple[list[int], dict]:
     """Resolve actual coverage IDs + safe discovery metadata (no Redis writes)."""
     mode = normalize_discovery_mode(
-        getattr(settings, "RUBIKA_WORKER_DISCOVERY_MODE", MODE_PINNED)
+        getattr(settings, "RUBIKA_WORKER_DISCOVERY_MODE", MODE_DYNAMIC)
     )
     pinned = parse_account_id_list(getattr(settings, "RUBIKA_ACCOUNT_IDS", "") or "")
     cohort = parse_account_id_list(
@@ -136,7 +136,7 @@ class RubikaPoolWorker(MultiAccountWorker):
         mode = normalize_discovery_mode(
             discovery_mode
             if discovery_mode is not None
-            else (getattr(cfg, "RUBIKA_WORKER_DISCOVERY_MODE", MODE_PINNED) if cfg else MODE_PINNED)
+            else (getattr(cfg, "RUBIKA_WORKER_DISCOVERY_MODE", MODE_DYNAMIC) if cfg else MODE_DYNAMIC)
         )
         self._discovery_mode = mode
         if pinned_account_ids is not None:

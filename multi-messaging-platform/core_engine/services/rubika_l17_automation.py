@@ -216,12 +216,15 @@ def ensure_rubika_pool_membership(
 ) -> PoolEnrollResult:
     """Idempotent pool enrollment after successful L3 canonical promotion.
 
-    Never mutates ChannelSession rows. Safe to call repeatedly.
+    Canonical: a valid Rubika candidate is enrolled once. Membership does not
+    create worker coverage and does not imply READY. Repeated calls do not
+    insert duplicate rows. AUTO_ENROLL_RUBIKA_POOL is ignored so there is only
+    one enrollment path.
+    Never mutates ChannelSession rows.
     """
-    settings = get_settings()
-    if not bool(getattr(settings, "AUTO_ENROLL_RUBIKA_POOL", False)):
-        return PoolEnrollResult(ok=True, code=POOL_ENROLLMENT_SKIPPED, message="flag_off")
+    from core_engine.services.rubika_account_lifecycle import SESSION_INVALIDATED
 
+    settings = get_settings()
     account = db.query(Account).filter(Account.id == int(account_id)).first()
     if account is None:
         return PoolEnrollResult(ok=False, code=POOL_ENROLLMENT_FAILED, message="account_missing")
@@ -251,6 +254,12 @@ def ensure_rubika_pool_membership(
         .first()
     )
     if existing is not None:
+        # Re-login of a valid candidate clears the not-dispatchable stamp.
+        # History row is kept; only the send block is lifted.
+        if str(existing.last_error_message or "").startswith(SESSION_INVALIDATED):
+            existing.last_error_message = None
+            existing.last_error_at = None
+            db.flush()
         return PoolEnrollResult(
             ok=True,
             code=POOL_ENROLLMENT_OK,

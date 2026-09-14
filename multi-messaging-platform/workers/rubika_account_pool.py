@@ -18,7 +18,13 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
-from core_engine.models import Account, AccountStatus, RubikaAccountPool, RubikaSenderSchedule
+from core_engine.models import (
+    Account,
+    AccountStatus,
+    PlatformType,
+    RubikaAccountPool,
+    RubikaSenderSchedule,
+)
 from core_engine.services.rubika_policy import is_rubika_send_day
 
 if TYPE_CHECKING:
@@ -193,15 +199,32 @@ class RubikaAccountPoolManager:
         )
 
     def mark_account_restored(self, *, account_id: int) -> None:
-        """RESTING یا REQUIRES_LOGIN → ACTIVE پس از بازبینی/لاگین مجدد.
+        """RESTING یا REQUIRES_LOGIN → ACTIVE فقط اگر سشن کاننیکال قابل بارگذاری باشد.
 
-        BANNED را تغییر نمی‌دهد — رفع بن باید صریح و دستی باشد.
+        BANNED را تغییر نمی‌دهد. سشن نامعتبر هرگز اکانت را active نمی‌کند.
         """
         account = self.db.query(Account).filter(Account.id == account_id).first()
-        if account is not None and account.status in (
+        if account is None or account.status not in (
             AccountStatus.RESTING,
             AccountStatus.REQUIRES_LOGIN,
         ):
-            account.status = AccountStatus.ACTIVE
-            self.db.flush()
-            logger.info("rubika_pool_account_restored account_id=%s", account_id)
+            return
+        if account.platform == PlatformType.RUBIKA:
+            from core_engine.services.rubika_canonical_session import (
+                CanonicalSessionError,
+                load_canonical_rubika_session,
+            )
+
+            try:
+                load_canonical_rubika_session(
+                    self.db, int(account_id), require_identity_binding=True
+                )
+            except CanonicalSessionError:
+                logger.info(
+                    "rubika_pool_account_restore_blocked account_id=%s reason=invalid_session",
+                    account_id,
+                )
+                return
+        account.status = AccountStatus.ACTIVE
+        self.db.flush()
+        logger.info("rubika_pool_account_restored account_id=%s", account_id)

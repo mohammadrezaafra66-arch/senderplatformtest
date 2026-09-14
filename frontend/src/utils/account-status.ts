@@ -55,12 +55,28 @@ const RUNTIME_FALLBACK_FA: Record<string, string> = {
   NOT_APPLICABLE: "نامرتبط",
 };
 
+const REASON_LABEL_FA: Record<string, string> = {
+  LOGIN_REQUIRED: "نیاز به ورود",
+  ACCOUNT_REQUIRES_LOGIN: "نیاز به ورود",
+  SESSION_INVALIDATED: "نیاز به ورود مجدد",
+  NO_WORKER_COVERAGE: "احراز شده، Worker آماده نیست",
+  LEGACY_NO_WORKER: "احراز شده، Worker آماده نیست",
+  WORKER_COVERED_NOT_DISPATCH: "Worker آماده",
+  READY: "آماده ارسال",
+  WORKER_STALE: "Worker قطع شده",
+  ACCOUNT_RESTING: "متوقف",
+  ACCOUNT_BANNED: "مسدود",
+  QUARANTINED: "قرنطینه",
+};
+
 export function runtimeStatusLabel(
   status: string | null | undefined,
   t?: TFunction | ((key: string) => string),
   backendLabel?: string | null,
+  reasonCode?: string | null,
 ): string {
   if (backendLabel && backendLabel.trim()) return backendLabel;
+  if (reasonCode && REASON_LABEL_FA[reasonCode]) return REASON_LABEL_FA[reasonCode];
   if (!status) return "—";
   if (t) {
     const key = `runtime_status_${status}`;

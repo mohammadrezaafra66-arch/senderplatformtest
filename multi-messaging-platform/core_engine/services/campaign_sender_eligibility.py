@@ -13,6 +13,10 @@ from sqlalchemy.orm import Session
 
 from core_engine.models import Account, Campaign
 from core_engine.services.account_runtime_status import (
+    AUTHENTICATED_LABEL_FA,
+    QUARANTINE_LABEL_FA,
+    WORKER_READY_LABEL_FA,
+    WORKER_STALE_LABEL_FA,
     RuntimeStatus,
     compute_account_runtime_status,
     compute_all_account_runtime_statuses,
@@ -163,9 +167,28 @@ def _looks_like_non_identity(value: str) -> bool:
     return False
 
 
-def campaign_status_label(status: str, backend_label: str | None = None) -> str:
-    if backend_label and backend_label.strip() == "نیاز به ورود مجدد":
-        return backend_label
+def campaign_status_label(
+    status: str,
+    backend_label: str | None = None,
+    reason_code: str | None = None,
+) -> str:
+    if reason_code == "WORKER_STALE":
+        return WORKER_STALE_LABEL_FA
+    if reason_code == "WORKER_COVERED_NOT_DISPATCH":
+        return WORKER_READY_LABEL_FA
+    if reason_code == "QUARANTINED":
+        return QUARANTINE_LABEL_FA
+    passthrough = {
+        "نیاز به ورود مجدد",
+        AUTHENTICATED_LABEL_FA,
+        WORKER_READY_LABEL_FA,
+        WORKER_STALE_LABEL_FA,
+        QUARANTINE_LABEL_FA,
+        "مسدود",
+        "متوقف",
+    }
+    if backend_label and backend_label.strip() in passthrough:
+        return backend_label.strip()
     if status == RuntimeStatus.AUTHENTICATED_NO_WORKER.value:
         return CAMPAIGN_SENDER_STATUS_LABEL_FA[status]
     if status in CAMPAIGN_SENDER_STATUS_LABEL_FA:
@@ -204,7 +227,11 @@ def evaluate_campaign_sender_eligibility(
     enabled = bool(runtime.enabled)
     l18_status = str(runtime.runtime_status)
     runtime_status = l18_status
-    label = campaign_status_label(l18_status, getattr(runtime, "runtime_status_label", None))
+    label = campaign_status_label(
+        l18_status,
+        getattr(runtime, "runtime_status_label", None),
+        getattr(runtime, "reason_code", None),
+    )
 
     auth_ready = l18_status in {
         RuntimeStatus.READY.value,
@@ -280,7 +307,16 @@ def evaluate_campaign_sender_eligibility(
 
     if blocker_code and not campaign_eligible:
         blocker_label = CAMPAIGN_SENDER_STATUS_LABEL_FA.get(blocker_code, label or blocker_code)
-        if blocker_code in CAMPAIGN_SENDER_STATUS_LABEL_FA and label != "نیاز به ورود مجدد":
+        keep_labels = {
+            "نیاز به ورود مجدد",
+            WORKER_STALE_LABEL_FA,
+            WORKER_READY_LABEL_FA,
+            QUARANTINE_LABEL_FA,
+            AUTHENTICATED_LABEL_FA,
+            "مسدود",
+            "متوقف",
+        }
+        if blocker_code in CAMPAIGN_SENDER_STATUS_LABEL_FA and label not in keep_labels:
             label = CAMPAIGN_SENDER_STATUS_LABEL_FA[blocker_code]
 
     execution_blocker_code: str | None = None

@@ -104,7 +104,8 @@ def apply_rubika_session_invalidation(
 
     Keeps session and audit rows. Marks the current ACTIVE session INVALID so
     it cannot be loaded for dispatch. Does not request OTP or send.
-    Banned accounts stay banned (stronger stop). Pool membership is left for Phase 2.
+    Banned accounts stay banned (stronger stop). Pool rows stay for history but
+    are stamped not-dispatchable so stale membership cannot send.
     """
     if account.platform != PlatformType.RUBIKA:
         return
@@ -126,4 +127,15 @@ def apply_rubika_session_invalidation(
         row.session_status = RubikaSessionStatus.INVALID
         row.invalidated_at = now
         row.validation_error_code = code
+
+    from core_engine.models import RubikaAccountPool
+
+    pool_rows = (
+        db.query(RubikaAccountPool)
+        .filter(RubikaAccountPool.account_id == int(account.id))
+        .all()
+    )
+    for pool_row in pool_rows:
+        pool_row.last_error_at = now
+        pool_row.last_error_message = SESSION_INVALIDATED
     db.flush()

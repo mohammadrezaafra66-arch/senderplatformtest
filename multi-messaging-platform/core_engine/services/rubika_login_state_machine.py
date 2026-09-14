@@ -184,28 +184,27 @@ def _get_active_challenge(db: Session, account_id: int) -> RubikaLoginChallenge 
 
 
 def evaluate_dispatch_ready_readonly(db: Session, account_id: int) -> tuple[bool, str | None]:
-    """Non-mutating dispatch readiness (pool/schedule/coverage not auto-fixed)."""
-    settings = get_settings()
-    # Login success must not imply pool enrollment.
-    if not bool(getattr(settings, "AUTO_ENROLL_RUBIKA_POOL", False)):
-        # Still report whether pool membership exists — without creating it.
-        from core_engine.models import RubikaAccountPool
-        from workers.rubika_account_pool import resolve_current_phase
+    """Login success never implies dispatch readiness.
 
-        phase = resolve_current_phase(db)
-        if phase is None:
-            return False, "NO_SCHEDULE"
-        row = (
-            db.query(RubikaAccountPool)
-            .filter(
-                RubikaAccountPool.account_id == int(account_id),
-                RubikaAccountPool.phase == phase,
-            )
-            .first()
+    Pool membership may already exist. Coverage is not claimed here, so the
+    result is always False until a later L18 evaluation sees a fresh worker.
+    """
+    from core_engine.models import RubikaAccountPool
+    from workers.rubika_account_pool import resolve_current_phase
+
+    phase = resolve_current_phase(db)
+    if phase is None:
+        return False, "NO_SCHEDULE"
+    row = (
+        db.query(RubikaAccountPool)
+        .filter(
+            RubikaAccountPool.account_id == int(account_id),
+            RubikaAccountPool.phase == phase,
         )
-        if row is None:
-            return False, "NOT_IN_POOL"
-        return False, "NO_WORKER_CONSUMER"  # coverage not claimed during login
+        .first()
+    )
+    if row is None:
+        return False, "NOT_IN_POOL"
     return False, "NO_WORKER_CONSUMER"
 
 
@@ -580,7 +579,7 @@ async def submit_rubika_login_code(
     # Clear ephemeral secrets
     store.pop(ch.id, None)
 
-    # L17: optional automatic pool enrollment (never corrupts ACTIVE on failure).
+    # Canonical post-login enrollment. Does not create worker coverage or READY.
     pool_block: str | None = None
     from core_engine.services.rubika_l17_automation import (
         POOL_ENROLLMENT_FAILED,

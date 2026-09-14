@@ -54,6 +54,11 @@ def worker_account_coverage_key(platform: str, account_id: int | str) -> str:
     return f"worker:coverage:{platform}:{account_id}"
 
 
+def worker_account_coverage_last_key(platform: str, account_id: int | str) -> str:
+    """Longer-lived last-seen marker. Present after expiry means the worker went stale."""
+    return f"worker:coverage:last:{platform}:{account_id}"
+
+
 def rubika_send_lock_key(account_id: int | str) -> str:
     return f"lock:rubika:send:{account_id}"
 

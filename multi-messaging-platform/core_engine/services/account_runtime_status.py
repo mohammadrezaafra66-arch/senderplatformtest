@@ -50,6 +50,11 @@ class RuntimeStatus(str, Enum):
 
 
 # Persian operational labels (authoritative for UI; frontend may mirror).
+AUTHENTICATED_LABEL_FA = "احراز شده"
+WORKER_READY_LABEL_FA = "Worker آماده"
+WORKER_STALE_LABEL_FA = "Worker قطع شده"
+QUARANTINE_LABEL_FA = "قرنطینه"
+
 RUNTIME_STATUS_LABEL_FA: dict[str, str] = {
     RuntimeStatus.DISABLED.value: "غیرفعال",
     RuntimeStatus.LOGIN_REQUIRED.value: "نیاز به ورود",
@@ -164,6 +169,74 @@ def _aware(dt: datetime | None) -> datetime | None:
     if dt.tzinfo is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt
+
+
+def coverage_liveness(*, fresh: bool, last_seen: bool) -> str:
+    """fresh = coverage key exists. stale = last-seen only. missing = never covered."""
+    if fresh:
+        return "fresh"
+    if last_seen:
+        return "stale"
+    return "missing"
+
+
+def batch_worker_coverage_state(
+    *,
+    platform: str,
+    account_ids: list[int],
+) -> dict[int, str]:
+    """Per-account coverage liveness. Fail soft to missing (not a fake fresh worker)."""
+    if not account_ids:
+        return {}
+    try:
+        import redis
+
+        from core_engine.config import get_settings
+        from workers.redis_keys import (
+            worker_account_coverage_key,
+            worker_account_coverage_last_key,
+        )
+
+        client = redis.from_url(get_settings().REDIS_URL, decode_responses=True)
+        try:
+            pipe = client.pipeline()
+            for aid in account_ids:
+                pipe.exists(worker_account_coverage_key(platform, int(aid)))
+                pipe.exists(worker_account_coverage_last_key(platform, int(aid)))
+            results = pipe.execute()
+            out: dict[int, str] = {}
+            for index, aid in enumerate(account_ids):
+                fresh = bool(results[index * 2])
+                last_seen = bool(results[index * 2 + 1])
+                out[int(aid)] = coverage_liveness(fresh=fresh, last_seen=last_seen)
+            return out
+        finally:
+            client.close()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("event=worker_coverage_state_failed platform=%s err=%s", platform, exc)
+        return {int(aid): "missing" for aid in account_ids}
+
+
+def rubika_account_quarantined(account_id: int) -> bool:
+    """True only when Redis confirms quarantine. Fail open (not a fake READY)."""
+    try:
+        import redis
+
+        from core_engine.config import get_settings
+        from workers.redis_keys import rubika_quarantine_key
+
+        client = redis.from_url(
+            get_settings().REDIS_URL,
+            decode_responses=True,
+            socket_connect_timeout=0.2,
+            socket_timeout=0.2,
+        )
+        try:
+            return bool(client.exists(rubika_quarantine_key(int(account_id))))
+        finally:
+            client.close()
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def batch_worker_coverage(
@@ -297,11 +370,81 @@ def _make(
     )
 
 
+def _quarantine_block(account: Account) -> AccountRuntimeStatus:
+    return _make(
+        account,
+        status=RuntimeStatus.AUTHENTICATED_NO_WORKER,
+        reason_code="QUARANTINED",
+        auth_state="authenticated",
+        credential_type="rubika_session",
+        credential_state="active",
+        identity_state="bound",
+        worker_state="excluded",
+        worker_covered=False,
+        worker_heartbeat_fresh=False,
+        dispatch_ready=False,
+        dispatch_blocker="QUARANTINED",
+        operator_action_code="MANUAL_REVIEW",
+        runtime_label=QUARANTINE_LABEL_FA,
+    )
+
+
+def _worker_gap(
+    *,
+    covered: bool,
+    stale: bool,
+    eligible: bool,
+    legacy: bool,
+) -> dict[str, Any]:
+    """Authenticated, but not READY. Coverage never crosses accounts."""
+    credential_state = "legacy_usable" if legacy else "active"
+    identity_state = "legacy" if legacy else "bound"
+    common = {
+        "status": RuntimeStatus.AUTHENTICATED_NO_WORKER,
+        "auth_state": "authenticated",
+        "credential_type": "rubika_session",
+        "credential_state": credential_state,
+        "identity_state": identity_state,
+        "dispatch_ready": False,
+        "operator_action_code": "WAIT_WORKER",
+    }
+    if covered and not eligible:
+        return {
+            **common,
+            "reason_code": "WORKER_COVERED_NOT_DISPATCH",
+            "worker_state": "covered",
+            "worker_covered": True,
+            "worker_heartbeat_fresh": True,
+            "dispatch_blocker": "NOT_DISPATCH_ELIGIBLE",
+            "runtime_label": WORKER_READY_LABEL_FA,
+        }
+    if stale:
+        return {
+            **common,
+            "reason_code": "WORKER_STALE",
+            "worker_state": "stale",
+            "worker_covered": False,
+            "worker_heartbeat_fresh": False,
+            "dispatch_blocker": "NO_WORKER_CONSUMER",
+            "runtime_label": WORKER_STALE_LABEL_FA,
+        }
+    return {
+        **common,
+        "reason_code": "LEGACY_NO_WORKER" if legacy else "NO_WORKER_COVERAGE",
+        "worker_state": "missing",
+        "worker_covered": False,
+        "worker_heartbeat_fresh": False,
+        "dispatch_blocker": "NO_WORKER_CONSUMER",
+        "runtime_label": None,
+    }
+
+
 def compute_rubika_runtime_status(
     db: Session,
     account: Account,
     *,
     worker_covered: bool | None = None,
+    worker_stale: bool = False,
     dispatch_eligible_ids: set[int] | None = None,
 ) -> AccountRuntimeStatus:
     from core_engine.services.rubika_canonical_session import (
@@ -425,6 +568,29 @@ def compute_rubika_runtime_status(
 
     rows = _rubika_session_rows(db, account.id)
     actives = [r for r in rows if r.session_status == RubikaSessionStatus.ACTIVE]
+    terminal = {
+        RubikaSessionStatus.INVALID,
+        RubikaSessionStatus.DECRYPT_FAILED,
+        RubikaSessionStatus.REVOKED,
+    }
+    if rows and not actives and all(r.session_status in terminal for r in rows):
+        return _make(
+            account,
+            status=RuntimeStatus.LOGIN_REQUIRED,
+            reason_code="SESSION_INVALIDATED",
+            auth_state="unauthenticated",
+            auth_reason="session_invalid",
+            credential_type="rubika_session",
+            credential_state="invalid",
+            identity_state="unbound",
+            worker_state="excluded",
+            worker_covered=False,
+            worker_heartbeat_fresh=False,
+            dispatch_ready=False,
+            dispatch_blocker="LOGIN_REQUIRED",
+            operator_action_code="RELOGIN",
+            runtime_label="نیاز به ورود مجدد",
+        )
     session_count = len(rows)
     legacy_protected = account_is_legacy_protected(db, account.id)
     canonical_managed = account_is_canonical_managed(db, account.id)
@@ -526,6 +692,8 @@ def compute_rubika_runtime_status(
                 eligible = int(account.id) in dispatch_eligible_ids
             covered = bool(worker_covered)
             if covered and eligible and account.status == AccountStatus.ACTIVE:
+                if rubika_account_quarantined(int(account.id)):
+                    return _quarantine_block(account)
                 return _make(
                     account,
                     status=RuntimeStatus.READY,
@@ -539,39 +707,15 @@ def compute_rubika_runtime_status(
                     worker_heartbeat_fresh=True,
                     dispatch_ready=True,
                     operator_action_code="NONE",
-                    details={"canonical_managed": canonical_managed},
+                    details={"canonical_managed": canonical_managed, "auth_label": AUTHENTICATED_LABEL_FA},
                 )
-            if not covered:
-                return _make(
-                    account,
-                    status=RuntimeStatus.AUTHENTICATED_NO_WORKER,
-                    reason_code="NO_WORKER_COVERAGE",
-                    auth_state="authenticated",
-                    credential_type="rubika_session",
-                    credential_state="active",
-                    identity_state="bound",
-                    worker_state="missing",
-                    worker_covered=False,
-                    worker_heartbeat_fresh=False,
-                    dispatch_ready=False,
-                    dispatch_blocker="NO_WORKER_CONSUMER",
-                    operator_action_code="WAIT_WORKER",
-                )
-            return _make(
-                account,
-                status=RuntimeStatus.AUTHENTICATED_NO_WORKER,
-                reason_code="NOT_DISPATCH_ELIGIBLE" if not eligible else "NOT_FULLY_READY",
-                auth_state="authenticated",
-                credential_type="rubika_session",
-                credential_state="active",
-                identity_state="bound",
-                worker_state="covered" if covered else "missing",
-                worker_covered=covered,
-                worker_heartbeat_fresh=covered,
-                dispatch_ready=False,
-                dispatch_blocker="NOT_DISPATCH_ELIGIBLE" if not eligible else "NOT_FULLY_READY",
-                operator_action_code="WAIT_WORKER",
+            gap = _worker_gap(
+                covered=covered,
+                stale=bool(worker_stale) and not covered,
+                eligible=eligible,
+                legacy=False,
             )
+            return _make(account, details={"auth_label": AUTHENTICATED_LABEL_FA}, **gap)
 
     # Single legacy session (e.g. Account79) — evidence-based, not invented canonical.
     if session_count == 1:
@@ -598,6 +742,8 @@ def compute_rubika_runtime_status(
         )
         covered = bool(worker_covered)
         if covered and eligible and account.status == AccountStatus.ACTIVE:
+            if rubika_account_quarantined(int(account.id)):
+                return _quarantine_block(account)
             return _make(
                 account,
                 status=RuntimeStatus.READY,
@@ -614,39 +760,39 @@ def compute_rubika_runtime_status(
                 details={"session_id": int(row.id), "legacy": True, "canonical": False},
             )
         if covered and not eligible:
+            gap = _worker_gap(covered=True, stale=False, eligible=False, legacy=True)
+            if legacy_protected:
+                return _make(
+                    account,
+                    status=RuntimeStatus.MANUAL_REVIEW,
+                    reason_code="LEGACY_NOT_DISPATCH_ELIGIBLE",
+                    auth_state="authenticated",
+                    credential_type="rubika_session",
+                    credential_state="legacy_usable",
+                    identity_state="legacy",
+                    worker_state="covered",
+                    worker_covered=True,
+                    worker_heartbeat_fresh=True,
+                    dispatch_ready=False,
+                    dispatch_blocker="NOT_DISPATCH_ELIGIBLE",
+                    operator_action_code="MANUAL_REVIEW",
+                    details={"session_id": int(row.id), "legacy": True},
+                )
             return _make(
                 account,
-                status=RuntimeStatus.MANUAL_REVIEW
-                if legacy_protected
-                else RuntimeStatus.AUTHENTICATED_NO_WORKER,
-                reason_code="LEGACY_NOT_DISPATCH_ELIGIBLE",
-                auth_state="authenticated",
-                credential_type="rubika_session",
-                credential_state="legacy_usable",
-                identity_state="legacy",
-                worker_state="covered",
-                worker_covered=True,
-                worker_heartbeat_fresh=True,
-                dispatch_ready=False,
-                dispatch_blocker="NOT_DISPATCH_ELIGIBLE",
-                operator_action_code="MANUAL_REVIEW" if legacy_protected else "WAIT_WORKER",
-                details={"session_id": int(row.id), "legacy": True},
+                details={"session_id": int(row.id), "legacy": True, "auth_label": AUTHENTICATED_LABEL_FA},
+                **gap,
             )
+        gap = _worker_gap(
+            covered=False,
+            stale=bool(worker_stale),
+            eligible=eligible,
+            legacy=True,
+        )
         return _make(
             account,
-            status=RuntimeStatus.AUTHENTICATED_NO_WORKER,
-            reason_code="LEGACY_NO_WORKER",
-            auth_state="authenticated",
-            credential_type="rubika_session",
-            credential_state="legacy_usable",
-            identity_state="legacy",
-            worker_state="missing",
-            worker_covered=False,
-            worker_heartbeat_fresh=False,
-            dispatch_ready=False,
-            dispatch_blocker="NO_WORKER_CONSUMER",
-            operator_action_code="WAIT_WORKER",
-            details={"session_id": int(row.id), "legacy": True},
+            details={"session_id": int(row.id), "legacy": True, "auth_label": AUTHENTICATED_LABEL_FA},
+            **gap,
         )
 
     # Remaining ambiguous inventory
@@ -892,6 +1038,7 @@ def compute_account_runtime_status(
     account: Account,
     *,
     worker_covered: bool | None = None,
+    worker_stale: bool = False,
     dispatch_eligible_ids: set[int] | None = None,
 ) -> AccountRuntimeStatus:
     if account.platform == PlatformType.RUBIKA:
@@ -899,6 +1046,7 @@ def compute_account_runtime_status(
             db,
             account,
             worker_covered=worker_covered,
+            worker_stale=worker_stale,
             dispatch_eligible_ids=dispatch_eligible_ids,
         )
     if account.platform == PlatformType.WHATSAPP:
@@ -938,10 +1086,12 @@ def compute_all_account_runtime_statuses(
         by_platform.setdefault(plat, []).append(int(a.id))
 
     coverage: dict[tuple[str, int], bool] = {}
+    stale: dict[tuple[str, int], bool] = {}
     for plat, ids in by_platform.items():
-        batch = batch_worker_coverage(platform=plat, account_ids=ids)
-        for aid, cov in batch.items():
-            coverage[(plat, aid)] = cov
+        batch = batch_worker_coverage_state(platform=plat, account_ids=ids)
+        for aid, state in batch.items():
+            coverage[(plat, aid)] = state == "fresh"
+            stale[(plat, aid)] = state == "stale"
 
     dispatch_eligible: set[int] | None = None
     try:
@@ -961,6 +1111,7 @@ def compute_all_account_runtime_statuses(
                 db,
                 account,
                 worker_covered=cov,
+                worker_stale=stale.get((plat, int(account.id)), False),
                 dispatch_eligible_ids=dispatch_eligible
                 if account.platform == PlatformType.RUBIKA
                 else None,

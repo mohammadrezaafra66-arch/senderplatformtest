@@ -1,10 +1,14 @@
-"""L11 — Controlled Rubika worker discovery (pinned | shadow | dynamic).
+"""L11 — Controlled Rubika worker discovery (dynamic canonical; pinned/shadow legacy).
 
 Discovery decides which accounts get worker coverage (queue poll + heartbeat).
 Session selection remains in ``session_access`` / canonical runtime — never here.
 
+Canonical production mode is dynamic: coverage is the eligible pool set only.
+pinned and shadow are explicit legacy/test modes. An empty pin list covers
+nobody — it must never fall back to account 12 or any other fixed id.
+
 Eligibility is stricter than historical pool-only discovery: pool membership alone
-must not enroll every Rubika account row.
+must not enroll every Rubika account row, and membership never implies READY.
 """
 
 from __future__ import annotations
@@ -47,6 +51,7 @@ class ExclusionReason(str, Enum):
     SESSION_MISSING = "SESSION_MISSING"
     SESSION_DECRYPT_FAILED = "SESSION_DECRYPT_FAILED"
     SESSION_INVALID = "SESSION_INVALID"
+    POOL_NOT_DISPATCHABLE = "POOL_NOT_DISPATCHABLE"
     DUPLICATE_ACTIVE_SESSIONS = "DUPLICATE_ACTIVE_SESSIONS"
     AMBIGUOUS_LEGACY_SESSIONS = "AMBIGUOUS_LEGACY_SESSIONS"
     ACTIVE_SESSION_EMPTY = "ACTIVE_SESSION_EMPTY"
@@ -103,7 +108,8 @@ class DiscoverySnapshot:
 
 
 def normalize_discovery_mode(raw: str | None) -> str:
-    mode = str(raw or MODE_PINNED).strip().lower() or MODE_PINNED
+    # Missing mode is dynamic. pinned/shadow only when explicitly configured.
+    mode = str(raw or MODE_DYNAMIC).strip().lower() or MODE_DYNAMIC
     if mode not in VALID_MODES:
         raise ValueError(
             "RUBIKA_WORKER_DISCOVERY_MODE must be 'pinned', 'shadow', or 'dynamic'."
@@ -168,6 +174,13 @@ def evaluate_session_availability_for_discovery(
 
     if not rows:
         return False, "missing", ExclusionReason.SESSION_MISSING.value
+    terminal = {
+        RubikaSessionStatus.INVALID,
+        RubikaSessionStatus.DECRYPT_FAILED,
+        RubikaSessionStatus.REVOKED,
+    }
+    if len(rows) == 1 and rows[0].session_status in terminal:
+        return False, "session_invalid", ExclusionReason.SESSION_INVALID.value
     if len(rows) > 1:
         # Multiple non-ACTIVE sessions → manual review / ambiguous (e.g. Account12).
         return False, "ambiguous_legacy", ExclusionReason.AMBIGUOUS_LEGACY_SESSIONS.value
@@ -187,12 +200,19 @@ def evaluate_session_availability_for_discovery(
     return True, "single_legacy", ExclusionReason.NONE.value
 
 
+def _pool_row_dispatchable(row: RubikaAccountPool) -> bool:
+    """Stale SESSION_INVALIDATED membership must not be treated as sendable."""
+    message = str(getattr(row, "last_error_message", None) or "").strip()
+    return not message.startswith("SESSION_INVALIDATED")
+
+
 def classify_rubika_account_for_discovery(
     db: Session,
     account: Account,
     *,
     current_phase: str | None,
     pool_phases: set[str],
+    pool_dispatchable: bool = True,
 ) -> AccountDiscoveryClass:
     aid = int(account.id)
     status = (
@@ -281,6 +301,24 @@ def classify_rubika_account_for_discovery(
             eligible=False,
         )
 
+    if not pool_dispatchable:
+        active = _active_sessions(_session_rows(db, aid))
+        if len(active) != 1:
+            return AccountDiscoveryClass(
+                account_id=aid,
+                account_status=status,
+                pool_membership=pool_membership,
+                schedule_eligibility="not_dispatchable",
+                session_availability="session_invalid",
+                session_readiness="not_ready",
+                canonical_status="NO_ACTIVE",
+                legacy_runtime_status="pool_stamped_invalid",
+                worker_coverage_status="excluded",
+                dispatch_readiness=False,
+                exclusion_reason=ExclusionReason.POOL_NOT_DISPATCHABLE.value,
+                eligible=False,
+            )
+
     ok, session_availability, session_excl = evaluate_session_availability_for_discovery(
         db, aid, account=account
     )
@@ -365,8 +403,11 @@ def get_dispatch_eligible_rubika_account_ids(
     )
     pool_rows = db.query(RubikaAccountPool).all()
     pool_by_account: dict[int, set[str]] = {}
+    dispatchable_by_account: dict[int, bool] = {}
     for row in pool_rows:
         pool_by_account.setdefault(int(row.account_id), set()).add(str(row.phase))
+        if str(row.phase) == str(phase):
+            dispatchable_by_account[int(row.account_id)] = _pool_row_dispatchable(row)
 
     cohort: set[int] | None = None
     if cohort_ids is not None:
@@ -381,6 +422,7 @@ def get_dispatch_eligible_rubika_account_ids(
             account,
             current_phase=phase,
             pool_phases=pool_by_account.get(int(account.id), set()),
+            pool_dispatchable=dispatchable_by_account.get(int(account.id), True),
         )
         if not classification.eligible:
             continue
@@ -406,8 +448,11 @@ def inventory_rubika_discovery(
     )
     pool_rows = db.query(RubikaAccountPool).all()
     pool_by_account: dict[int, set[str]] = {}
+    dispatchable_by_account: dict[int, bool] = {}
     for row in pool_rows:
         pool_by_account.setdefault(int(row.account_id), set()).add(str(row.phase))
+        if phase is not None and str(row.phase) == str(phase):
+            dispatchable_by_account[int(row.account_id)] = _pool_row_dispatchable(row)
 
     return [
         classify_rubika_account_for_discovery(
@@ -415,6 +460,7 @@ def inventory_rubika_discovery(
             account,
             current_phase=phase,
             pool_phases=pool_by_account.get(int(account.id), set()),
+            pool_dispatchable=dispatchable_by_account.get(int(account.id), True),
         )
         for account in accounts
     ]

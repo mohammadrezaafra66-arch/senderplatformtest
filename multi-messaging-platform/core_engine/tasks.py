@@ -14,6 +14,10 @@ redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 celery_app = Celery("core_engine", broker=redis_url, backend=redis_url)
 
 celery_app.conf.beat_schedule = {
+    # Start pushes one bounded READY batch. Later READY items (capacity, backpressure,
+    # items becoming READY after Start) need this repush. Idempotent: a claimed row
+    # leaves READY, so a second run cannot enqueue the same item again.
+    # REAL_QUEUE_PUSH_ENABLED=false makes the task a no-op (no Redis writes).
     "push-ready-staged-items-every-5-seconds": {
         "task": "push_ready_staged_items",
         "schedule": schedule(run_every=5),

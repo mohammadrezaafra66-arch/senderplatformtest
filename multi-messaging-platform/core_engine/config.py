@@ -122,7 +122,8 @@ class Settings(BaseSettings):
     RUBIKA_CANONICAL_SESSION_ACCOUNT_IDS: str = ""
     # L17: allowlist (default) | canonical_active (auto-enforce proven ACTIVE+identity).
     RUBIKA_CANONICAL_SESSION_SCOPE: str = "allowlist"
-    # L11: successful login must NOT auto-enroll into pool unless explicitly enabled.
+    # Deprecated. Post-login pool enrollment is canonical and does not consult this flag.
+    # Kept so existing env files do not fail to parse. It no longer creates a second path.
     AUTO_ENROLL_RUBIKA_POOL: bool = False
     DEFAULT_RUBIKA_POOL: str = "day"
     # L3 OTP challenge controls

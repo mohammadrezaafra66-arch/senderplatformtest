@@ -55,6 +55,37 @@ from workers.redis_keys import campaign_dispatch_fairness_key, queue_key
 
 logger = logging.getLogger(__name__)
 
+def campaign_accepts_new_dispatch(status: str | None) -> bool:
+    """Only RUNNING campaigns may receive a new queue push.
+
+    Start pushes a bounded READY batch. The periodic beat task exists so items
+    that become READY later (capacity, backpressure, prepare finishing after
+    Start) are claimed. A claimed row leaves READY, so a second run cannot
+    enqueue the same item. Paused, cancelled, completed, and draft do not dispatch.
+    """
+    return str(status or "").strip().lower() == CampaignStatus.RUNNING.value
+
+
+def payload_sender_assignment_is_stable(
+    *,
+    message_account_id: int,
+    payload_account_id: int,
+    message_campaign_id: int,
+    item_campaign_id: int,
+    message_contact_id: int,
+    item_contact_id: int,
+) -> bool:
+    """True only when the queue payload still names the campaign's assigned account.
+
+    Dispatch must never rewrite account_id onto another worker.
+    """
+    return (
+        int(message_campaign_id) == int(item_campaign_id)
+        and int(message_contact_id) == int(item_contact_id)
+        and int(message_account_id) == int(payload_account_id)
+    )
+
+
 def _is_baileys_mode() -> bool:
     return get_settings().WHATSAPP_DELIVERY_MODE.strip().lower() == "baileys"
 
@@ -303,10 +334,13 @@ async def push_staged_items_to_worker_queue(
                 skipped_invalid += 1
                 db.commit()
                 continue
-            if (
-                message.campaign_id != item.campaign_id
-                or message.contact_id != item.contact_id
-                or message.account_id != payload_account_id
+            if not payload_sender_assignment_is_stable(
+                message_account_id=int(message.account_id),
+                payload_account_id=payload_account_id,
+                message_campaign_id=int(message.campaign_id),
+                item_campaign_id=int(item.campaign_id),
+                message_contact_id=int(message.contact_id),
+                item_contact_id=int(item.contact_id),
             ):
                 item.status = StagedQueueItemStatus.SKIPPED.value
                 item.skip_reason = "invalid_payload:sender_assignment_mismatch"

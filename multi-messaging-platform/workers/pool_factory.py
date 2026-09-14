@@ -71,7 +71,7 @@ def build_pool_worker(settings: WorkerSettings | None = None) -> MultiAccountWor
             ),
             heartbeat_interval_seconds=int(cfg.WORKER_HEARTBEAT_INTERVAL_SECONDS),
             heartbeat_ttl_seconds=int(cfg.WORKER_HEARTBEAT_TTL_SECONDS),
-            discovery_mode=str(getattr(cfg, "RUBIKA_WORKER_DISCOVERY_MODE", "pinned")),
+            discovery_mode=str(getattr(cfg, "RUBIKA_WORKER_DISCOVERY_MODE", "dynamic")),
             pinned_account_ids=parse_account_id_list(
                 getattr(cfg, "RUBIKA_ACCOUNT_IDS", "") or ""
             ),

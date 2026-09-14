@@ -498,7 +498,7 @@ async def test_login_ready_and_auth_dispatch_separation(pg_session_factory):
 
 
 @pytest.mark.asyncio
-async def test_no_auto_pool_enrollment(pg_session_factory):
+async def test_login_enrolls_pool_once(pg_session_factory):
     db = pg_session_factory()
     acct = _acct(db)
     store: dict = {}
@@ -507,7 +507,7 @@ async def test_no_auto_pool_enrollment(pg_session_factory):
         db, acct.id, phone_number=acct.phone_number, provider=provider, secret_store=store
     )
     db.commit()
-    await submit_rubika_login_code(
+    submitted = await submit_rubika_login_code(
         db,
         acct.id,
         r.challenge_id,
@@ -519,7 +519,8 @@ async def test_no_auto_pool_enrollment(pg_session_factory):
     db.commit()
     from core_engine.models import RubikaAccountPool
 
-    assert db.query(RubikaAccountPool).filter_by(account_id=acct.id).count() == 0
+    assert submitted.ok is True
+    assert db.query(RubikaAccountPool).filter_by(account_id=acct.id).count() == 1
 
 
 def test_legacy_path_fenced_when_flag_true():
