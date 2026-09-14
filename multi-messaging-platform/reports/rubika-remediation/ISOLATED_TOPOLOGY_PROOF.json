@@ -1,0 +1,54 @@
+{
+  "EPHEMERAL_TEST_POSTGRES_DEDICATED": true,
+  "TEST_POSTGRES_NAME": "mmp_test_postgres_iso",
+  "TEST_POSTGRES_ON_PRODUCTION_NETWORK": false,
+  "TEST_POSTGRES_NETWORKS": [
+    "mmp_test_isolation"
+  ],
+  "TEST_REDIS_NAME": "mmp_test_redis_iso",
+  "TEST_REDIS_NETWORKS": [
+    "mmp_test_isolation"
+  ],
+  "TEST_REDIS_ON_PRODUCTION_NETWORK": false,
+  "TEST_NETWORK": "mmp_test_isolation",
+  "PYTEST_PLANNED_NETWORKS": [
+    "mmp_test_isolation"
+  ],
+  "PYTEST_ON_PRODUCTION_NETWORK": false,
+  "PYTEST_NETWORK_COUNT": 1,
+  "probe_networks": [
+    "mmp_test_isolation"
+  ],
+  "PRODUCTION_POSTGRES_REACHABLE_FROM_PYTEST": false,
+  "PRODUCTION_REDIS_REACHABLE_FROM_PYTEST": false,
+  "PRODUCTION_API_REACHABLE_FROM_PYTEST": false,
+  "PRODUCTION_WORKERS_REACHABLE_FROM_PYTEST": false,
+  "TEST_POSTGRES_REACHABLE_FROM_PROBE": true,
+  "TEST_REDIS_REACHABLE_FROM_PROBE": true,
+  "TEST_DATABASE_HOST": "mmp_test_postgres_iso",
+  "TEST_DATABASE_NAME": "mmp_isolated_pytest",
+  "TEST_DATABASE_URL_ISOLATED": true,
+  "TEST_REDIS_URL_ISOLATED": true,
+  "EXTERNAL_SEND_CAPABILITY_DISABLED": true,
+  "REAL_QUEUE_PUSH_ENABLED": false,
+  "REAL_MESSAGE_SENDING_ENABLED": false,
+  "WORKER_EXECUTION_ENABLED": false,
+  "CHANNEL_CONNECTORS_ENABLED": false,
+  "CONTROLLED_PRODUCTION_ENABLED": false,
+  "created_this_run": {
+    "network": false,
+    "redis": false,
+    "postgres": false
+  },
+  "teardown_script": "scripts/_teardown_test_isolation.py",
+  "teardown_note": "Extend teardown for mmp_test_postgres_iso; do not teardown until live RO check done.",
+  "recommended_env_hosts": {
+    "DATABASE_HOST": "mmp_test_postgres_iso",
+    "DATABASE_NAME": "mmp_isolated_pytest",
+    "DATABASE_USER": "mmp_test",
+    "REDIS_HOST": "mmp_test_redis_iso",
+    "REDIS_URL_TEMPLATE": "redis://mmp_test_redis_iso:6379/0"
+  },
+  "SAFE_TO_RUN_ISOLATED_PYTEST": true,
+  "TESTS_EXECUTED": false
+}

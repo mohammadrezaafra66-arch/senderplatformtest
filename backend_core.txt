@@ -1,0 +1,439 @@
+Folder PATH listing
+Volume serial number is 0A23-43AF
+F:\SENDERPLATFORMTEST\MULTI-MESSAGING-PLATFORM\CORE_ENGINE
+|   config.py
+|   database.py
+|   main.py
+|   models.py
+|   models.py.pre-schedule-slots.bak
+|   tasks.py
+|   __init__.py
+|   
++---api
+|   |   accounts.py
+|   |   admin_server.py
+|   |   audit.py
+|   |   auth.py
+|   |   campaigns.py
+|   |   contacts.py
+|   |   controls.py
+|   |   dashboard.py
+|   |   dashboard_ws.py
+|   |   debug_campaigns.py
+|   |   debug_contacts.py
+|   |   debug_prepare.py
+|   |   debug_staging.py
+|   |   dev_pricing.py
+|   |   evolution_webhook.py
+|   |   evolution_whatsapp.py
+|   |   imports.py
+|   |   metrics.py
+|   |   rubika.py
+|   |   rubika.py.pre-schedule-slots.bak
+|   |   schemas.py
+|   |   schemas.py.pre-schedule-slots.bak
+|   |   send_settings.py
+|   |   utf8_json.py
+|   |   whatsapp.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           accounts.cpython-310.pyc
+|           accounts.cpython-314.pyc
+|           admin_server.cpython-310.pyc
+|           admin_server.cpython-314.pyc
+|           audit.cpython-310.pyc
+|           audit.cpython-314.pyc
+|           auth.cpython-310.pyc
+|           auth.cpython-314.pyc
+|           campaigns.cpython-310.pyc
+|           campaigns.cpython-314.pyc
+|           contacts.cpython-310.pyc
+|           controls.cpython-310.pyc
+|           controls.cpython-314.pyc
+|           dashboard.cpython-310.pyc
+|           dashboard.cpython-314.pyc
+|           dashboard_ws.cpython-310.pyc
+|           dashboard_ws.cpython-314.pyc
+|           debug_campaigns.cpython-310.pyc
+|           debug_campaigns.cpython-314.pyc
+|           debug_contacts.cpython-310.pyc
+|           debug_contacts.cpython-314.pyc
+|           debug_prepare.cpython-310.pyc
+|           debug_prepare.cpython-314.pyc
+|           debug_staging.cpython-310.pyc
+|           debug_staging.cpython-314.pyc
+|           dev_pricing.cpython-310.pyc
+|           dev_pricing.cpython-314.pyc
+|           evolution_webhook.cpython-310.pyc
+|           evolution_webhook.cpython-314.pyc
+|           evolution_whatsapp.cpython-310.pyc
+|           evolution_whatsapp.cpython-314.pyc
+|           imports.cpython-310.pyc
+|           imports.cpython-314.pyc
+|           metrics.cpython-310.pyc
+|           metrics.cpython-314.pyc
+|           rubika.cpython-310.pyc
+|           rubika.cpython-314.pyc
+|           schemas.cpython-310.pyc
+|           schemas.cpython-314.pyc
+|           send_settings.cpython-310.pyc
+|           send_settings.cpython-314.pyc
+|           utf8_json.cpython-310.pyc
+|           utf8_json.cpython-314.pyc
+|           whatsapp.cpython-310.pyc
+|           whatsapp.cpython-314.pyc
+|           __init__.cpython-310.pyc
+|           __init__.cpython-314.pyc
+|           
++---middleware
+|   |   metrics_middleware.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           metrics_middleware.cpython-310.pyc
+|           metrics_middleware.cpython-314.pyc
+|           __init__.cpython-310.pyc
+|           __init__.cpython-314.pyc
+|           
++---monitoring
+|   |   metrics.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           metrics.cpython-310.pyc
+|           metrics.cpython-314.pyc
+|           __init__.cpython-310.pyc
+|           __init__.cpython-314.pyc
+|           
++---schemas
+|   |   message.py
+|   |   phase4.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           message.cpython-310.pyc
+|           message.cpython-314.pyc
+|           phase4.cpython-310.pyc
+|           phase4.cpython-314.pyc
+|           __init__.cpython-310.pyc
+|           __init__.cpython-314.pyc
+|           
++---services
+|   |   account_runtime_status.py
+|   |   account_session_wiring.py
+|   |   alert_service.py
+|   |   archive.py
+|   |   audit_service.py
+|   |   baileys_queue.py
+|   |   baileys_results_consumer.py
+|   |   baileys_session_service.py
+|   |   campaign_auto_prepare.py
+|   |   campaign_capacity.py
+|   |   campaign_capacity.py.pre-workdays-policy.bak
+|   |   campaign_control.py
+|   |   campaign_dispatch.py
+|   |   campaign_dispatch.py.before-real-inflight-20260824_163624.bak
+|   |   campaign_execution_labels.py
+|   |   campaign_footer.py
+|   |   campaign_footer.py.pre-unicode-fix.bak
+|   |   campaign_inflight.py
+|   |   campaign_preflight.py
+|   |   campaign_preflight.py.before-real-inflight-20260824_163624.bak
+|   |   campaign_preparation.py
+|   |   campaign_production_guards.py
+|   |   campaign_readiness_contract.py
+|   |   campaign_recipients.py
+|   |   campaign_render.py
+|   |   campaign_retry_schedule.py
+|   |   campaign_sender_assignment.py
+|   |   campaign_sender_eligibility.py
+|   |   consent_gate.py
+|   |   consent_service.py
+|   |   contact_delete.py
+|   |   control_service.py
+|   |   crypto.py
+|   |   dashboard.py
+|   |   dashboard_service.py
+|   |   delivery_audit.py
+|   |   evolution_service.py
+|   |   excel_processor.py
+|   |   gpt_orchestrator.py
+|   |   knowledge_base.py
+|   |   message_dispatch.py
+|   |   message_log.py
+|   |   message_queue_payload.py
+|   |   message_render.py
+|   |   metrics_service.py
+|   |   openai_client.py
+|   |   operational_send.py
+|   |   phase4_prepare.py
+|   |   phase4_prepare.py.before-render-recovery-20260824_152009.bak
+|   |   phase4_prepare.py.before-render-recovery-v2-20260824_152135.bak
+|   |   phase4_staging.py
+|   |   phase4_utils.py
+|   |   pilot_profiles.py
+|   |   price_fetcher.py
+|   |   pricing_playwright_scraper.py
+|   |   pricing_scraper.py
+|   |   product_snapshot.py
+|   |   proxy_assignment_service.py
+|   |   queue_bridge.py
+|   |   queue_manager.py
+|   |   rbac.py
+|   |   redis_client.py
+|   |   rubika_ai_analyzer.py
+|   |   rubika_alerts.py
+|   |   rubika_candidate_prover.py
+|   |   rubika_canonical_runtime.py
+|   |   rubika_canonical_session.py
+|   |   rubika_circuit.py
+|   |   rubika_cleanup.py
+|   |   rubika_failure.py
+|   |   rubika_health.py
+|   |   rubika_identity.py
+|   |   rubika_image_processor.py
+|   |   rubika_incidents.py
+|   |   rubika_l17_automation.py
+|   |   rubika_l7_classifiers.py
+|   |   rubika_legacy_promotion.py
+|   |   rubika_login_fake_provider.py
+|   |   rubika_login_live_provider.py
+|   |   rubika_login_state_machine.py
+|   |   rubika_mode.py
+|   |   rubika_operations.py
+|   |   rubika_policy.py
+|   |   rubika_policy.py.before-warmup-policy-20260824_144724.bak
+|   |   rubika_policy.py.pre-workdays-policy.bak
+|   |   rubika_preflight.py
+|   |   rubika_quota.py
+|   |   rubika_session_migration_guards.py
+|   |   rubika_session_promotion.py
+|   |   rubika_user_session.py
+|   |   rubika_voice_processor.py
+|   |   safety_guard.py
+|   |   session_storage.py
+|   |   utils.py
+|   |   whatsapp_send_guard.py
+|   |   whatsapp_warmup.py
+|   |   whatsapp_web_session.py
+|   |   worker_pool_status.py
+|   |   __init__.py
+|   |   
+|   +---message_variation
+|   |   |   assignment.py
+|   |   |   dto.py
+|   |   |   errors.py
+|   |   |   fake_provider.py
+|   |   |   openai_provider.py
+|   |   |   placeholders.py
+|   |   |   prompt.py
+|   |   |   provider.py
+|   |   |   service.py
+|   |   |   validator.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           assignment.cpython-310.pyc
+|   |           dto.cpython-310.pyc
+|   |           errors.cpython-310.pyc
+|   |           fake_provider.cpython-310.pyc
+|   |           openai_provider.cpython-310.pyc
+|   |           placeholders.cpython-310.pyc
+|   |           prompt.cpython-310.pyc
+|   |           provider.cpython-310.pyc
+|   |           service.cpython-310.pyc
+|   |           validator.cpython-310.pyc
+|   |           __init__.cpython-310.pyc
+|   |           
+|   +---product_feed
+|   |   |   afrakala_adapter.py
+|   |   |   afrakala_public_bot_provider.py
+|   |   |   canonical.py
+|   |   |   composition.py
+|   |   |   dto.py
+|   |   |   errors.py
+|   |   |   fake_provider.py
+|   |   |   http_provider.py
+|   |   |   provider.py
+|   |   |   selection.py
+|   |   |   service.py
+|   |   |   __init__.py
+|   |   |   
+|   |   \---__pycache__
+|   |           afrakala_adapter.cpython-310.pyc
+|   |           afrakala_public_bot_provider.cpython-310.pyc
+|   |           canonical.cpython-310.pyc
+|   |           composition.cpython-310.pyc
+|   |           dto.cpython-310.pyc
+|   |           errors.cpython-310.pyc
+|   |           fake_provider.cpython-310.pyc
+|   |           http_provider.cpython-310.pyc
+|   |           provider.cpython-310.pyc
+|   |           selection.cpython-310.pyc
+|   |           service.cpython-310.pyc
+|   |           __init__.cpython-310.pyc
+|   |           
+|   \---__pycache__
+|           account_runtime_status.cpython-310.pyc
+|           account_session_wiring.cpython-310.pyc
+|           account_session_wiring.cpython-314.pyc
+|           alert_service.cpython-310.pyc
+|           alert_service.cpython-314.pyc
+|           archive.cpython-310.pyc
+|           audit_service.cpython-310.pyc
+|           audit_service.cpython-314.pyc
+|           baileys_queue.cpython-310.pyc
+|           baileys_queue.cpython-314.pyc
+|           baileys_results_consumer.cpython-310.pyc
+|           baileys_results_consumer.cpython-314.pyc
+|           baileys_session_service.cpython-310.pyc
+|           baileys_session_service.cpython-314.pyc
+|           campaign_auto_prepare.cpython-310.pyc
+|           campaign_capacity.cpython-310.pyc
+|           campaign_control.cpython-310.pyc
+|           campaign_control.cpython-314.pyc
+|           campaign_dispatch.cpython-310.pyc
+|           campaign_dispatch.cpython-314.pyc
+|           campaign_execution_labels.cpython-310.pyc
+|           campaign_footer.cpython-310.pyc
+|           campaign_inflight.cpython-310.pyc
+|           campaign_preflight.cpython-310.pyc
+|           campaign_preflight.cpython-314.pyc
+|           campaign_preparation.cpython-310.pyc
+|           campaign_production_guards.cpython-310.pyc
+|           campaign_readiness_contract.cpython-310.pyc
+|           campaign_recipients.cpython-310.pyc
+|           campaign_recipients.cpython-314.pyc
+|           campaign_render.cpython-310.pyc
+|           campaign_retry_schedule.cpython-310.pyc
+|           campaign_sender_assignment.cpython-310.pyc
+|           campaign_sender_assignment.cpython-314.pyc
+|           campaign_sender_eligibility.cpython-310.pyc
+|           consent_gate.cpython-310.pyc
+|           consent_gate.cpython-314.pyc
+|           consent_service.cpython-310.pyc
+|           consent_service.cpython-314.pyc
+|           contact_delete.cpython-310.pyc
+|           control_service.cpython-310.pyc
+|           control_service.cpython-314.pyc
+|           crypto.cpython-310.pyc
+|           crypto.cpython-314.pyc
+|           dashboard.cpython-310.pyc
+|           dashboard.cpython-314.pyc
+|           dashboard_service.cpython-310.pyc
+|           dashboard_service.cpython-314.pyc
+|           delivery_audit.cpython-310.pyc
+|           delivery_audit.cpython-314.pyc
+|           evolution_service.cpython-310.pyc
+|           evolution_service.cpython-314.pyc
+|           excel_processor.cpython-310.pyc
+|           excel_processor.cpython-314.pyc
+|           gpt_orchestrator.cpython-310.pyc
+|           gpt_orchestrator.cpython-314.pyc
+|           knowledge_base.cpython-310.pyc
+|           knowledge_base.cpython-314.pyc
+|           message_dispatch.cpython-310.pyc
+|           message_dispatch.cpython-314.pyc
+|           message_log.cpython-310.pyc
+|           message_log.cpython-314.pyc
+|           message_queue_payload.cpython-310.pyc
+|           message_queue_payload.cpython-314.pyc
+|           message_render.cpython-310.pyc
+|           message_render.cpython-314.pyc
+|           metrics_service.cpython-310.pyc
+|           metrics_service.cpython-314.pyc
+|           openai_client.cpython-310.pyc
+|           openai_client.cpython-314.pyc
+|           operational_send.cpython-310.pyc
+|           operational_send.cpython-314.pyc
+|           phase4_prepare.cpython-310.pyc
+|           phase4_prepare.cpython-314.pyc
+|           phase4_staging.cpython-310.pyc
+|           phase4_staging.cpython-314.pyc
+|           phase4_utils.cpython-310.pyc
+|           phase4_utils.cpython-314.pyc
+|           pilot_profiles.cpython-310.pyc
+|           price_fetcher.cpython-310.pyc
+|           price_fetcher.cpython-314.pyc
+|           pricing_playwright_scraper.cpython-310.pyc
+|           pricing_playwright_scraper.cpython-314.pyc
+|           pricing_scraper.cpython-310.pyc
+|           pricing_scraper.cpython-314.pyc
+|           product_snapshot.cpython-310.pyc
+|           product_snapshot.cpython-314.pyc
+|           proxy_assignment_service.cpython-310.pyc
+|           proxy_assignment_service.cpython-314.pyc
+|           queue_bridge.cpython-310.pyc
+|           queue_bridge.cpython-314.pyc
+|           queue_manager.cpython-310.pyc
+|           queue_manager.cpython-314.pyc
+|           rbac.cpython-310.pyc
+|           rbac.cpython-314.pyc
+|           redis_client.cpython-310.pyc
+|           redis_client.cpython-314.pyc
+|           rubika_ai_analyzer.cpython-310.pyc
+|           rubika_ai_analyzer.cpython-314.pyc
+|           rubika_alerts.cpython-310.pyc
+|           rubika_candidate_prover.cpython-310.pyc
+|           rubika_canonical_runtime.cpython-310.pyc
+|           rubika_canonical_session.cpython-310.pyc
+|           rubika_circuit.cpython-310.pyc
+|           rubika_cleanup.cpython-310.pyc
+|           rubika_cleanup.cpython-314.pyc
+|           rubika_failure.cpython-310.pyc
+|           rubika_health.cpython-310.pyc
+|           rubika_identity.cpython-310.pyc
+|           rubika_image_processor.cpython-310.pyc
+|           rubika_image_processor.cpython-314.pyc
+|           rubika_incidents.cpython-310.pyc
+|           rubika_l17_automation.cpython-310.pyc
+|           rubika_l7_classifiers.cpython-310.pyc
+|           rubika_legacy_promotion.cpython-310.pyc
+|           rubika_login_fake_provider.cpython-310.pyc
+|           rubika_login_live_provider.cpython-310.pyc
+|           rubika_login_state_machine.cpython-310.pyc
+|           rubika_mode.cpython-310.pyc
+|           rubika_mode.cpython-314.pyc
+|           rubika_operations.cpython-310.pyc
+|           rubika_policy.cpython-310.pyc
+|           rubika_policy.cpython-314.pyc
+|           rubika_preflight.cpython-310.pyc
+|           rubika_quota.cpython-310.pyc
+|           rubika_session_migration_guards.cpython-310.pyc
+|           rubika_session_promotion.cpython-310.pyc
+|           rubika_user_session.cpython-310.pyc
+|           rubika_user_session.cpython-314.pyc
+|           rubika_voice_processor.cpython-310.pyc
+|           rubika_voice_processor.cpython-314.pyc
+|           safety_guard.cpython-310.pyc
+|           safety_guard.cpython-314.pyc
+|           session_storage.cpython-310.pyc
+|           session_storage.cpython-314.pyc
+|           utils.cpython-310.pyc
+|           utils.cpython-314.pyc
+|           whatsapp_send_guard.cpython-310.pyc
+|           whatsapp_send_guard.cpython-314.pyc
+|           whatsapp_warmup.cpython-310.pyc
+|           whatsapp_warmup.cpython-314.pyc
+|           whatsapp_web_session.cpython-310.pyc
+|           whatsapp_web_session.cpython-314.pyc
+|           worker_pool_status.cpython-310.pyc
+|           worker_pool_status.cpython-314.pyc
+|           __init__.cpython-310.pyc
+|           __init__.cpython-314.pyc
+|           
+\---__pycache__
+        config.cpython-310.pyc
+        config.cpython-314.pyc
+        database.cpython-310.pyc
+        database.cpython-314.pyc
+        main.cpython-310.pyc
+        main.cpython-314.pyc
+        models.cpython-310.pyc
+        models.cpython-314.pyc
+        tasks.cpython-310.pyc
+        tasks.cpython-314.pyc
+        __init__.cpython-310.pyc
+        __init__.cpython-314.pyc
+        

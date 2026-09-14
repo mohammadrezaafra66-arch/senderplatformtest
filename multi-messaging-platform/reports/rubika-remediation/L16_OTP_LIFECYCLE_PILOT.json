@@ -1,0 +1,290 @@
+{
+  "PILOT_ACCOUNT_ID": 27,
+  "PILOT_ACTIVE_SESSION_ID": 772,
+  "OTP_REQUEST_PASS": true,
+  "OTP_SUBMIT_PASS": true,
+  "PILOT_CANONICAL_ENFORCE_PASS": true,
+  "PILOT_AUTHORITATIVE_SESSION": 772,
+  "ACCOUNT27_ENFORCE_OBSERVATION_COUNT": 3,
+  "ACCOUNT27_ENFORCE_STABLE": true,
+  "ACTUAL_WORKER_IDS": [
+    12,
+    13,
+    23,
+    27,
+    74,
+    79
+  ],
+  "CANONICAL_MODE": "enforce",
+  "CANONICAL_ALLOWLIST": "13,23,27,74",
+  "WORKER_DISCOVERY_COHORT": "13,23,27,74",
+  "WORKER_PIN": "12,79",
+  "GLOBAL_ACTIVE_SESSION_COUNT": 4,
+  "MESSAGE_SENT": false,
+  "OTP_REQUESTED_AGAIN": false,
+  "END_TO_END_LIFECYCLE_PASS": true,
+  "MANUAL_DB_REPAIR_USED": false,
+  "MANUAL_SESSION_ROW_EDIT_USED": false,
+  "MAX_ID_REPAIR_USED": false,
+  "MANUAL_WORKER_CREATION_USED": false,
+  "NEW_ACCOUNT_AUTO_LOGIN_L3_READY": false,
+  "NEW_ACCOUNT_AUTO_SESSION_PROMOTION_READY": true,
+  "NEW_ACCOUNT_AUTO_POOL_READY": false,
+  "NEW_ACCOUNT_AUTO_DISCOVERY_READY": false,
+  "NEW_ACCOUNT_AUTO_WORKER_COVERAGE_READY": false,
+  "NEW_ACCOUNT_AUTO_CANONICAL_ENFORCE_READY": false,
+  "FULL_AUTOMATIC_NEW_ACCOUNT_LIFECYCLE_READY": false,
+  "REMAINING_AUTOMATION_GAP": "RUBIKA_CANONICAL_LOGIN_PILOT_ACCOUNT_IDS / RUBIKA_CANONICAL_SESSION_V1; AUTO_ENROLL_RUBIKA_POOL + RubikaAccountPool membership; RUBIKA_WORKER_DISCOVERY_COHORT_IDS; RUBIKA_CANONICAL_SESSION_ACCOUNT_IDS",
+  "ROLLBACK_PERFORMED": false,
+  "ROLLBACK_RESULT": null,
+  "rollback_copy": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\docker-compose.override.yml.before-l16-a27-enforce-20260831_125857.bak",
+  "CURRENT_PHASE": "L16_END_TO_END_OTP_LIFECYCLE_PILOT",
+  "PHASE_STATUS": "COMPLETE",
+  "NEXT_SAFE_ACTION": "Implement only the exact remaining automation-gap remediation as the final cleanup phase",
+  "ENFORCE_MUTATION_SCOPE_EXACT": true,
+  "WORKER_CONFIG_MUTATED_BY_ENFORCE": false,
+  "lifecycle_proof": [
+    "NO_SESSION",
+    "OTP_REQUEST",
+    "OTP_SUBMIT",
+    "AUTHENTICATED_LOGIN",
+    "CANDIDATE_SESSION",
+    "VALIDATING",
+    "IDENTITY_VERIFIED",
+    "CANONICAL_ACTIVE_772",
+    "DYNAMIC_ELIGIBLE",
+    "WORKER27_DISCOVERY",
+    "CANONICAL_ENFORCE",
+    "DISPATCH_READY"
+  ],
+  "observe": {
+    "ACCOUNT27_ENFORCE_OBSERVATION_COUNT": 3,
+    "ACCOUNT27_ENFORCE_STABLE": true,
+    "observations": [
+      {
+        "i": 1,
+        "actual": [
+          12,
+          13,
+          23,
+          27,
+          74,
+          79
+        ],
+        "cohort": [
+          13,
+          23,
+          27,
+          74
+        ],
+        "pin": [
+          12,
+          79
+        ],
+        "canon_allow": "13,23,27,74",
+        "canon_mode": "enforce",
+        "authoritative": 772,
+        "runtime_source": "canonical_enforce",
+        "enforce_pass": true,
+        "canonical_error": null,
+        "coverage27": true
+      },
+      {
+        "i": 2,
+        "actual": [
+          12,
+          13,
+          23,
+          27,
+          74,
+          79
+        ],
+        "cohort": [
+          13,
+          23,
+          27,
+          74
+        ],
+        "pin": [
+          12,
+          79
+        ],
+        "canon_allow": "13,23,27,74",
+        "canon_mode": "enforce",
+        "authoritative": 772,
+        "runtime_source": "canonical_enforce",
+        "enforce_pass": true,
+        "canonical_error": null,
+        "coverage27": true
+      },
+      {
+        "i": 3,
+        "actual": [
+          12,
+          13,
+          23,
+          27,
+          74,
+          79
+        ],
+        "cohort": [
+          13,
+          23,
+          27,
+          74
+        ],
+        "pin": [
+          12,
+          79
+        ],
+        "canon_allow": "13,23,27,74",
+        "canon_mode": "enforce",
+        "authoritative": 772,
+        "runtime_source": "canonical_enforce",
+        "enforce_pass": true,
+        "canonical_error": null,
+        "coverage27": true
+      }
+    ]
+  },
+  "enforce_verify": {
+    "PILOT_ACCOUNT_ID": 27,
+    "PILOT_AUTHORITATIVE_SESSION": 772,
+    "PILOT_CANONICAL_ENFORCE_PASS": true,
+    "enforce_applies": true,
+    "canonical_loader_session_id": 772,
+    "runtime_session_id": 772,
+    "runtime_source": "canonical_enforce",
+    "legacy_selected_session": 772,
+    "PILOT_SHADOW_RESULT": "SHADOW_MATCH",
+    "shadow": {
+      "account_id": 27,
+      "legacy_selected_session_id": 772,
+      "canonical_selected_session_id": 772,
+      "canonical_error": null,
+      "match": true,
+      "metric": "SHADOW_MATCH"
+    },
+    "PILOT_RECONNECT_PASS": true,
+    "reconnect": {
+      "ok": true,
+      "code": "PROOF_PASS",
+      "identity_match": true,
+      "sanitized_message": "authenticated reconnect and identity verified"
+    },
+    "dispatch_readiness": true,
+    "session_count": 1,
+    "active_count": 1,
+    "active_id": 772,
+    "GLOBAL_ACTIVE_SESSION_COUNT": 4,
+    "MessageAttempt_count": 5,
+    "challenge_count": 2,
+    "batch_a_actives": {
+      "13": 729,
+      "23": 725,
+      "74": 724
+    },
+    "a12": "657:legacy_unclassified,728:legacy_unclassified",
+    "a79": "600:legacy_unclassified",
+    "queue27": 0,
+    "coverage27": true,
+    "canonical_mode": "enforce",
+    "canonical_allowlist": "13,23,27,74",
+    "process_workers": [],
+    "process_discovery": {
+      "mode": "pinned",
+      "cohort": [],
+      "pin": []
+    },
+    "MESSAGE_SENT": false,
+    "ok": true,
+    "rc": 0
+  },
+  "automation_gap": {
+    "live": {
+      "login_pilot": [
+        "27"
+      ],
+      "V1_override": [],
+      "AUTO_ENROLL_override": [],
+      "discovery_mode": [
+        "dynamic"
+      ],
+      "cohort": [
+        "13,23,27,74"
+      ],
+      "canonical_mode": [
+        "enforce",
+        "enforce",
+        "enforce"
+      ],
+      "allowlist": [
+        "13,23,27,74",
+        "13,23,27,74",
+        "13,23,27,74"
+      ],
+      "v1_default_false": true,
+      "auto_enroll_default_false": true
+    },
+    "NEW_ACCOUNT_AUTO_LOGIN_L3_READY": false,
+    "NEW_ACCOUNT_AUTO_SESSION_PROMOTION_READY": true,
+    "NEW_ACCOUNT_AUTO_POOL_READY": false,
+    "NEW_ACCOUNT_AUTO_DISCOVERY_READY": false,
+    "NEW_ACCOUNT_AUTO_WORKER_COVERAGE_READY": false,
+    "NEW_ACCOUNT_AUTO_CANONICAL_ENFORCE_READY": false,
+    "FULL_AUTOMATIC_NEW_ACCOUNT_LIFECYCLE_READY": false,
+    "REMAINING_AUTOMATION_GAP": "RUBIKA_CANONICAL_LOGIN_PILOT_ACCOUNT_IDS / RUBIKA_CANONICAL_SESSION_V1; AUTO_ENROLL_RUBIKA_POOL + RubikaAccountPool membership; RUBIKA_WORKER_DISCOVERY_COHORT_IDS; RUBIKA_CANONICAL_SESSION_ACCOUNT_IDS",
+    "gaps": [
+      {
+        "CONFIG_OR_COMPONENT": "RUBIKA_CANONICAL_LOGIN_PILOT_ACCOUNT_IDS / RUBIKA_CANONICAL_SESSION_V1",
+        "CURRENT_BEHAVIOR": "V1 default False; override V1 unset; pilot=['27']. Only listed account IDs use L3 request/submit login.",
+        "WHY_MANUAL": "Temporary L16 pilot gate to avoid mass cutover of legacy login.",
+        "DESIRED_FINAL_BEHAVIOR": "RUBIKA_CANONICAL_SESSION_V1=true (or empty pilot meaning all accounts) so any new Rubika account uses L3 login automatically.",
+        "SAFE_REMOVAL_STRATEGY": "Enable V1 globally after L3 proven on pilot set; keep legacy fence; staged enable with rollback to pilot list.",
+        "TESTS_REQUIRED": [
+          "test_l16_login_pilot_gate",
+          "L3 request/submit for non-pilot blocked vs V1-all allowed",
+          "legacy login fence when V1 true"
+        ]
+      },
+      {
+        "CONFIG_OR_COMPONENT": "AUTO_ENROLL_RUBIKA_POOL + RubikaAccountPool membership",
+        "CURRENT_BEHAVIOR": "AUTO_ENROLL_RUBIKA_POOL default/false; login success does not enroll pool. Discovery requires phase pool membership.",
+        "WHY_MANUAL": "Safety: prevent accidental campaign capacity from login alone.",
+        "DESIRED_FINAL_BEHAVIOR": "Optional controlled auto-enroll after auth_ready+identity verified, or explicit post-login enrollment workflow without hand-editing pool rows.",
+        "SAFE_REMOVAL_STRATEGY": "Feature-flag AUTO_ENROLL_RUBIKA_POOL for verified accounts only; start with shadow enroll logs.",
+        "TESTS_REQUIRED": [
+          "evaluate_dispatch_ready_readonly NOT_IN_POOL",
+          "auto-enroll creates exact phase row only when flag true"
+        ]
+      },
+      {
+        "CONFIG_OR_COMPONENT": "RUBIKA_WORKER_DISCOVERY_COHORT_IDS",
+        "CURRENT_BEHAVIOR": "mode=['dynamic'] cohort=['13,23,27,74']. Non-empty cohort filters dynamic eligible set; new account IDs must be added manually.",
+        "WHY_MANUAL": "Temporary staged rollout (L12\u2013L16) to limit blast radius.",
+        "DESIRED_FINAL_BEHAVIOR": "RUBIKA_WORKER_DISCOVERY_MODE=dynamic with empty cohort (all dispatch-eligible accounts covered) OR auto-append on auth_ready.",
+        "SAFE_REMOVAL_STRATEGY": "Empty cohort after Batch+pilot stable; monitor worker count; keep pin for legacy 12/79 until separately retired.",
+        "TESTS_REQUIRED": [
+          "get_dispatch_eligible with cohort=[] vs non-empty",
+          "resolve_actual_worker_account_ids empty cohort includes new eligible id"
+        ]
+      },
+      {
+        "CONFIG_OR_COMPONENT": "RUBIKA_CANONICAL_SESSION_ACCOUNT_IDS",
+        "CURRENT_BEHAVIOR": "mode=['enforce', 'enforce', 'enforce'] allowlist=['13,23,27,74', '13,23,27,74', '13,23,27,74']. Enforce applies only to listed IDs; new accounts remain legacy max(id) until manually allowlisted.",
+        "WHY_MANUAL": "Temporary staged ENFORCE rollout (L15\u2013L16).",
+        "DESIRED_FINAL_BEHAVIOR": "After fleet proof: enforce for all accounts with ACTIVE canonical+identity, or auto-allowlist on successful L3 promotion.",
+        "SAFE_REMOVAL_STRATEGY": "Expand allowlist in batches; eventually switch to enforce-all policy with explicit deny-list if needed; never silent max(id) fallback.",
+        "TESTS_REQUIRED": [
+          "enforce_applies_to_account",
+          "load_rubika_runtime_session source=canonical_enforce fail-closed"
+        ]
+      }
+    ],
+    "notes": {
+      "session_promotion_code_exists": true,
+      "cohort_filter_documented": true,
+      "pin_union": true
+    }
+  }
+}

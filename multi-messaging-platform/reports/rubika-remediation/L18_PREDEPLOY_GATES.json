@@ -1,0 +1,112 @@
+{
+  "L18_DEPLOY_SCRIPT_EXISTS": true,
+  "L18_DEPLOY_SCRIPT_AUDIT_PASS": true,
+  "L18_DEPLOY_SCRIPT_HASH_LOCK_PASS": true,
+  "L18_DEPLOY_SCRIPT_SHA256_AUDITED": "a51a590fb7b60403de4b4dd61726d04ae8a7293a81d156c35506b889f11c0961",
+  "L18_DEPLOY_SCRIPT_SHA256_NOW": "a51a590fb7b60403de4b4dd61726d04ae8a7293a81d156c35506b889f11c0961",
+  "L18_DIRECT_HELPERS_AUDITED": true,
+  "L18_DIRECT_HELPERS_HASH_LOCK_PASS": true,
+  "STATUS_LABEL_CHECK_PASS": true,
+  "L18_TESTS_PASSED": 24,
+  "L18_TESTS_FAILED": 0,
+  "TOTAL_ACCOUNTS": 48,
+  "CLASSIFIED_ACCOUNTS": 48,
+  "UNEXPLAINED_ACCOUNTS": 0,
+  "KNOWN_RUBIKA_TRUTH_GATES_PASS": true,
+  "known_spot": {
+    "13": "READY",
+    "23": "READY",
+    "27": "READY",
+    "74": "READY",
+    "12": "MANUAL_REVIEW",
+    "3": "LOGIN_REQUIRED",
+    "79": "READY"
+  },
+  "L17_PREDEPLOY_BASELINE_PASS": true,
+  "L17_BASELINE": {
+    "RUBIKA_L3_LOGIN_ROUTING": "auto_evidence",
+    "AUTO_ENROLL_RUBIKA_POOL": "True",
+    "RUBIKA_WORKER_DISCOVERY_SCOPE": "all_eligible",
+    "RUBIKA_CANONICAL_SESSION_SCOPE": "canonical_active",
+    "AUTO_CANONICAL_ENFORCE_ACCOUNT_IDS": [
+      13,
+      23,
+      27,
+      74
+    ],
+    "DYNAMIC_ELIGIBLE_IDS": [
+      13,
+      23,
+      27,
+      74,
+      79
+    ],
+    "ACTUAL_WORKER_IDS": [
+      12,
+      13,
+      23,
+      27,
+      74,
+      79
+    ],
+    "ACTIVES": {
+      "13": 729,
+      "23": 725,
+      "27": 772,
+      "74": 724
+    },
+    "GLOBAL_ACTIVE_SESSION_COUNT": 4,
+    "ACCOUNT12_PROTECTED": true,
+    "ACCOUNT79_PROTECTED": true,
+    "WORKER_PIN_12_79_PRESERVED": true,
+    "PREDEPLOY_MESSAGE_ATTEMPT_COUNT": 5,
+    "PREDEPLOY_LOGIN_CHALLENGE_COUNT": 3,
+    "PREDEPLOY_SESSION_COUNT": 16,
+    "PREDEPLOY_ACTIVE_SESSION_COUNT": 4
+  },
+  "topology": {
+    "L18_CORE_API_DEPLOY_REQUIRED": true,
+    "L18_FRONTEND_DEPLOY_REQUIRED": true,
+    "L18_RUBIKA_WORKER_DEPLOY_REQUIRED": false,
+    "L18_CELERY_DEPLOY_REQUIRED": false,
+    "core_api_bind_mounts_core_engine": true,
+    "rubika_worker_bind_mounts_core_engine": false,
+    "frontend_source_bind_mounted": false,
+    "core_mounts": [
+      "/usr/bin/docker -> /usr/bin/docker (bind)",
+      "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\storage\\browser_profiles -> /app/storage/browser_profiles (bind)",
+      "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\core_engine -> /app/core_engine (bind)",
+      "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\workers -> /app/workers (bind)",
+      "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\scripts -> /app/scripts (bind)",
+      "/var/run/docker.sock -> /var/run/docker.sock (bind)"
+    ],
+    "worker_mounts": [],
+    "frontend_mounts": []
+  },
+  "rollback": {
+    "L18_ROLLBACK_READY": true,
+    "L18_ROLLBACK_MANIFEST": {
+      "override_sha256": "06a52f6c0e9a820aca57d83281eea82ac1161ea8b7c55a0335410ba0fbf90d69",
+      "deploy_script_sha256": "a51a590fb7b60403de4b4dd61726d04ae8a7293a81d156c35506b889f11c0961",
+      "helper_sha256": "6d53b4e5047585559e71079a09f8a09b748d673206267a68c8d7f562201b72f8",
+      "core_api_image": "sha256:461be0672d06554b6112175c6795052581c54210d185c24baf193b82b44175b7",
+      "frontend_image": "sha256:f9b97b26d28168fa80571e59a82859cc42a3464a5b162c4e2a5e7e7c62669f3b",
+      "services_to_restore": [
+        "core_api",
+        "frontend"
+      ],
+      "note": "Deploy script creates dated override bak then recreates only core_api+frontend; rollback restores bak bytes + recreates same services."
+    },
+    "L18_ROLLBACK_SHA256_VERIFIED": true
+  },
+  "grouped_counts": {
+    "SESSION_ERROR": 1,
+    "MANUAL_REVIEW": 5,
+    "LOGIN_REQUIRED": 37,
+    "READY": 5
+  },
+  "MESSAGE_SENT": false,
+  "OTP_REQUESTED": false,
+  "PREDEPLOY_ALL_GATES_PASS": true,
+  "generated_at": "2026-09-01T08:30:47.747925+00:00"
+}

@@ -1,0 +1,132 @@
+# M1 — Manual-Review Remediation Plan (NO EXECUTION)
+
+This plan is evidence-only. Do not promote/invalidate/OTP until operator authorization.
+MAX_ID_SELECTION_USED=False
+
+## Account 2
+- ACCOUNT_ID=2
+- FORENSIC_CLASSIFICATION=ONE_PROVEN_ONE_INVALID
+- SESSION_IDS=[2, 721]
+- VALID_SESSION_IDS=[721]
+- INVALID_SESSION_IDS=[]
+- DECRYPT_FAILED_SESSION_IDS=[2]
+- AUTH_PASS_SESSION_IDS=[721]
+- AUTH_FAIL_SESSION_IDS=[]
+- AUTH_INDETERMINATE_SESSION_IDS=[]
+- IDENTITY_RELATION=N/A_SINGLE_VALID
+- CURRENT_WORKER_STATE=covered:False pinned:False
+- CURRENT_RUNTIME_SOURCE={'eligible': False, 'exclusion_reason': 'AMBIGUOUS_LEGACY_SESSIONS', 'legacy_runtime_status': 'multi_legacy:2', 'canonical_status': 'NO_ACTIVE'}
+- MANUAL_REVIEW_BLOCKER=LEGACY_MULTI_SESSION
+- PROPOSED_AUTHORITATIVE_SESSION_ID=721
+- PROPOSED_NONAUTHORITATIVE_SESSION_IDS=[2]
+- OTP_REQUIRED=False
+- SAFE_TO_CANONICALIZE=True
+- SESSION_RETIREMENT_REQUIRED=True
+- OPERATOR_DECISION_REQUIRED=False
+- EXACT_REMEDIATION_ACTION=Promote proven session 721 after operator approval; retire invalid sibling without deleting evidence until approved.
+- ROLLBACK_STRATEGY=No mutation in M1. Future remediation must bak session rows + override; never touch Sessions 729/725/772/724; keep pin 12,79.
+- RISK_LEVEL=LOW
+
+## Account 12
+- ACCOUNT_ID=12
+- FORENSIC_CLASSIFICATION=MULTIPLE_VALID_SAME_IDENTITY
+- SESSION_IDS=[657, 728]
+- VALID_SESSION_IDS=[657, 728]
+- INVALID_SESSION_IDS=[]
+- DECRYPT_FAILED_SESSION_IDS=[]
+- AUTH_PASS_SESSION_IDS=[657, 728]
+- AUTH_FAIL_SESSION_IDS=[]
+- AUTH_INDETERMINATE_SESSION_IDS=[]
+- IDENTITY_RELATION=SAME_IDENTITY
+- CURRENT_WORKER_STATE=covered:True pinned:True
+- CURRENT_RUNTIME_SOURCE={'eligible': False, 'exclusion_reason': 'AMBIGUOUS_LEGACY_SESSIONS', 'legacy_runtime_status': 'multi_legacy:2', 'canonical_status': 'NO_ACTIVE'}
+- MANUAL_REVIEW_BLOCKER=LEGACY_MULTI_SESSION
+- PROPOSED_AUTHORITATIVE_SESSION_ID=None
+- PROPOSED_NONAUTHORITATIVE_SESSION_IDS=[]
+- OTP_REQUIRED=False
+- SAFE_TO_CANONICALIZE=False
+- SESSION_RETIREMENT_REQUIRED=False
+- OPERATOR_DECISION_REQUIRED=True
+- EXACT_REMEDIATION_ACTION=Same identity duplicates with no deterministic non-max(id) winner — operator must select authoritative session.
+- ROLLBACK_STRATEGY=No mutation in M1. Future remediation must bak session rows + override; never touch Sessions 729/725/772/724; keep pin 12,79.
+- RISK_LEVEL=MEDIUM
+
+## Account 19
+- ACCOUNT_ID=19
+- FORENSIC_CLASSIFICATION=MULTIPLE_VALID_SAME_IDENTITY
+- SESSION_IDS=[726, 727]
+- VALID_SESSION_IDS=[726, 727]
+- INVALID_SESSION_IDS=[]
+- DECRYPT_FAILED_SESSION_IDS=[]
+- AUTH_PASS_SESSION_IDS=[726, 727]
+- AUTH_FAIL_SESSION_IDS=[]
+- AUTH_INDETERMINATE_SESSION_IDS=[]
+- IDENTITY_RELATION=SAME_IDENTITY
+- CURRENT_WORKER_STATE=covered:False pinned:False
+- CURRENT_RUNTIME_SOURCE={'eligible': False, 'exclusion_reason': 'AMBIGUOUS_LEGACY_SESSIONS', 'legacy_runtime_status': 'multi_legacy:2', 'canonical_status': 'NO_ACTIVE'}
+- MANUAL_REVIEW_BLOCKER=LEGACY_MULTI_SESSION
+- PROPOSED_AUTHORITATIVE_SESSION_ID=None
+- PROPOSED_NONAUTHORITATIVE_SESSION_IDS=[]
+- OTP_REQUIRED=False
+- SAFE_TO_CANONICALIZE=False
+- SESSION_RETIREMENT_REQUIRED=False
+- OPERATOR_DECISION_REQUIRED=True
+- EXACT_REMEDIATION_ACTION=Same identity duplicates with no deterministic non-max(id) winner — operator must select authoritative session.
+- ROLLBACK_STRATEGY=No mutation in M1. Future remediation must bak session rows + override; never touch Sessions 729/725/772/724; keep pin 12,79.
+- RISK_LEVEL=MEDIUM
+
+## Account 81
+- ACCOUNT_ID=81
+- FORENSIC_CLASSIFICATION=MULTIPLE_VALID_SAME_IDENTITY
+- SESSION_IDS=[722, 723]
+- VALID_SESSION_IDS=[722, 723]
+- INVALID_SESSION_IDS=[]
+- DECRYPT_FAILED_SESSION_IDS=[]
+- AUTH_PASS_SESSION_IDS=[722, 723]
+- AUTH_FAIL_SESSION_IDS=[]
+- AUTH_INDETERMINATE_SESSION_IDS=[]
+- IDENTITY_RELATION=SAME_IDENTITY
+- CURRENT_WORKER_STATE=covered:False pinned:False
+- CURRENT_RUNTIME_SOURCE={'eligible': False, 'exclusion_reason': 'AMBIGUOUS_LEGACY_SESSIONS', 'legacy_runtime_status': 'multi_legacy:2', 'canonical_status': 'NO_ACTIVE'}
+- MANUAL_REVIEW_BLOCKER=LEGACY_MULTI_SESSION
+- PROPOSED_AUTHORITATIVE_SESSION_ID=None
+- PROPOSED_NONAUTHORITATIVE_SESSION_IDS=[]
+- OTP_REQUIRED=False
+- SAFE_TO_CANONICALIZE=False
+- SESSION_RETIREMENT_REQUIRED=False
+- OPERATOR_DECISION_REQUIRED=True
+- EXACT_REMEDIATION_ACTION=Same identity duplicates with no deterministic non-max(id) winner — operator must select authoritative session.
+- ROLLBACK_STRATEGY=No mutation in M1. Future remediation must bak session rows + override; never touch Sessions 729/725/772/724; keep pin 12,79.
+- RISK_LEVEL=MEDIUM
+
+## Account 92
+- ACCOUNT_ID=92
+- FORENSIC_CLASSIFICATION=DECRYPT_REPAIR_REQUIRED
+- SESSION_IDS=[11, 12]
+- VALID_SESSION_IDS=[]
+- INVALID_SESSION_IDS=[]
+- DECRYPT_FAILED_SESSION_IDS=[11, 12]
+- AUTH_PASS_SESSION_IDS=[]
+- AUTH_FAIL_SESSION_IDS=[]
+- AUTH_INDETERMINATE_SESSION_IDS=[]
+- IDENTITY_RELATION=UNKNOWN
+- CURRENT_WORKER_STATE=covered:False pinned:False
+- CURRENT_RUNTIME_SOURCE={'eligible': False, 'exclusion_reason': 'AMBIGUOUS_LEGACY_SESSIONS', 'legacy_runtime_status': 'multi_legacy:2', 'canonical_status': 'NO_ACTIVE'}
+- MANUAL_REVIEW_BLOCKER=LEGACY_MULTI_SESSION
+- PROPOSED_AUTHORITATIVE_SESSION_ID=None
+- PROPOSED_NONAUTHORITATIVE_SESSION_IDS=[]
+- OTP_REQUIRED=True
+- SAFE_TO_CANONICALIZE=False
+- SESSION_RETIREMENT_REQUIRED=False
+- OPERATOR_DECISION_REQUIRED=False
+- EXACT_REMEDIATION_ACTION=All Account92 sessions fail decryption with current SESSION_SECRET; no safe alternate-key repair proven. Relogin/OTP required after approval. Failure classes=['LEGACY_CIPHER_FORMAT']
+- ROLLBACK_STRATEGY=No mutation in M1. Future remediation must bak session rows + override; never touch Sessions 729/725/772/724; keep pin 12,79.
+- RISK_LEVEL=HIGH
+
+## Order
+RECOMMENDED_REMEDIATION_ORDER=[2, 12, 19, 81, 92]
+
+SAFE_WITHOUT_OTP_ACCOUNTS=[2]
+OTP_REQUIRED_ACCOUNTS=[92]
+OPERATOR_DECISION_REQUIRED_ACCOUNTS=[12, 19, 81]
+

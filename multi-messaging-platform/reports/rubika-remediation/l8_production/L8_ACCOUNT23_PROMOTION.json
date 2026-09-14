@@ -1,0 +1,137 @@
+{
+  "phase": "L8_BATCH_A_ACCOUNT23_PROMOTION",
+  "PHASE_STATUS": "COMPLETE",
+  "backup": {
+    "BACKUP_PATH": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\reports\\rubika-remediation\\l8_production\\mmp_db_pre_account23_20260831T090254Z.dump",
+    "backup_path": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\reports\\rubika-remediation\\l8_production\\mmp_db_pre_account23_20260831T090254Z.dump",
+    "BACKUP_SHA256": "d0ce17a7eb260c9663ce9ad6a01324aa5fde27c969cfb6e2661502de8e28bcbf",
+    "sha256": "d0ce17a7eb260c9663ce9ad6a01324aa5fde27c969cfb6e2661502de8e28bcbf",
+    "BACKUP_TIMESTAMP": "20260831T090254Z",
+    "created_at": "20260831T090254Z",
+    "BACKUP_SIZE": 212575,
+    "size_bytes": 212575,
+    "source_db": "mmp_db",
+    "meta_path": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\reports\\rubika-remediation\\l8_production\\mmp_db_pre_account23_20260831T090254Z.dump.meta.json"
+  },
+  "backup_verify": {
+    "verified": true,
+    "path": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\reports\\rubika-remediation\\l8_production\\mmp_db_pre_account23_20260831T090254Z.dump",
+    "sha256": "d0ce17a7eb260c9663ce9ad6a01324aa5fde27c969cfb6e2661502de8e28bcbf",
+    "size_bytes": 212575,
+    "age_seconds": 0,
+    "source_db": "mmp_db"
+  },
+  "backup_verify_immediate_pre_mutation": {
+    "verified": true,
+    "path": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\reports\\rubika-remediation\\l8_production\\mmp_db_pre_account23_20260831T090254Z.dump",
+    "sha256": "d0ce17a7eb260c9663ce9ad6a01324aa5fde27c969cfb6e2661502de8e28bcbf",
+    "size_bytes": 212575,
+    "age_seconds": 2,
+    "source_db": "mmp_db"
+  },
+  "precheck": {
+    "mode": "off",
+    "queue23": 0,
+    "mapping": "23:legacy_unclassified",
+    "a13": "729:active",
+    "active_global": 1,
+    "a74": "724:legacy_unclassified"
+  },
+  "before": {
+    "total_sessions": 15,
+    "session_inventory": "1:1:legacy_unclassified\n2:2:legacy_unclassified\n11:92:legacy_unclassified\n12:92:legacy_unclassified\n600:79:legacy_unclassified\n657:12:legacy_unclassified\n721:2:legacy_unclassified\n722:81:legacy_unclassified\n723:81:legacy_unclassified\n724:74:legacy_unclassified\n725:23:legacy_unclassified\n726:19:legacy_unclassified\n727:19:legacy_unclassified\n728:12:legacy_unclassified\n729:13:active",
+    "a13": "729:active",
+    "a23": "725:legacy_unclassified",
+    "a74": "724:legacy_unclassified",
+    "a12": "657:legacy_unclassified\n728:legacy_unclassified",
+    "a79": "600:legacy_unclassified",
+    "active_global": 1,
+    "login_challenge_count": 0,
+    "message_attempt_count": 5,
+    "queue23": 0
+  },
+  "after": {
+    "total_sessions": 15,
+    "session_inventory": "1:1:legacy_unclassified\n2:2:legacy_unclassified\n11:92:legacy_unclassified\n12:92:legacy_unclassified\n600:79:legacy_unclassified\n657:12:legacy_unclassified\n721:2:legacy_unclassified\n722:81:legacy_unclassified\n723:81:legacy_unclassified\n724:74:legacy_unclassified\n725:23:active\n726:19:legacy_unclassified\n727:19:legacy_unclassified\n728:12:legacy_unclassified\n729:13:active",
+    "a13": "729:active",
+    "a23": "725:active",
+    "a74": "724:legacy_unclassified",
+    "a12": "657:legacy_unclassified\n728:legacy_unclassified",
+    "a79": "600:legacy_unclassified",
+    "active_global": 2,
+    "login_challenge_count": 0,
+    "message_attempt_count": 5,
+    "queue23": 0
+  },
+  "inner": {
+    "otp_requested": false,
+    "message_sent": false,
+    "rolled_back": false,
+    "ROLLBACK_PERFORMED": false,
+    "ROLLBACK_RESULT": null,
+    "promotion": {
+      "ok": true,
+      "code": "PROMOTION_OK",
+      "account_id": 23,
+      "session_id": 725,
+      "active_session_id": 725,
+      "proven_identity_guid": "u0JxXDR00bef2308287685630a63d422",
+      "identity_newly_bound": true,
+      "sanitized_message": "legacy session promoted via validating path",
+      "proof_duration_ms": 554
+    },
+    "verify_post_promotion": {
+      "account_id": 23,
+      "expected_session_id": 725,
+      "active_count": 1,
+      "active_session_ids": [
+        725
+      ],
+      "legacy_selected_session_id": 725,
+      "canonical_ok": true,
+      "canonical_session_id": 725,
+      "canonical_error": null,
+      "legacy_canonical_match": true
+    },
+    "canonical_reconnect": {
+      "ok": true,
+      "code": "PROOF_PASS",
+      "identity_match": true,
+      "duration_ms": 184,
+      "sanitized_message": "authenticated reconnect and identity verified"
+    },
+    "canonical_loader_session_id": 725,
+    "legacy_loader_session_id": 725,
+    "LEGACY_CANONICAL_MATCH": true,
+    "message_attempts_before": 5,
+    "message_attempts_after": 5,
+    "login_challenges_before": 0,
+    "login_challenges_after": 0,
+    "ACCOUNT23_PROMOTION_PASS": true,
+    "ACCOUNT23_ACTIVE_SESSION_ID": 725,
+    "ACCOUNT23_CANONICAL_LOADER_PASS": true,
+    "ACCOUNT23_LEGACY_CANONICAL_MATCH": true,
+    "identity_snapshot_before": {
+      "rubika_guid": null,
+      "rubika_identity_status": "unbound",
+      "rubika_identity_verified_at": null,
+      "newly_bound": true
+    },
+    "promotion_committed": true
+  },
+  "ACCOUNT23_PROMOTION_PASS": true,
+  "ACCOUNT23_ACTIVE_SESSION_ID": 725,
+  "ACCOUNT23_CANONICAL_LOADER_PASS": true,
+  "ACCOUNT23_LEGACY_CANONICAL_MATCH": true,
+  "GLOBAL_ACTIVE_SESSION_COUNT": 2,
+  "ACCOUNT13_UNCHANGED": true,
+  "ACCOUNT74_UNCHANGED": true,
+  "ACCOUNT12_UNCHANGED": true,
+  "ACCOUNT79_UNCHANGED": true,
+  "TOTAL_CHANNEL_SESSION_COUNT_UNCHANGED": true,
+  "MESSAGE_SENT": false,
+  "OTP_REQUESTED": false,
+  "queue23_after": 0,
+  "EXACT_OPERATOR_INPUT_REQUIRED": "Review Account23 before approving Account74 promotion",
+  "CURRENT_PHASE": "L8_BATCH_A_ACCOUNT23_PROMOTION"
+}

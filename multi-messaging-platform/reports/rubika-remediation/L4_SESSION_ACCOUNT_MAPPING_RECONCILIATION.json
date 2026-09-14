@@ -1,0 +1,33 @@
+{
+  "phase": "L4_FINAL_EVIDENCE_RECONCILIATION",
+  "queried_at_utc": "2026-08-31",
+  "production_db": "mmp_db",
+  "mutation": false,
+  "discrepancy_classification": "C_PREVIOUS_TRANSCRIPTION_INCORRECT",
+  "authoritative_mapping": {
+    "account_12_session_ids": [657, 728],
+    "account_79_session_ids": [600],
+    "session_600_account_id": 79,
+    "session_657_account_id": 12,
+    "session_728_account_id": 12
+  },
+  "incorrect_earlier_transcription": {
+    "account_12_session_ids_claimed": [600, 657],
+    "account_79_session_ids_claimed": [728],
+    "note": "Mis-associated interleaved psql lines in blocked-phase assistant summary; production ownership never matched that claim."
+  },
+  "l4_rehearsal_json_mapping_matches_production": true,
+  "real_send_evidence": {
+    "account_12_success_attempts": 2,
+    "account_12_attempt_ids": [2, 15],
+    "account_79_success_attempts": 1,
+    "account_79_attempt_ids": [17]
+  },
+  "precheck": {
+    "total_rubika_accounts": 43,
+    "production_alembic_version": "campaign_accounts_001",
+    "session_status_column_present": false,
+    "canonical_active_sessions": 0,
+    "rubika_canonical_session_v1_production": false
+  }
+}

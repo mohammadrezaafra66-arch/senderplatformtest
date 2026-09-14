@@ -1,0 +1,70 @@
+{
+  "generated_at": "2026-09-01T10:09:18.338929+00:00",
+  "M2_EXECUTED_CUSTOM_FILES": [
+    "scripts/_m2_account2_remediation.py",
+    "scripts/_m2_premutation_gates.py",
+    "scripts/_m2_run_account2_remediation.ps1",
+    "core_engine/services/rubika_legacy_promotion.py"
+  ],
+  "M2_ALL_EXECUTED_CUSTOM_FILES_AUDITED": true,
+  "M2_SCRIPT_EXISTS": true,
+  "M2_SCRIPT_SIZE": 37751,
+  "M2_SCRIPT_SHA256_AUDITED": "c710d4afc993e23e70fdb4b659784bbe2deb890f38cb34b2ad53f835497c47c5",
+  "M2_PREMUTATION_SHA256_AUDITED": "e74f017bcc2fac00caba3ecf26d2f97939cb710b2a8e833401f9670bdaec8830",
+  "M2_RUNNER_SHA256_AUDITED": "d5d127ae4f1c04e9c5e7c732cabb2615d4997ae5c456d57b790a8a86c0b55d69",
+  "M2_HELPER_SHA256_AUDITED": "740c18fb501652b5a559571ec67ca83cba3aa9cc2ee9653babe3f52ca1c4b450",
+  "M2_HELPER_HASHES": {
+    "scripts/_m2_account2_remediation.py": "c710d4afc993e23e70fdb4b659784bbe2deb890f38cb34b2ad53f835497c47c5",
+    "scripts/_m2_premutation_gates.py": "e74f017bcc2fac00caba3ecf26d2f97939cb710b2a8e833401f9670bdaec8830",
+    "scripts/_m2_run_account2_remediation.ps1": "d5d127ae4f1c04e9c5e7c732cabb2615d4997ae5c456d57b790a8a86c0b55d69",
+    "core_engine/services/rubika_legacy_promotion.py": "740c18fb501652b5a559571ec67ca83cba3aa9cc2ee9653babe3f52ca1c4b450"
+  },
+  "M2_AUDITED_FILE_META": {
+    "scripts/_m2_account2_remediation.py": {
+      "PATH": "scripts/_m2_account2_remediation.py",
+      "SIZE": 37751,
+      "SHA256_AUDITED": "c710d4afc993e23e70fdb4b659784bbe2deb890f38cb34b2ad53f835497c47c5"
+    },
+    "scripts/_m2_premutation_gates.py": {
+      "PATH": "scripts/_m2_premutation_gates.py",
+      "SIZE": 15059,
+      "SHA256_AUDITED": "e74f017bcc2fac00caba3ecf26d2f97939cb710b2a8e833401f9670bdaec8830"
+    },
+    "scripts/_m2_run_account2_remediation.ps1": {
+      "PATH": "scripts/_m2_run_account2_remediation.ps1",
+      "SIZE": 8198,
+      "SHA256_AUDITED": "d5d127ae4f1c04e9c5e7c732cabb2615d4997ae5c456d57b790a8a86c0b55d69"
+    },
+    "core_engine/services/rubika_legacy_promotion.py": {
+      "PATH": "core_engine/services/rubika_legacy_promotion.py",
+      "SIZE": 22547,
+      "SHA256_AUDITED": "740c18fb501652b5a559571ec67ca83cba3aa9cc2ee9653babe3f52ca1c4b450"
+    }
+  },
+  "ACCOUNT2_REMEDIATION_HELPER": "promote_proven_legacy_rubika_session",
+  "ACCOUNT2_INVALID_SESSION_TREATMENT": "DECRYPT_FAILED",
+  "DIRECT_DB_EDIT_REQUIRED": false,
+  "USES_PROMOTE_HELPER": true,
+  "USES_CLASSIFY_HELPER": true,
+  "USES_ROLLBACK_HELPER": true,
+  "DIRECT_SQL_ACTIVE_PATH": false,
+  "OTP_PATH_PRESENT": false,
+  "MESSAGE_PATH_PRESENT": false,
+  "MESSAGE_SEND_PATH_PRESENT": false,
+  "DB_MIGRATION_PATH_PRESENT": false,
+  "L17_CONFIG_MUTATION_PATH": false,
+  "UNRELATED_ACCOUNT_MUTATION_PATH": false,
+  "TARGET_CONSTANTS_OK": true,
+  "AUTH_ENV_GATE_PRESENT": true,
+  "PREMUTATION_READ_ONLY": true,
+  "RUNNER_DOES_NOT_CHAIN_SOURCE_AUDIT": true,
+  "M2_MUTATION_SCOPE_EXACT": true,
+  "M2_RUNNER_SOURCE_AUDIT_PASS": true,
+  "POOL_CONFIG_MUTATION_PATH": false,
+  "CONFIG_MUTATION_PATH": false,
+  "failures": [],
+  "M2_SOURCE_AUDIT_PASS": true,
+  "M2_PREEXEC_ALL_GATES_PASS": null,
+  "M2_SOURCE_AUDIT_GATES_SHA256": "9a19809be47c9d1a7325f1fe406acb7ef4d1505944bb89d507eff81cf6faf2d3",
+  "M2_GATE_FILE_CURRENT": true
+}

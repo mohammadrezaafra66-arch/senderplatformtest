@@ -1,0 +1,9 @@
+{
+  "ok": false,
+  "FAILED_STAGE": "VERIFY_L2",
+  "FAILED_GATE": "ALEMBIC_VERSION",
+  "EXPECTED": "rubika_l2_canonical_session_001",
+  "ACTUAL": "rubika_l3_login_challenge_001",
+  "ROLLBACK_RECOMMENDATION": "DOWNGRADE_L2_TO_CAMPAIGN_ACCOUNTS",
+  "message": "ALEMBIC_VERSION: expected='rubika_l2_canonical_session_001' actual='rubika_l3_login_challenge_001'"
+}

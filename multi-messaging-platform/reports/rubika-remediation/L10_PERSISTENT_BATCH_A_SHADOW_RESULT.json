@@ -1,0 +1,98 @@
+{
+  "phase": "L10_PERSISTENT_BATCH_A_SHADOW_DEPLOYMENT",
+  "timestamp": "20260831T094500Z",
+  "phase_status": "COMPLETE",
+  "config_rollback_gate_pass": true,
+  "config_exact_value_gate_pass": true,
+  "config_provenance": {
+    "CONFIG_FILE": "docker-compose.override.yml",
+    "ROLLBACK_FILE": "docker-compose.override.yml.before-l10-batch-a-shadow-20260831_130359.bak",
+    "ROLLBACK_SHA256": "330a72f35763f98386169c0238cb3824383e25b3a27e32a3660b59043752a0f3",
+    "CURRENT_CONFIG_SHA256": "3c454008883051b16f14ffec7ba218efb642ba0a1f5f42997360a17a9d9507bf",
+    "MODE": "shadow",
+    "ALLOWLIST": "13,23,74",
+    "WORKER_PIN": "12,79"
+  },
+  "persistent_batch_a_shadow_enabled": true,
+  "persistent_mode": "shadow",
+  "persistent_allowlist": "13,23,74",
+  "rubika_account_ids": "12,79",
+  "core_api_health_pass": true,
+  "core_api_health": {
+    "running": true,
+    "http": 200,
+    "db": true,
+    "redis": true,
+    "mode": "shadow",
+    "allow": "13,23,74"
+  },
+  "celery_worker_health_pass": true,
+  "celery_action": "left_exited_no_session_access_import",
+  "celery_status": "exited",
+  "rubika_worker_health_pass": true,
+  "rubika_worker_rebuilt": true,
+  "rubika_worker": {
+    "pin": "12,79",
+    "mode": "shadow",
+    "allow": "13,23,74",
+    "has_l7": true,
+    "has_runtime_wire": true
+  },
+  "worker_pin_preserved": true,
+  "worker_pin_blocks_batch_a_runtime_shadow": true,
+  "shadow": {
+    "13": {
+      "account_id": 13,
+      "legacy_selected_session_id": 729,
+      "canonical_selected_session_id": 729,
+      "canonical_error": null,
+      "match": true,
+      "metric": "SHADOW_MATCH"
+    },
+    "23": {
+      "account_id": 23,
+      "legacy_selected_session_id": 725,
+      "canonical_selected_session_id": 725,
+      "canonical_error": null,
+      "match": true,
+      "metric": "SHADOW_MATCH"
+    },
+    "74": {
+      "account_id": 74,
+      "legacy_selected_session_id": 724,
+      "canonical_selected_session_id": 724,
+      "canonical_error": null,
+      "match": true,
+      "metric": "SHADOW_MATCH"
+    }
+  },
+  "account13_shadow_result": "SHADOW_MATCH",
+  "account23_shadow_result": "SHADOW_MATCH",
+  "account74_shadow_result": "SHADOW_MATCH",
+  "account13_active_session": 729,
+  "account23_active_session": 725,
+  "account74_active_session": 724,
+  "global_active_session_count": 3,
+  "account12_unchanged": true,
+  "account79_unchanged": true,
+  "account12_state": "657:legacy_unclassified,728:legacy_unclassified",
+  "account79_state": "600:legacy_unclassified",
+  "queues": {
+    "12": 0,
+    "79": 0,
+    "13": 0,
+    "23": 0,
+    "74": 0
+  },
+  "message_attempts": 5,
+  "login_challenges": 0,
+  "db_unexpected_mutation_detected": false,
+  "redis_unexpected_mutation_detected": false,
+  "message_sent": false,
+  "otp_requested": false,
+  "rollback_performed": false,
+  "rollback_result": null,
+  "production_enforce_enabled": false,
+  "worker_pin_removed": false,
+  "next_safe_action": "Dynamic worker discovery preparation, without enabling ENFORCE in the same change"
+}

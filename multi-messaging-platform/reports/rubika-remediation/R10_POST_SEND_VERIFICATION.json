@@ -1,0 +1,119 @@
+{
+  "captured_at": "2026-08-29T09:40:26.819216+00:00",
+  "MESSAGE_SENT_AGAIN": false,
+  "OTP_REQUESTED": false,
+  "R10_TRANSPORT_PASS": false,
+  "R10_CAMPAIGN_STOPPED": true,
+  "campaign": {
+    "id": 101,
+    "status": "paused",
+    "stopped_not_running": true
+  },
+  "message337": {
+    "campaign_id": 101,
+    "account_id": 12,
+    "contact_id": 2,
+    "latest_attempt_id": 15,
+    "latest_attempt_status": "SUCCESS",
+    "attempt_count": 1,
+    "attempt_ids": [15],
+    "attempt_statuses": ["SUCCESS"]
+  },
+  "message338": {
+    "campaign_id": 101,
+    "account_id": 79,
+    "contact_id": 92,
+    "latest_attempt_id": 16,
+    "latest_attempt_status": "FAILED_PERMANENT",
+    "error_code": "rubika_user_phone_not_resolved",
+    "error_message_masked": "Phone ending 364d is not registered on Rubika (user_exist=false).",
+    "attempt_count": 1,
+    "attempt_ids": [16],
+    "attempt_statuses": ["FAILED_PERMANENT"]
+  },
+  "EXACT_TERMINAL_ATTEMPT_COUNT": 2,
+  "EXACT_SUCCESS_COUNT": 1,
+  "EXACT_FAILED_PERMANENT_COUNT": 1,
+  "NO_DUPLICATE_ATTEMPT_337": true,
+  "NO_DUPLICATE_ATTEMPT_338": true,
+  "NO_CROSS_ACCOUNT_SEND": true,
+  "MESSAGE337_STATUS": "SUCCESS",
+  "MESSAGE338_STATUS": "FAILED_PERMANENT",
+  "MESSAGE338_REASON_CODE": "rubika_user_phone_not_resolved",
+  "MESSAGE338_FAILURE_CLASSIFICATION": "CONTACT_DATA_INVALID",
+  "MESSAGE337_EXTERNAL_DELIVERY_ATTEMPTED": true,
+  "MESSAGE338_EXTERNAL_DELIVERY_ATTEMPTED": false,
+  "MESSAGE338_USER_RESOLUTION_ATTEMPTED": true,
+  "QUEUE12": 0,
+  "QUEUE79": 0,
+  "NO_REDIS_QUEUE_RESIDUE": true,
+  "staged": {
+    "337": "queued",
+    "338": "queued"
+  },
+  "contact92_diagnosis": {
+    "contact_id": 92,
+    "phone_field": {
+      "present": true,
+      "raw_len": 14,
+      "digit_len": 11,
+      "has_plus": true,
+      "prefix_hint": "98",
+      "suffix4": "5364",
+      "looks_e164_ir": false
+    },
+    "phone_e164_field": {
+      "present": true,
+      "raw_len": 14,
+      "digit_len": 11,
+      "has_plus": true,
+      "prefix_hint": "98",
+      "suffix4": "5364",
+      "looks_e164_ir": false
+    },
+    "staged_payload_phone": {
+      "present": true,
+      "raw_len": 12,
+      "digit_len": 11,
+      "has_plus": true,
+      "prefix_hint": "98",
+      "suffix4": "5364",
+      "looks_e164_ir": false
+    },
+    "phones_match_staged": false,
+    "first_name_present": true,
+    "blacklisted": false,
+    "consent_status": "allowed",
+    "failure_code": "rubika_user_phone_not_resolved",
+    "transport_path": "workers/connectors/rubika_user.py::_resolve_object_guid -> add_address_book",
+    "user_exist_false_before_outbound_send_api": true,
+    "classification": "CONTACT_DATA_INVALID",
+    "secondary_symptom": "RUBIKA_USER_NOT_FOUND",
+    "notes": [
+      "Transport used contact.phone_e164 or contact.phone before send_message.",
+      "Identifier shape: digit_len=11 with country prefix 98 (expected IR mobile E.164 digit_len=12).",
+      "Rubika add_address_book returned user_exist=false; mapped to rubika_user_phone_not_resolved.",
+      "Failure occurs BEFORE client.send_message / send_photo (no outbound message API call).",
+      "Local phone field is present but not a valid-length IR E.164.",
+      "Contrast Contact2 phone_e164 digit_len=12 which SUCCEEDED on Account12."
+    ]
+  },
+  "contact2_phone_shape": {
+    "present": true,
+    "raw_len": 11,
+    "digit_len": 11,
+    "has_plus": false,
+    "prefix_hint": "09",
+    "suffix4": "9743",
+    "looks_e164_ir": false
+  },
+  "contact2_phone_e164_shape": {
+    "present": true,
+    "raw_len": 12,
+    "digit_len": 12,
+    "has_plus": false,
+    "prefix_hint": "98",
+    "suffix4": "9743",
+    "looks_e164_ir": true
+  }
+}

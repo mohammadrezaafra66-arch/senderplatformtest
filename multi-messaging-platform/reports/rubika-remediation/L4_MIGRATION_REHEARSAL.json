@@ -1,0 +1,76 @@
+{
+  "timestamp": "2026-08-31T07:00:20.201978+00:00",
+  "production_db": "mmp_db",
+  "rehearsal_db": "mmp_l4_rehearsal",
+  "downgrade_db": "mmp_l4_rehearsal_downgrade",
+  "backup": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\reports\\rubika-remediation\\l4_rehearsal\\mmp_db_pre_l4_20260831T065954Z.dump",
+  "alembic_runner": "mmp_l4_alembic_runner",
+  "alembic_runner_uses_core_api": false,
+  "docker_cp_to_core_api": false,
+  "counts_before": {
+    "rubika_accounts": 43,
+    "channel_sessions_total": 15,
+    "rubika_sessions": 15,
+    "rubika_active": 0,
+    "rubika_legacy_unclassified": null,
+    "login_challenges": 0,
+    "has_session_status_column": false
+  },
+  "counts_after_l2": {
+    "rubika_accounts": 43,
+    "channel_sessions_total": 15,
+    "rubika_sessions": 15,
+    "rubika_active": 0,
+    "rubika_legacy_unclassified": 15,
+    "login_challenges": 0,
+    "has_session_status_column": true
+  },
+  "counts_after_l3": {
+    "rubika_accounts": 43,
+    "channel_sessions_total": 15,
+    "rubika_sessions": 15,
+    "rubika_active": 0,
+    "rubika_legacy_unclassified": 15,
+    "login_challenges": 0,
+    "has_session_status_column": true
+  },
+  "account12_session_ids_before": [
+    657,
+    728
+  ],
+  "account12_session_ids_after_l2": [
+    657,
+    728
+  ],
+  "account79_session_ids_before": [
+    600
+  ],
+  "account79_session_ids_after_l2": [
+    600
+  ],
+  "duplicates_before": {
+    "2": 2,
+    "12": 2,
+    "19": 2,
+    "81": 2,
+    "92": 2
+  },
+  "duplicates_after_l2": {
+    "2": 2,
+    "12": 2,
+    "19": 2,
+    "81": 2,
+    "92": 2
+  },
+  "l2_rehearsal_pass": true,
+  "l3_rehearsal_pass": true,
+  "canonical_loader_samples": {
+    "12": "NO_ACTIVE_SESSION",
+    "79": "NO_ACTIVE_SESSION",
+    "1": "NO_ACTIVE_SESSION",
+    "2": "NO_ACTIVE_SESSION"
+  },
+  "downgrade_rehearsal_pass": true,
+  "downgrade_error": "",
+  "production_migration_applied": false
+}

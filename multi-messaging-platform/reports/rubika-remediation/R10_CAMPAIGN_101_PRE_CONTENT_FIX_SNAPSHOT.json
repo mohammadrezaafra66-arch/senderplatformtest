@@ -1,0 +1,182 @@
+{
+  "captured_at": "2026-08-29T09:26:52.369928+00:00",
+  "campaign": {
+    "id": 101,
+    "template_text": "سلام {first_name} — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+    "status": "prepared",
+    "use_gpt": false,
+    "include_products": false
+  },
+  "messages": [
+    {
+      "id": 337,
+      "campaign_id": 101,
+      "account_id": 12,
+      "contact_id": 2,
+      "rendered_text": "سلام {first_name} — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+      "dedupe_key": "campaign:101:contact:2"
+    },
+    {
+      "id": 338,
+      "campaign_id": 101,
+      "account_id": 79,
+      "contact_id": 92,
+      "rendered_text": "سلام {first_name} — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+      "dedupe_key": "campaign:101:contact:92"
+    }
+  ],
+  "rendered_messages": [
+    {
+      "id": 337,
+      "campaign_id": 101,
+      "contact_id": 2,
+      "final_text": "سلام {first_name} — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+      "render_mode": "template",
+      "used_products": false,
+      "queue_payload": {
+        "phone": "+989921589743",
+        "channel": "rubika",
+        "dry_run": true,
+        "metadata": {
+          "use_gpt": false,
+          "render_version": "campaign-render-v1",
+          "render_batch_id": "6ade69cbc10941b0895a11c710ef5435",
+          "template_source": "base_template",
+          "include_products": false,
+          "final_text_sha256": "71ae0ff37db2d2c81b30d8f577cb000a103503568bf0a33ac2508b4a908ce969"
+        },
+        "account_id": 12,
+        "contact_id": 2,
+        "final_text": "سلام {first_name} — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+        "message_id": 337,
+        "campaign_id": 101,
+        "safety_note": "DB staging only. Not pushed to Redis.",
+        "channel_handle": null,
+        "ready_for_queue": true,
+        "rendered_message_id": 337,
+        "real_queue_push_enabled": true
+      }
+    },
+    {
+      "id": 338,
+      "campaign_id": 101,
+      "contact_id": 92,
+      "final_text": "سلام {first_name} — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+      "render_mode": "template",
+      "used_products": false,
+      "queue_payload": {
+        "phone": "+98965275364",
+        "channel": "rubika",
+        "dry_run": true,
+        "metadata": {
+          "use_gpt": false,
+          "render_version": "campaign-render-v1",
+          "render_batch_id": "6ade69cbc10941b0895a11c710ef5435",
+          "template_source": "base_template",
+          "include_products": false,
+          "final_text_sha256": "71ae0ff37db2d2c81b30d8f577cb000a103503568bf0a33ac2508b4a908ce969"
+        },
+        "account_id": 79,
+        "contact_id": 92,
+        "final_text": "سلام {first_name} — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+        "message_id": 338,
+        "campaign_id": 101,
+        "safety_note": "DB staging only. Not pushed to Redis.",
+        "channel_handle": null,
+        "ready_for_queue": true,
+        "rendered_message_id": 338,
+        "real_queue_push_enabled": true
+      }
+    }
+  ],
+  "staged_queue_items": [
+    {
+      "id": 337,
+      "campaign_id": 101,
+      "contact_id": 2,
+      "rendered_message_id": 337,
+      "status": "ready",
+      "final_text": "سلام {first_name} — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+      "skip_reason": null,
+      "queue_payload": {
+        "phone": "+989921589743",
+        "channel": "rubika",
+        "dry_run": true,
+        "metadata": {
+          "use_gpt": false,
+          "render_version": "campaign-render-v1",
+          "render_batch_id": "6ade69cbc10941b0895a11c710ef5435",
+          "template_source": "base_template",
+          "include_products": false,
+          "final_text_sha256": "71ae0ff37db2d2c81b30d8f577cb000a103503568bf0a33ac2508b4a908ce969"
+        },
+        "account_id": 12,
+        "contact_id": 2,
+        "final_text": "سلام {first_name} — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+        "message_id": 337,
+        "campaign_id": 101,
+        "safety_note": "DB staging only. Not pushed to Redis.",
+        "channel_handle": null,
+        "ready_for_queue": true,
+        "rendered_message_id": 337,
+        "real_queue_push_enabled": true
+      }
+    },
+    {
+      "id": 338,
+      "campaign_id": 101,
+      "contact_id": 92,
+      "rendered_message_id": 338,
+      "status": "ready",
+      "final_text": "سلام {first_name} — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+      "skip_reason": null,
+      "queue_payload": {
+        "phone": "+98965275364",
+        "channel": "rubika",
+        "dry_run": true,
+        "metadata": {
+          "use_gpt": false,
+          "render_version": "campaign-render-v1",
+          "render_batch_id": "6ade69cbc10941b0895a11c710ef5435",
+          "template_source": "base_template",
+          "include_products": false,
+          "final_text_sha256": "71ae0ff37db2d2c81b30d8f577cb000a103503568bf0a33ac2508b4a908ce969"
+        },
+        "account_id": 79,
+        "contact_id": 92,
+        "final_text": "سلام {first_name} — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+        "message_id": 338,
+        "campaign_id": 101,
+        "safety_note": "DB staging only. Not pushed to Redis.",
+        "channel_handle": null,
+        "ready_for_queue": true,
+        "rendered_message_id": 338,
+        "real_queue_push_enabled": true
+      }
+    }
+  ],
+  "recipients": [
+    {
+      "id": 341,
+      "contact_id": 2,
+      "final_message_id": 337,
+      "render_status": "RenderStatus.PENDING",
+      "send_status": "SendStatus.PENDING"
+    },
+    {
+      "id": 342,
+      "contact_id": 92,
+      "final_message_id": 338,
+      "render_status": "RenderStatus.PENDING",
+      "send_status": "SendStatus.PENDING"
+    }
+  ],
+  "counts": {
+    "messages_for_campaign": 2,
+    "rendered_for_campaign": 2,
+    "staged_for_campaign": 2,
+    "accounts_total": 48,
+    "contacts_total": 3,
+    "campaigns_total": 5
+  }
+}

@@ -1,0 +1,300 @@
+{
+  "mode": "dynamic",
+  "cohort": [
+    13,
+    23,
+    74
+  ],
+  "pin": [
+    12,
+    79
+  ],
+  "dynamic": [
+    13,
+    23,
+    74,
+    79
+  ],
+  "actual": [
+    12,
+    13,
+    23,
+    74,
+    79
+  ],
+  "obs": [
+    {
+      "actual": [
+        12,
+        13,
+        23,
+        74,
+        79
+      ],
+      "dynamic": [
+        13,
+        23,
+        74,
+        79
+      ],
+      "mode": "dynamic",
+      "cohort": [
+        13,
+        23,
+        74
+      ],
+      "pin": [
+        12,
+        79
+      ],
+      "coverage": {
+        "12": {
+          "cov": true,
+          "q": 0
+        },
+        "13": {
+          "cov": true,
+          "q": 0
+        },
+        "23": {
+          "cov": true,
+          "q": 0
+        },
+        "74": {
+          "cov": true,
+          "q": 0
+        },
+        "79": {
+          "cov": true,
+          "q": 0
+        }
+      },
+      "cov_meta": {
+        "13": {
+          "present": true,
+          "parse_ok": true,
+          "account_id": 13,
+          "hostname": "663ed7c3b0d7",
+          "platform": "rubika",
+          "updated_at": "2026-08-31T10:37:04.466462+00:00"
+        },
+        "23": {
+          "present": true,
+          "parse_ok": true,
+          "account_id": 23,
+          "hostname": "663ed7c3b0d7",
+          "platform": "rubika",
+          "updated_at": "2026-08-31T10:37:04.466462+00:00"
+        },
+        "74": {
+          "present": true,
+          "parse_ok": true,
+          "account_id": 74,
+          "hostname": "663ed7c3b0d7",
+          "platform": "rubika",
+          "updated_at": "2026-08-31T10:37:04.466462+00:00"
+        }
+      }
+    },
+    {
+      "actual": [
+        12,
+        13,
+        23,
+        74,
+        79
+      ],
+      "dynamic": [
+        13,
+        23,
+        74,
+        79
+      ],
+      "mode": "dynamic",
+      "cohort": [
+        13,
+        23,
+        74
+      ],
+      "pin": [
+        12,
+        79
+      ],
+      "coverage": {
+        "12": {
+          "cov": true,
+          "q": 0
+        },
+        "13": {
+          "cov": true,
+          "q": 0
+        },
+        "23": {
+          "cov": true,
+          "q": 0
+        },
+        "74": {
+          "cov": true,
+          "q": 0
+        },
+        "79": {
+          "cov": true,
+          "q": 0
+        }
+      },
+      "cov_meta": {
+        "13": {
+          "present": true,
+          "parse_ok": true,
+          "account_id": 13,
+          "hostname": "663ed7c3b0d7",
+          "platform": "rubika",
+          "updated_at": "2026-08-31T10:37:04.466462+00:00"
+        },
+        "23": {
+          "present": true,
+          "parse_ok": true,
+          "account_id": 23,
+          "hostname": "663ed7c3b0d7",
+          "platform": "rubika",
+          "updated_at": "2026-08-31T10:37:04.466462+00:00"
+        },
+        "74": {
+          "present": true,
+          "parse_ok": true,
+          "account_id": 74,
+          "hostname": "663ed7c3b0d7",
+          "platform": "rubika",
+          "updated_at": "2026-08-31T10:37:04.466462+00:00"
+        }
+      }
+    },
+    {
+      "actual": [
+        12,
+        13,
+        23,
+        74,
+        79
+      ],
+      "dynamic": [
+        13,
+        23,
+        74,
+        79
+      ],
+      "mode": "dynamic",
+      "cohort": [
+        13,
+        23,
+        74
+      ],
+      "pin": [
+        12,
+        79
+      ],
+      "coverage": {
+        "12": {
+          "cov": true,
+          "q": 0
+        },
+        "13": {
+          "cov": true,
+          "q": 0
+        },
+        "23": {
+          "cov": true,
+          "q": 0
+        },
+        "74": {
+          "cov": true,
+          "q": 0
+        },
+        "79": {
+          "cov": true,
+          "q": 0
+        }
+      },
+      "cov_meta": {
+        "13": {
+          "present": true,
+          "parse_ok": true,
+          "account_id": 13,
+          "hostname": "663ed7c3b0d7",
+          "platform": "rubika",
+          "updated_at": "2026-08-31T10:37:14.470760+00:00"
+        },
+        "23": {
+          "present": true,
+          "parse_ok": true,
+          "account_id": 23,
+          "hostname": "663ed7c3b0d7",
+          "platform": "rubika",
+          "updated_at": "2026-08-31T10:37:14.470760+00:00"
+        },
+        "74": {
+          "present": true,
+          "parse_ok": true,
+          "account_id": 74,
+          "hostname": "663ed7c3b0d7",
+          "platform": "rubika",
+          "updated_at": "2026-08-31T10:37:14.470760+00:00"
+        }
+      }
+    }
+  ],
+  "stable": true,
+  "count": 3,
+  "shadows": {
+    "13": {
+      "account_id": 13,
+      "legacy_selected_session_id": 729,
+      "canonical_selected_session_id": 729,
+      "canonical_error": null,
+      "match": true,
+      "metric": "SHADOW_MATCH"
+    },
+    "23": {
+      "account_id": 23,
+      "legacy_selected_session_id": 725,
+      "canonical_selected_session_id": 725,
+      "canonical_error": null,
+      "match": true,
+      "metric": "SHADOW_MATCH"
+    },
+    "74": {
+      "account_id": 74,
+      "legacy_selected_session_id": 724,
+      "canonical_selected_session_id": 724,
+      "canonical_error": null,
+      "match": true,
+      "metric": "SHADOW_MATCH"
+    }
+  },
+  "actives": {
+    "13": 729,
+    "23": 725,
+    "74": 724
+  },
+  "a12": "657:legacy_unclassified,728:legacy_unclassified",
+  "a79": "600:legacy_unclassified",
+  "msg": 5,
+  "login": 0,
+  "global_active": 3,
+  "dups": {
+    "13": false,
+    "23": false,
+    "74": false
+  },
+  "account12_preserved": true,
+  "account79_preserved": true,
+  "workers": {
+    "12": true,
+    "13": true,
+    "23": true,
+    "74": true,
+    "79": true
+  },
+  "message_sent": false,
+  "otp_requested": false
+}

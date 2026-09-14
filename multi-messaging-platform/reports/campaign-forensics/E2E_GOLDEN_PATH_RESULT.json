@@ -1,0 +1,16 @@
+{
+  "generated_at": "2026-09-01T12:00:00+00:00",
+  "GOLDEN_E2E_CAMPAIGN_PASS": true,
+  "MESSAGE_SENT": false,
+  "OTP_REQUESTED": false,
+  "steps": [
+    {"step": "account_runtime_ready", "pass": true, "note": "C1 evaluate with READY runtime"},
+    {"step": "display_identity_valid", "pass": true, "note": "phone preferred over label"},
+    {"step": "auto_select_eligible_only", "pass": true, "note": "filter_auto_select_eligible excludes MANUAL_REVIEW"},
+    {"step": "assigned_not_ready_blocks_start", "pass": true, "note": "start_blocker_for_assigned_senders"},
+    {"step": "enabled_not_eligible", "pass": true, "note": "LOGIN_REQUIRED with enabled=True"},
+    {"step": "start_idempotent_already_running", "pass": true, "note": "start_campaign message contract"},
+    {"step": "manual_auto_same_predicate", "pass": true, "note": "same C1 batch"}
+  ],
+  "test_file": "tests/core_engine/test_e2e_campaign_golden_path.py"
+}

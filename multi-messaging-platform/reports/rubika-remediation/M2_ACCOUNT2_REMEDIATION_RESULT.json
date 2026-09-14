@@ -1,0 +1,498 @@
+{
+  "TARGET_ACCOUNT_ID": 2,
+  "PROVEN_AUTHORITATIVE_SESSION": 721,
+  "INVALID_SESSION": 2,
+  "ACCOUNT2_REMEDIATION_HELPER": "promote_proven_legacy_rubika_session",
+  "ACCOUNT2_INVALID_SESSION_TREATMENT": "DECRYPT_FAILED",
+  "DIRECT_DB_EDIT_REQUIRED": false,
+  "MAX_ID_SELECTION_USED": false,
+  "OTP_REQUESTED": false,
+  "MESSAGE_SENT": false,
+  "MESSAGE_ENQUEUED": false,
+  "NEW_LOGIN_CHALLENGE_CREATED": false,
+  "NEW_SESSION_CREATED": false,
+  "ROLLBACK_PERFORMED": false,
+  "ROLLBACK_RESULT": null,
+  "CURRENT_PHASE": "M2_ACCOUNT2_CANONICAL_REMEDIATION",
+  "PHASE_STATUS": "COMPLETE",
+  "generated_at": "2026-09-01T10:11:09.531110+00:00",
+  "L17_ENV": {
+    "RUBIKA_L3_LOGIN_ROUTING": "auto_evidence",
+    "AUTO_ENROLL_RUBIKA_POOL": "true",
+    "RUBIKA_WORKER_DISCOVERY_SCOPE": null,
+    "RUBIKA_CANONICAL_SESSION_SCOPE": "canonical_active",
+    "RUBIKA_CANONICAL_SESSION_MODE": "enforce",
+    "RUBIKA_ACCOUNT_IDS": null,
+    "RUBIKA_CANONICAL_SESSION_ACCOUNT_IDS": "13,23,27,74",
+    "RUBIKA_WORKER_DISCOVERY_COHORT_IDS": null
+  },
+  "pre": {
+    "GLOBAL_ACTIVE_SESSION_COUNT": 5,
+    "ACTIVES": {
+      "2": 721,
+      "13": 729,
+      "23": 725,
+      "27": 772,
+      "74": 724
+    },
+    "ACTUAL_WORKER_IDS": [
+      2,
+      12,
+      13,
+      23,
+      27,
+      74,
+      79
+    ],
+    "DYNAMIC_ELIGIBLE_IDS": [
+      2,
+      13,
+      23,
+      27,
+      74,
+      79
+    ],
+    "msg": 5,
+    "ch": 3,
+    "sess_rows": 16,
+    "a2_sessions": [
+      {
+        "id": 2,
+        "status": "legacy_unclassified"
+      },
+      {
+        "id": 721,
+        "status": "active"
+      }
+    ],
+    "protected": {
+      "12": [
+        {
+          "id": 657,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 728,
+          "status": "legacy_unclassified"
+        }
+      ],
+      "19": [
+        {
+          "id": 726,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 727,
+          "status": "legacy_unclassified"
+        }
+      ],
+      "81": [
+        {
+          "id": 722,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 723,
+          "status": "legacy_unclassified"
+        }
+      ],
+      "92": [
+        {
+          "id": 11,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 12,
+          "status": "legacy_unclassified"
+        }
+      ],
+      "79": [
+        {
+          "id": 600,
+          "status": "legacy_unclassified"
+        }
+      ]
+    },
+    "a2_canonical": true,
+    "a2_legacy_protected": false,
+    "queue2": 0
+  },
+  "M2_FRESH_PATH": false,
+  "M2_RESUME_PARTIAL_ENTRY": true,
+  "ACCOUNT2_PRE_SESSION_ROWS": [
+    {
+      "id": 2,
+      "status": "legacy_unclassified"
+    },
+    {
+      "id": 721,
+      "status": "active"
+    }
+  ],
+  "ACCOUNT2_PRE_SESSION_STATES": {
+    "2": "legacy_unclassified",
+    "721": "active"
+  },
+  "impact_precompute": {
+    "ACCOUNT2_EXPECTED_CANONICAL_ENFORCE": true,
+    "ACCOUNT2_POOL_MEMBERSHIP_PRESENT": true,
+    "ACCOUNT2_POOL_PHASES": [
+      "day"
+    ],
+    "ACCOUNT2_CURRENT_PHASE": "day",
+    "ACCOUNT2_EXPECTED_DYNAMIC_ELIGIBLE": true,
+    "ACCOUNT2_EXPECTED_WORKER_PRESENT": true,
+    "ACCOUNT2_EXPECTED_RUNTIME_STATUS": "READY",
+    "EXPECTED_RESULTING_WORKER_IDS": [
+      2,
+      12,
+      13,
+      23,
+      27,
+      74,
+      79
+    ],
+    "pre_runtime_status": "READY",
+    "pre_runtime_reason": "READY",
+    "unrelated_worker_impact": false
+  },
+  "ACCOUNT2_ROLLBACK_READY": true,
+  "rollback_manifest_path": "/app/reports/rubika-remediation/M2_ACCOUNT2_ROLLBACK_MANIFEST.json",
+  "SESSION721_FRESH_PROOF_PASS": true,
+  "SESSION721_AUTH_PASS": true,
+  "SESSION721_IDENTITY_MATCH": true,
+  "decrypt_ok": true,
+  "structural_ok": true,
+  "reason": null,
+  "identity_guid_hash": "80ae1278a40a670a",
+  "duration_ms": 339,
+  "M2_RESUME_PARTIAL": true,
+  "promotion": {
+    "ok": true,
+    "code": "ALREADY_ACTIVE_RESUME",
+    "account_id": 2,
+    "session_id": 721,
+    "active_session_id": 721,
+    "sanitized_message": "session721 already ACTIVE; skip re-promote"
+  },
+  "session2_classification": {
+    "ok": true,
+    "code": "CLASSIFIED_DECRYPT_FAILED",
+    "session_id": 2,
+    "prior_status": "legacy_unclassified",
+    "post_status": "decrypt_failed"
+  },
+  "post_promotion_verify": {
+    "account_id": 2,
+    "expected_session_id": 721,
+    "active_count": 1,
+    "active_session_ids": [
+      721
+    ],
+    "legacy_selected_session_id": 721,
+    "canonical_ok": true,
+    "canonical_session_id": 721,
+    "canonical_error": null,
+    "legacy_canonical_match": true
+  },
+  "ACCOUNT2_ACTIVE_SESSION_ID": 721,
+  "ACCOUNT2_ACTIVE_SESSION_COUNT": 1,
+  "ACCOUNT2_CANONICAL_ENFORCE_PASS": true,
+  "SESSION2_POST_STATE": "decrypt_failed",
+  "SESSION2_RUNTIME_ELIGIBLE": false,
+  "SESSION2_CANONICAL_AUTHORITY": false,
+  "ACCOUNT2_OBSERVATION_COUNT": 3,
+  "ACCOUNT2_REMEDIATION_STABLE": true,
+  "observations": [
+    {
+      "n": 1,
+      "ok": true,
+      "runtime": {
+        "canonical_managed": true,
+        "dynamic_eligible": true,
+        "DYNAMIC_ELIGIBLE_IDS": [
+          2,
+          13,
+          23,
+          27,
+          74,
+          79
+        ],
+        "ACTUAL_WORKER_IDS": [
+          2,
+          12,
+          13,
+          23,
+          27,
+          74,
+          79
+        ],
+        "worker_covered": true,
+        "runtime_status": "READY",
+        "runtime_reason": "READY",
+        "dispatch_ready": true,
+        "operator_action_code": "NONE"
+      },
+      "verify": {
+        "account_id": 2,
+        "expected_session_id": 721,
+        "active_count": 1,
+        "active_session_ids": [
+          721
+        ],
+        "legacy_selected_session_id": 721,
+        "canonical_ok": true,
+        "canonical_session_id": 721,
+        "canonical_error": null,
+        "legacy_canonical_match": true
+      },
+      "session2_status": "decrypt_failed"
+    },
+    {
+      "n": 2,
+      "ok": true,
+      "runtime": {
+        "canonical_managed": true,
+        "dynamic_eligible": true,
+        "DYNAMIC_ELIGIBLE_IDS": [
+          2,
+          13,
+          23,
+          27,
+          74,
+          79
+        ],
+        "ACTUAL_WORKER_IDS": [
+          2,
+          12,
+          13,
+          23,
+          27,
+          74,
+          79
+        ],
+        "worker_covered": true,
+        "runtime_status": "READY",
+        "runtime_reason": "READY",
+        "dispatch_ready": true,
+        "operator_action_code": "NONE"
+      },
+      "verify": {
+        "account_id": 2,
+        "expected_session_id": 721,
+        "active_count": 1,
+        "active_session_ids": [
+          721
+        ],
+        "legacy_selected_session_id": 721,
+        "canonical_ok": true,
+        "canonical_session_id": 721,
+        "canonical_error": null,
+        "legacy_canonical_match": true
+      },
+      "session2_status": "decrypt_failed"
+    },
+    {
+      "n": 3,
+      "ok": true,
+      "runtime": {
+        "canonical_managed": true,
+        "dynamic_eligible": true,
+        "DYNAMIC_ELIGIBLE_IDS": [
+          2,
+          13,
+          23,
+          27,
+          74,
+          79
+        ],
+        "ACTUAL_WORKER_IDS": [
+          2,
+          12,
+          13,
+          23,
+          27,
+          74,
+          79
+        ],
+        "worker_covered": true,
+        "runtime_status": "READY",
+        "runtime_reason": "READY",
+        "dispatch_ready": true,
+        "operator_action_code": "NONE"
+      },
+      "verify": {
+        "account_id": 2,
+        "expected_session_id": 721,
+        "active_count": 1,
+        "active_session_ids": [
+          721
+        ],
+        "legacy_selected_session_id": 721,
+        "canonical_ok": true,
+        "canonical_session_id": 721,
+        "canonical_error": null,
+        "legacy_canonical_match": true
+      },
+      "session2_status": "decrypt_failed"
+    }
+  ],
+  "post": {
+    "GLOBAL_ACTIVE_SESSION_COUNT": 5,
+    "ACTIVES": {
+      "2": 721,
+      "13": 729,
+      "23": 725,
+      "27": 772,
+      "74": 724
+    },
+    "ACTUAL_WORKER_IDS": [
+      2,
+      12,
+      13,
+      23,
+      27,
+      74,
+      79
+    ],
+    "DYNAMIC_ELIGIBLE_IDS": [
+      2,
+      13,
+      23,
+      27,
+      74,
+      79
+    ],
+    "msg": 5,
+    "ch": 3,
+    "sess_rows": 16,
+    "a2_sessions": [
+      {
+        "id": 2,
+        "status": "decrypt_failed"
+      },
+      {
+        "id": 721,
+        "status": "active"
+      }
+    ],
+    "protected": {
+      "12": [
+        {
+          "id": 657,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 728,
+          "status": "legacy_unclassified"
+        }
+      ],
+      "19": [
+        {
+          "id": 726,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 727,
+          "status": "legacy_unclassified"
+        }
+      ],
+      "81": [
+        {
+          "id": 722,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 723,
+          "status": "legacy_unclassified"
+        }
+      ],
+      "92": [
+        {
+          "id": 11,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 12,
+          "status": "legacy_unclassified"
+        }
+      ],
+      "79": [
+        {
+          "id": 600,
+          "status": "legacy_unclassified"
+        }
+      ]
+    },
+    "a2_canonical": true,
+    "a2_legacy_protected": false,
+    "queue2": 0
+  },
+  "runtime_final": {
+    "canonical_managed": true,
+    "dynamic_eligible": true,
+    "DYNAMIC_ELIGIBLE_IDS": [
+      2,
+      13,
+      23,
+      27,
+      74,
+      79
+    ],
+    "ACTUAL_WORKER_IDS": [
+      2,
+      12,
+      13,
+      23,
+      27,
+      74,
+      79
+    ],
+    "worker_covered": true,
+    "runtime_status": "READY",
+    "runtime_reason": "READY",
+    "dispatch_ready": true,
+    "operator_action_code": "NONE"
+  },
+  "ACCOUNT2_DYNAMIC_ELIGIBLE": true,
+  "ACCOUNT2_WORKER_AUTOMATICALLY_RECONCILED": true,
+  "AUTO_CANONICAL_ENFORCE_ACCOUNT_IDS": [
+    2,
+    13,
+    23,
+    27,
+    74
+  ],
+  "DYNAMIC_ELIGIBLE_IDS": [
+    2,
+    13,
+    23,
+    27,
+    74,
+    79
+  ],
+  "ACTUAL_WORKER_IDS": [
+    2,
+    12,
+    13,
+    23,
+    27,
+    74,
+    79
+  ],
+  "GLOBAL_ACTIVE_SESSION_COUNT": 5,
+  "ACCOUNT2_BACKEND_STATUS": "READY",
+  "ACCOUNT2_API_STATUS": "READY",
+  "ACCOUNT2_UI_EXPECTED_STATUS": "READY",
+  "ACCOUNT2_BACKEND_API_MISMATCH": false,
+  "ACCOUNT2_API_UI_MISMATCH": false,
+  "ACCOUNT12_UNCHANGED": true,
+  "ACCOUNT19_UNCHANGED": true,
+  "ACCOUNT81_UNCHANGED": true,
+  "ACCOUNT92_UNCHANGED": true,
+  "canonical_baseline_unchanged": true,
+  "UNRELATED_SESSION_ROWS_MUTATED": 0,
+  "L17_AUTOMATION_STILL_PASS": true,
+  "L18_STATUS_TRUTH_STILL_PASS": true,
+  "NEXT_SAFE_ACTION": "Re-run manual-review inventory, then decide how to resolve same-identity duplicate sessions for Accounts12/19/81."
+}

@@ -1,0 +1,172 @@
+{
+  "schema_audit_logs": [
+    "id",
+    "username",
+    "action",
+    "resource_type",
+    "resource_id",
+    "timestamp",
+    "details"
+  ],
+  "schema_audit_events": [
+    "id",
+    "event_type",
+    "actor",
+    "subject_type",
+    "subject_id",
+    "payload",
+    "created_at"
+  ],
+  "audit_logs_matched_sample": [
+    {
+      "id": "587",
+      "action": "create_campaign",
+      "resource_type": "campaign",
+      "resource_id": "4",
+      "details": "{'source': 'import_batch', 'import_batch_id': 1, 'contacts_attached_count': 1, 'skipped_contacts_count': 0}"
+    },
+    {
+      "id": "584",
+      "action": "create_campaign",
+      "resource_type": "campaign",
+      "resource_id": "2",
+      "details": "{'source': 'existing_contacts', 'contact_ids': [1], 'contacts_attached_count': 1, 'skipped_contacts_count': 0}"
+    },
+    {
+      "id": "583",
+      "action": "create_campaign",
+      "resource_type": "campaign",
+      "resource_id": "1",
+      "details": "{'source': 'import_batch', 'import_batch_id': 1, 'contacts_attached_count': 1, 'skipped_contacts_count': 0}"
+    },
+    {
+      "id": "576",
+      "action": "create_campaign",
+      "resource_type": "campaign",
+      "resource_id": "1084",
+      "details": "{'source': 'import_batch', 'import_batch_id': 10, 'contacts_attached_count': 30, 'skipped_contacts_count': 0}"
+    },
+    {
+      "id": "575",
+      "action": "create_campaign",
+      "resource_type": "campaign",
+      "resource_id": "1083",
+      "details": "{'source': 'import_batch', 'import_batch_id': 9, 'contacts_attached_count': 30, 'skipped_contacts_count': 0}"
+    },
+    {
+      "id": "574",
+      "action": "create_campaign",
+      "resource_type": "campaign",
+      "resource_id": "1082",
+      "details": "{'source': 'import_batch', 'import_batch_id': 8, 'contacts_attached_count': 29, 'skipped_contacts_count': 0}"
+    },
+    {
+      "id": "573",
+      "action": "create_campaign",
+      "resource_type": "campaign",
+      "resource_id": "1081",
+      "details": "{'source': 'import_batch', 'import_batch_id': 7, 'contacts_attached_count': 29, 'skipped_contacts_count': 0}"
+    },
+    {
+      "id": "572",
+      "action": "create_campaign",
+      "resource_type": "campaign",
+      "resource_id": "1080",
+      "details": "{'source': 'import_batch', 'import_batch_id': 7, 'contacts_attached_count': 29, 'skipped_contacts_count': 0}"
+    },
+    {
+      "id": "571",
+      "action": "create_campaign",
+      "resource_type": "campaign",
+      "resource_id": "1079",
+      "details": "{'source': 'existing_contacts', 'contact_ids': [1, 2, 3], 'contacts_attached_count': 3, 'skipped_contacts_count': 0}"
+    }
+  ],
+  "audit_logs_scanned": 50,
+  "r0_campaigns_sql_contains_rubika_test1": true,
+  "r0_campaigns_sql_contains_rubikaa_test_2": true,
+  "r0_campaign_rows_preview": [
+    [
+      "1",
+      "rubika test1",
+      "RUBIKA",
+      "draft",
+      "سلام {{first_name}}،"
+    ],
+    [
+      "2",
+      "rubikaa test 2",
+      "RUBIKA",
+      "draft",
+      "سلام {{first_name}}، پیام تست کمپین."
+    ],
+    [
+      "3",
+      "ACCOUNT12-PILOT-ONE-MESSAGE",
+      "RUBIKA",
+      "paused",
+      "سلام، این یک پیام آزمایشی سامانه افراکالا است."
+    ],
+    [
+      "4",
+      "1",
+      "RUBIKA",
+      "draft",
+      "سلام {{first_name}}، پیام تست کمپین."
+    ]
+  ],
+  "account_92_readiness": {
+    "ready": false,
+    "code": "SESSION_DECRYPT_FAILED",
+    "message": "Stored session could not be decrypted.",
+    "error": "session_decrypt_failed",
+    "session_type": "rubika_session"
+  },
+  "account_92_latest_session": {
+    "id": 12,
+    "key_version": 1,
+    "cipher_len": 2208,
+    "created_at": "2026-08-19T08:04:02.643770",
+    "updated_at": "2026-08-29T08:12:30.312770",
+    "ciphertext_looks_fernet": false
+  },
+  "account_92_decrypt_probe": {
+    "ok": false,
+    "exception_type": "SessionDecryptionError",
+    "exception_message": "Invalid session ciphertext or encryption key.",
+    "raised_from_module": "core_engine.services.crypto"
+  },
+  "account_92_per_session_decrypt": [
+    {
+      "session_id": 11,
+      "key_version": 1,
+      "cipher_len": 2208,
+      "fernet_prefix": false,
+      "decrypt": "SessionDecryptionError",
+      "message": "Invalid session ciphertext or encryption key."
+    },
+    {
+      "session_id": 12,
+      "key_version": 1,
+      "cipher_len": 2208,
+      "fernet_prefix": false,
+      "decrypt": "SessionDecryptionError",
+      "message": "Invalid session ciphertext or encryption key."
+    }
+  ],
+  "account_79_readiness": {
+    "ready": true,
+    "code": "READY",
+    "message": "Session is registered and looks valid."
+  },
+  "account_79_decrypt": "OK",
+  "rubika_session_key_version_counts": [
+    {
+      "key_version": 1,
+      "count": 120
+    }
+  ],
+  "session_secret_present": true,
+  "session_secret_len": 44,
+  "session_secret_sha16": "fbdd10016605cac8"
+}

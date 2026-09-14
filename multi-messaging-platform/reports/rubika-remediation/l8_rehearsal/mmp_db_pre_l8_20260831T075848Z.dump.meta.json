@@ -1,0 +1,8 @@
+{
+  "BACKUP_PATH": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\reports\\rubika-remediation\\l8_rehearsal\\mmp_db_pre_l8_20260831T075848Z.dump",
+  "BACKUP_SHA256": "ae07b69862e39fd9ac6fece64a32ffc6a7eb1b28b0c8e23f417063fab911153e",
+  "BACKUP_TIMESTAMP": "20260831T075848Z",
+  "BACKUP_SIZE": 212607,
+  "source_db": "mmp_db",
+  "mutation": false
+}

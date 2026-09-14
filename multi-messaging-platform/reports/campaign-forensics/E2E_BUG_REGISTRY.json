@@ -1,0 +1,74 @@
+{
+  "generated_at": "2026-09-01T12:00:00+00:00",
+  "bugs": [
+    {
+      "BUG_ID": "E2E-P0-001",
+      "SEVERITY": "P0",
+      "LAYER": "frontend/deploy",
+      "SYMPTOM": "Sender picker shows فعال · rubika for all lifecycle-active accounts",
+      "ROOT_CAUSE": "Stale bundle with account.status label in CampaignSenderSelector",
+      "AFFECTED_PATH": "campaign create + monitor manual picker",
+      "FIX": "C1R shared status renderer; frontend rebuild required",
+      "TEST": "frontend/src/utils/sender-accounts.test.ts",
+      "STATUS": "FIXED_SOURCE"
+    },
+    {
+      "BUG_ID": "E2E-P1-001",
+      "SEVERITY": "P1",
+      "LAYER": "frontend/preflight",
+      "SYMPTOM": "Summary shows READY/coverage while picker shows فعال",
+      "ROOT_CAUSE": "Dual render paths: preflight uses backend readiness; picker used lifecycle",
+      "FIX": "Preflight table uses runtime_status_label; ready count uses campaign_eligible_accounts",
+      "TEST": "manual browser + types",
+      "STATUS": "FIXED"
+    },
+    {
+      "BUG_ID": "E2E-P1-002",
+      "SEVERITY": "P1",
+      "LAYER": "architecture",
+      "SYMPTOM": "Multiple readiness counters (ready_accounts vs campaign_eligible)",
+      "ROOT_CAUSE": "Preflight aggregate.ready_now vs C1 campaign_eligible counted separately",
+      "FIX": "campaign_readiness_contract + campaign_eligible_accounts field on preflight",
+      "TEST": "test_e2e_campaign_golden_path.py",
+      "STATUS": "FIXED"
+    },
+    {
+      "BUG_ID": "E2E-P2-001",
+      "SEVERITY": "P2",
+      "LAYER": "api",
+      "SYMPTOM": "PUT /accounts assignment silent for non-ready senders",
+      "ROOT_CAUSE": "Assignment allowed (by design) but no structured warnings",
+      "FIX": "assignment_warnings on CampaignAccountsResponse",
+      "TEST": "api integration",
+      "STATUS": "FIXED"
+    },
+    {
+      "BUG_ID": "E2E-P2-002",
+      "SEVERITY": "P2",
+      "LAYER": "documentation",
+      "SYMPTOM": "Operator confusion: assigned 1/1 READY vs campaign not prepared",
+      "ROOT_CAUSE": "Collapsed preparation vs runtime dimensions in UI copy",
+      "FIX": "Architecture map separates campaign_prepared vs runtime_accounts_ready",
+      "STATUS": "DOCUMENTED"
+    }
+  ],
+  "DUPLICATE_ACCOUNT_STATUS_ENGINES": [
+    "account_runtime_status (L18) — authoritative",
+    "evaluate_account_session_readiness — session sub-check used inside L18/preflight",
+    "evaluate_rubika_send_preflight — transport send gate",
+    "campaign_capacity.account_ready_now — capacity-time check",
+    "campaign_sender_eligibility (C1) — campaign UI/auto-select",
+    "LEGACY: frontend account.status label — REMOVED in source"
+  ],
+  "DUPLICATE_READINESS_PREDICATES": [
+    "C1 campaign_eligible — canonical for picker/auto-select",
+    "preflight aggregate.ready_now — capacity-aware send-now",
+    "account_eligible_now — assigned + ready + worker",
+    "rubika_preflight READY — connector layer"
+  ],
+  "INVALID_ENABLED_AS_READY_PATHS": [
+    "FIXED: old CampaignSenderSelector account_status_active label",
+    "VALID: compatiblePlatformAccounts filters lifecycle-active pool only; eligibility separate",
+    "VALID: _validate_accounts ACTIVE check on assignment — lifecycle gate not readiness"
+  ]
+}

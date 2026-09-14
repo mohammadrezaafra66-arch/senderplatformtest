@@ -1,0 +1,712 @@
+{
+  "captured_at": "2026-08-29T08:10:43.479796+00:00",
+  "mode": "READ_ONLY",
+  "counts": {
+    "campaigns": 99,
+    "contacts": 337,
+    "messages": 336,
+    "campaign_recipients": 339,
+    "accounts": 158,
+    "staged_queue_items": 336,
+    "campaign_accounts": 100,
+    "message_attempts": 14,
+    "channel_sessions": 120
+  },
+  "queues": {
+    "12": {
+      "key": "queue:rubika:12",
+      "llen": 0
+    },
+    "79": {
+      "key": "queue:rubika:79",
+      "llen": 0
+    },
+    "92": {
+      "key": "queue:rubika:92",
+      "llen": 0
+    }
+  },
+  "coverage": {
+    "12": {
+      "key": "worker:coverage:rubika:12",
+      "active": false
+    },
+    "79": {
+      "key": "worker:coverage:rubika:79",
+      "active": false
+    },
+    "92": {
+      "key": "worker:coverage:rubika:92",
+      "active": false
+    }
+  },
+  "campaigns_named": [],
+  "campaign_traces": {
+    "1": {
+      "campaign": {
+        "id": 1,
+        "name": "rubika test1",
+        "title": "rubika test1",
+        "status": "draft",
+        "platform": "PlatformType.RUBIKA",
+        "channel": "rubika",
+        "template_text_preview": "سلام {{first_name}}،",
+        "template_text_len": 20,
+        "use_gpt": true,
+        "include_products": true,
+        "created_at": "2026-08-25T11:19:15.287163",
+        "updated_at": "2026-08-25T11:19:15.287171",
+        "schedule_start_at": null,
+        "daily_limit": null,
+        "max_contacts": null
+      },
+      "provenance_heuristic": {
+        "name": "rubika test1",
+        "starts_with_r22": false,
+        "starts_with_p6": false,
+        "looks_owner_ui_name": true,
+        "created_at": "2026-08-25T11:19:15.287163"
+      },
+      "senders": [
+        {
+          "campaign_account_id": 1,
+          "account_id": 92,
+          "priority": 1,
+          "enabled": true,
+          "account_label": null,
+          "account_status": "AccountStatus.ACTIVE",
+          "masked_phone": "989***654",
+          "platform": "PlatformType.RUBIKA"
+        }
+      ],
+      "recipients": [
+        {
+          "recipient_id": 1,
+          "contact_id": 1,
+          "alias": "مهرداد",
+          "consent": "allowed",
+          "send_status": "SendStatus.PENDING",
+          "render_status": "RenderStatus.PENDING",
+          "final_message_id": null,
+          "failure_reason": null,
+          "masked_phone": "989***623",
+          "created_at": "2026-08-25T11:19:15.295263"
+        }
+      ],
+      "messages": [],
+      "staged": [],
+      "attempts": [],
+      "preflight": {
+        "allowed_to_start": false,
+        "code": "CAMPAIGN_NOT_PREPARED",
+        "message": "کمپین هنوز آماده‌سازی نشده است.",
+        "campaign_id": 1,
+        "execution_safety_state": "BLOCKED",
+        "total_messages": 1,
+        "ready_messages": 0,
+        "blocked_messages": 0,
+        "assigned_accounts": 1,
+        "usable_accounts": 0,
+        "blocked_accounts": 1,
+        "temporary_accounts": 0,
+        "immediate_capacity": null,
+        "estimated_today_capacity": null,
+        "estimated_completion_at": null,
+        "estimated_duration_seconds": null,
+        "timezone": "Asia/Tehran",
+        "estimated_hourly_capacity": null,
+        "warnings": [],
+        "blockers": [
+          {
+            "code": "CAMPAIGN_NOT_PREPARED",
+            "message": "کمپین هنوز آماده‌سازی نشده است.",
+            "account_id": null
+          }
+        ],
+        "accounts": [
+          {
+            "account_id": 92,
+            "label": null,
+            "health": "healthy",
+            "readiness": "SESSION_DECRYPT_FAILED",
+            "lifecycle": "ramping",
+            "assigned": 0,
+            "assignment_state": "not_materialized",
+            "account_ready_now": false,
+            "worker_coverage": true,
+            "daily_remaining": 70,
+            "hourly_remaining": 6,
+            "next_allowed_at": null,
+            "window_state": "open",
+            "cooldown_until": null,
+            "eligible_now": false,
+            "block_code": "SESSION_DECRYPT_FAILED",
+            "reason_code": "SESSION_DECRYPT_FAILED",
+            "bottleneck": false,
+            "reason": null,
+            "delivery_mode": "user_account"
+          }
+        ],
+        "progress": {
+          "total": 1,
+          "prepared": 0,
+          "pending": 1,
+          "ready": 0,
+          "queued": 0,
+          "in_flight": 0,
+          "delivered": 0,
+          "failed_retryable": 0,
+          "failed_permanent": 0,
+          "waiting_capacity": 0,
+          "waiting_window": 0,
+          "blocked_sender": 0
+        },
+        "sender_selection_mode": "manual",
+        "delivery_mode": "user_account",
+        "circuit_state": "closed",
+        "next_window_start": null,
+        "resume_policy": "operator",
+        "ready_to_resume": false,
+        "capacity_confidence": "not_applicable",
+        "limitations": [
+          "assignment_not_materialized",
+          "capacity_not_applicable_before_assignment"
+        ],
+        "evaluated_at": "2026-08-29T11:40:43.590695+03:30",
+        "redis_ok": true,
+        "ready_accounts": 0,
+        "execution_usable_accounts": 0,
+        "assignment_materialized": false,
+        "capacity_applicable": false
+      },
+      "preflight_error": null
+    },
+    "2": {
+      "campaign": {
+        "id": 2,
+        "name": "rubikaa test 2",
+        "title": "rubikaa test 2",
+        "status": "draft",
+        "platform": "PlatformType.RUBIKA",
+        "channel": "rubika",
+        "template_text_preview": "سلام {{first_name}}، پیام تست کمپین.",
+        "template_text_len": 36,
+        "use_gpt": true,
+        "include_products": true,
+        "created_at": "2026-08-25T11:29:07.388797",
+        "updated_at": "2026-08-25T11:29:07.388800",
+        "schedule_start_at": null,
+        "daily_limit": null,
+        "max_contacts": null
+      },
+      "provenance_heuristic": {
+        "name": "rubikaa test 2",
+        "starts_with_r22": false,
+        "starts_with_p6": false,
+        "looks_owner_ui_name": true,
+        "created_at": "2026-08-25T11:29:07.388797"
+      },
+      "senders": [
+        {
+          "campaign_account_id": 2,
+          "account_id": 79,
+          "priority": 1,
+          "enabled": true,
+          "account_label": null,
+          "account_status": "AccountStatus.ACTIVE",
+          "masked_phone": "989***903",
+          "platform": "PlatformType.RUBIKA"
+        }
+      ],
+      "recipients": [
+        {
+          "recipient_id": 2,
+          "contact_id": 1,
+          "alias": "مهرداد",
+          "consent": "allowed",
+          "send_status": "SendStatus.PENDING",
+          "render_status": "RenderStatus.PENDING",
+          "final_message_id": null,
+          "failure_reason": null,
+          "masked_phone": "989***623",
+          "created_at": "2026-08-25T11:29:07.392156"
+        }
+      ],
+      "messages": [],
+      "staged": [],
+      "attempts": [],
+      "preflight": {
+        "allowed_to_start": false,
+        "code": "CAMPAIGN_NOT_PREPARED",
+        "message": "کمپین هنوز آماده‌سازی نشده است.",
+        "campaign_id": 2,
+        "execution_safety_state": "BLOCKED",
+        "total_messages": 1,
+        "ready_messages": 0,
+        "blocked_messages": 0,
+        "assigned_accounts": 1,
+        "usable_accounts": 1,
+        "blocked_accounts": 0,
+        "temporary_accounts": 1,
+        "immediate_capacity": null,
+        "estimated_today_capacity": null,
+        "estimated_completion_at": null,
+        "estimated_duration_seconds": null,
+        "timezone": "Asia/Tehran",
+        "estimated_hourly_capacity": null,
+        "warnings": [],
+        "blockers": [
+          {
+            "code": "CAMPAIGN_NOT_PREPARED",
+            "message": "کمپین هنوز آماده‌سازی نشده است.",
+            "account_id": null
+          }
+        ],
+        "accounts": [
+          {
+            "account_id": 79,
+            "label": null,
+            "health": "healthy",
+            "readiness": "READY",
+            "lifecycle": "limited",
+            "assigned": 0,
+            "assignment_state": "not_materialized",
+            "account_ready_now": true,
+            "worker_coverage": false,
+            "daily_remaining": 60,
+            "hourly_remaining": 5,
+            "next_allowed_at": null,
+            "window_state": "open",
+            "cooldown_until": null,
+            "eligible_now": false,
+            "block_code": "NO_WORKER_CONSUMER",
+            "reason_code": "NO_WORKER_CONSUMER",
+            "bottleneck": false,
+            "reason": null,
+            "delivery_mode": "user_account"
+          }
+        ],
+        "progress": {
+          "total": 1,
+          "prepared": 0,
+          "pending": 1,
+          "ready": 0,
+          "queued": 0,
+          "in_flight": 0,
+          "delivered": 0,
+          "failed_retryable": 0,
+          "failed_permanent": 0,
+          "waiting_capacity": 0,
+          "waiting_window": 0,
+          "blocked_sender": 0
+        },
+        "sender_selection_mode": "manual",
+        "delivery_mode": "user_account",
+        "circuit_state": "closed",
+        "next_window_start": null,
+        "resume_policy": "operator",
+        "ready_to_resume": false,
+        "capacity_confidence": "not_applicable",
+        "limitations": [
+          "assignment_not_materialized",
+          "capacity_not_applicable_before_assignment"
+        ],
+        "evaluated_at": "2026-08-29T11:40:43.632752+03:30",
+        "redis_ok": true,
+        "ready_accounts": 1,
+        "execution_usable_accounts": 0,
+        "assignment_materialized": false,
+        "capacity_applicable": false
+      },
+      "preflight_error": null
+    }
+  },
+  "account_92": {
+    "exists": true,
+    "id": 92,
+    "platform": "PlatformType.RUBIKA",
+    "status": "AccountStatus.ACTIVE",
+    "label": null,
+    "masked_phone": "989***654",
+    "created_at": "2026-08-17T12:23:20.525787",
+    "session_readiness": "SessionReadiness(ready=False, message='Stored session could not be decrypted.', error='session_decrypt_failed', code='SESSION_DECRYPT_FAILED', session_type='rubika_session', delivery_mode='user_account')",
+    "sessions": [
+      {
+        "id": 11,
+        "session_type": "SessionType.RUBIKA_SESSION",
+        "created_at": "2026-08-17T12:23:55.043458",
+        "updated_at": "2026-08-29T08:10:33.293770",
+        "cipher_len": 2208,
+        "has_ciphertext": true,
+        "key_version": 1
+      },
+      {
+        "id": 12,
+        "session_type": "SessionType.RUBIKA_SESSION",
+        "created_at": "2026-08-19T08:04:02.643770",
+        "updated_at": "2026-08-29T08:10:35.414674",
+        "cipher_len": 2208,
+        "has_ciphertext": true,
+        "key_version": 1
+      }
+    ],
+    "pool_rows": [
+      {
+        "id": 48,
+        "phase": "day",
+        "priority": 1,
+        "created_at": "2026-08-19T08:23:29.818339"
+      },
+      {
+        "id": 49,
+        "phase": "pilot-1",
+        "priority": 1,
+        "created_at": "2026-08-19T08:25:44.241195"
+      }
+    ],
+    "transport_preflight": {
+      "error_type": "TypeError",
+      "error_message": "evaluate_rubika_send_preflight() takes 1 positional argument but 2 positional arguments (and 1 keyword-only argument) were given"
+    }
+  },
+  "account_79": {
+    "exists": true,
+    "id": 79,
+    "platform": "PlatformType.RUBIKA",
+    "status": "AccountStatus.ACTIVE",
+    "label": null,
+    "masked_phone": "989***903",
+    "created_at": "2026-08-15T11:30:49.867149",
+    "session_readiness": "SessionReadiness(ready=True, message='Session is registered and looks valid.', error=None, code='READY', session_type='rubika_session', delivery_mode='user_account')",
+    "sessions": [
+      {
+        "id": 600,
+        "session_type": "SessionType.RUBIKA_SESSION",
+        "created_at": "2026-08-24T10:06:44.281893",
+        "updated_at": "2026-08-29T08:10:38.221321",
+        "cipher_len": 2208,
+        "has_ciphertext": true,
+        "key_version": 1
+      }
+    ],
+    "pool_rows": [
+      {
+        "id": 36,
+        "phase": "day",
+        "priority": 1,
+        "created_at": "2026-08-15T12:28:37.507562"
+      }
+    ],
+    "transport_preflight": {
+      "error_type": "TypeError",
+      "error_message": "evaluate_rubika_send_preflight() takes 1 positional argument but 2 positional arguments (and 1 keyword-only argument) were given"
+    }
+  },
+  "contact_92": {
+    "exists": true,
+    "id": 92,
+    "alias": "c2136-2",
+    "consent": "allowed",
+    "campaign_id_column": 40,
+    "created_at": "2026-08-26T13:39:17.462713",
+    "masked_phone": "989***364",
+    "note": "contacts.id is independent of accounts.id; same numeric id does not mean same entity"
+  },
+  "classification_notes": {},
+  "recent_campaigns": [
+    {
+      "id": 100,
+      "name": "p6-2be6024a",
+      "title": "p6",
+      "status": "prepared",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:25.144060",
+      "updated_at": "2026-08-29T07:39:25.144062"
+    },
+    {
+      "id": 99,
+      "name": "p6-e5358487",
+      "title": "p6",
+      "status": "prepared",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:25.052430",
+      "updated_at": "2026-08-29T07:39:25.052433"
+    },
+    {
+      "id": 98,
+      "name": "p6-0f2e58fe",
+      "title": "p6",
+      "status": "prepared",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:24.861912",
+      "updated_at": "2026-08-29T07:39:24.861915"
+    },
+    {
+      "id": 97,
+      "name": "p6-fd089909",
+      "title": "p6",
+      "status": "prepared",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:24.765690",
+      "updated_at": "2026-08-29T07:39:24.765692"
+    },
+    {
+      "id": 96,
+      "name": "p6-f66ee898",
+      "title": "p6",
+      "status": "prepared",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:24.667279",
+      "updated_at": "2026-08-29T07:39:24.667281"
+    },
+    {
+      "id": 95,
+      "name": "p6-6a7fd619",
+      "title": "p6",
+      "status": "prepared",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:24.594300",
+      "updated_at": "2026-08-29T07:39:24.594302"
+    },
+    {
+      "id": 94,
+      "name": "p6-b422c33c",
+      "title": "p6",
+      "status": "prepared",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:24.492139",
+      "updated_at": "2026-08-29T07:39:24.492140"
+    },
+    {
+      "id": 93,
+      "name": "p6-cbb66f7e",
+      "title": "p6",
+      "status": "prepared",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:24.385202",
+      "updated_at": "2026-08-29T07:39:24.385204"
+    },
+    {
+      "id": 92,
+      "name": "r22-64f9f47d",
+      "title": "r22",
+      "status": "draft",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:24.211192",
+      "updated_at": "2026-08-29T07:39:24.211194"
+    },
+    {
+      "id": 91,
+      "name": "r22-30782d85",
+      "title": "r22",
+      "status": "draft",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:24.133225",
+      "updated_at": "2026-08-29T07:39:24.133227"
+    },
+    {
+      "id": 90,
+      "name": "r22-44b8f8e8",
+      "title": "r22",
+      "status": "draft",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:24.057553",
+      "updated_at": "2026-08-29T07:39:24.057554"
+    },
+    {
+      "id": 89,
+      "name": "r22-9a6506f4",
+      "title": "r22",
+      "status": "draft",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:23.990865",
+      "updated_at": "2026-08-29T07:39:23.990867"
+    },
+    {
+      "id": 88,
+      "name": "r22-bb615125",
+      "title": "r22",
+      "status": "draft",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:23.922263",
+      "updated_at": "2026-08-29T07:39:23.922266"
+    },
+    {
+      "id": 87,
+      "name": "r22-cce98a15",
+      "title": "r22",
+      "status": "draft",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:23.849750",
+      "updated_at": "2026-08-29T07:39:23.849752"
+    },
+    {
+      "id": 86,
+      "name": "r22-d8891798",
+      "title": "r22",
+      "status": "draft",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:23.777679",
+      "updated_at": "2026-08-29T07:39:23.777681"
+    },
+    {
+      "id": 85,
+      "name": "r22-11360f25",
+      "title": "r22",
+      "status": "draft",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:23.709273",
+      "updated_at": "2026-08-29T07:39:23.709275"
+    },
+    {
+      "id": 84,
+      "name": "r22-bea96347",
+      "title": "r22",
+      "status": "draft",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:23.650799",
+      "updated_at": "2026-08-29T07:39:23.650801"
+    },
+    {
+      "id": 83,
+      "name": "r22-fc5a57c9",
+      "title": "r22",
+      "status": "draft",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:23.584119",
+      "updated_at": "2026-08-29T07:39:23.584121"
+    },
+    {
+      "id": 82,
+      "name": "r22-8a3f0058",
+      "title": "r22",
+      "status": "draft",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:39:23.511266",
+      "updated_at": "2026-08-29T07:39:23.511268"
+    },
+    {
+      "id": 81,
+      "name": "p6-10a255bc",
+      "title": "p6",
+      "status": "prepared",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-29T07:38:49.086374",
+      "updated_at": "2026-08-29T07:38:49.086383"
+    }
+  ],
+  "name_match_campaigns": [
+    {
+      "id": 1,
+      "name": "rubika test1",
+      "title": "rubika test1",
+      "status": "draft",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-25T11:19:15.287163",
+      "updated_at": "2026-08-25T11:19:15.287171",
+      "template_text_len": 20,
+      "use_gpt": true,
+      "include_products": true
+    },
+    {
+      "id": 2,
+      "name": "rubikaa test 2",
+      "title": "rubikaa test 2",
+      "status": "draft",
+      "platform": "PlatformType.RUBIKA",
+      "created_at": "2026-08-25T11:29:07.388797",
+      "updated_at": "2026-08-25T11:29:07.388800",
+      "template_text_len": 36,
+      "use_gpt": true,
+      "include_products": true
+    }
+  ],
+  "resolved_phase": "day",
+  "active_schedules": [
+    {
+      "id": 195,
+      "phase": "day",
+      "is_active": true,
+      "start_hour": 8,
+      "end_hour": 22,
+      "max_per_hour": 50
+    }
+  ],
+  "account_12": {
+    "exists": true,
+    "id": 12,
+    "platform": "PlatformType.RUBIKA",
+    "status": "AccountStatus.ACTIVE",
+    "label": null,
+    "masked_phone": "989***554",
+    "created_at": "2026-08-15T10:50:44.964599",
+    "session_readiness": "SessionReadiness(ready=True, message='Session is registered and looks valid.', error=None, code='READY', session_type='rubika_session', delivery_mode='user_account')",
+    "sessions": [
+      {
+        "id": 657,
+        "session_type": "SessionType.RUBIKA_SESSION",
+        "created_at": "2026-08-25T12:22:46.440358",
+        "updated_at": "2026-08-29T08:10:41.379940",
+        "cipher_len": 2208,
+        "has_ciphertext": true,
+        "key_version": 1
+      },
+      {
+        "id": 728,
+        "session_type": "SessionType.RUBIKA_SESSION",
+        "created_at": "2026-08-27T11:34:51.864667",
+        "updated_at": "2026-08-29T08:10:38.517458",
+        "cipher_len": 2208,
+        "has_ciphertext": true,
+        "key_version": 1
+      }
+    ],
+    "pool_rows": [
+      {
+        "id": 9,
+        "phase": "day",
+        "priority": 1,
+        "created_at": "2026-08-15T12:27:11.085875"
+      }
+    ],
+    "transport_preflight": {
+      "error_type": "TypeError",
+      "error_message": "evaluate_rubika_send_preflight() takes 1 positional argument but 2 positional arguments (and 1 keyword-only argument) were given"
+    }
+  },
+  "entity_collision_92": {
+    "contact_92_exists": true,
+    "account_92_exists": true,
+    "same_entity": false,
+    "explanation": "Contact.id=92 and Account.id=92 are different tables/FKs; colliding integers are coincidence unless joined explicitly.",
+    "account_92_label": null,
+    "account_92_masked": "989***654",
+    "account_92_created_at": "2026-08-17T12:23:20.525787"
+  },
+  "contact_92_dependencies": {
+    "campaign_recipients": [
+      {
+        "id": 94,
+        "campaign_id": 40,
+        "send_status": "SendStatus.PENDING",
+        "created_at": "2026-08-26T13:39:17.465541"
+      }
+    ],
+    "messages": [
+      {
+        "id": 91,
+        "campaign_id": 40,
+        "account_id": 2136,
+        "created_at": "2026-08-26T13:39:17.464434"
+      }
+    ],
+    "staged": [
+      {
+        "id": 91,
+        "campaign_id": 40,
+        "status": "ready",
+        "created_at": "2026-08-26T13:39:17.465923"
+      }
+    ]
+  }
+}

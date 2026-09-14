@@ -1,0 +1,72 @@
+{
+  "L16_SELECT_READ_ONLY": true,
+  "L16_SELECT_SECRET_SAFE": true,
+  "phase": "day",
+  "pool_size": 43,
+  "rubika_account_count": 43,
+  "eligible_count": 33,
+  "PILOT_ACCOUNT_ID": 3,
+  "PILOT_ACCOUNT_PHONE_MASKED": "989***560",
+  "selection": {
+    "account_id": 3,
+    "label": "",
+    "phase": "day",
+    "in_pool": true,
+    "queue": 0,
+    "selection_score": 110,
+    "eligible": true,
+    "blockers": []
+  },
+  "eligible_preview": [
+    {
+      "account_id": 3,
+      "label": "",
+      "phase": "day",
+      "in_pool": true,
+      "queue": 0,
+      "selection_score": 110,
+      "eligible": true,
+      "blockers": []
+    },
+    {
+      "account_id": 14,
+      "label": "",
+      "phase": "day",
+      "in_pool": true,
+      "queue": 0,
+      "selection_score": 110,
+      "eligible": true,
+      "blockers": []
+    },
+    {
+      "account_id": 15,
+      "label": "",
+      "phase": "day",
+      "in_pool": true,
+      "queue": 0,
+      "selection_score": 110,
+      "eligible": true,
+      "blockers": []
+    },
+    {
+      "account_id": 16,
+      "label": "",
+      "phase": "day",
+      "in_pool": true,
+      "queue": 0,
+      "selection_score": 110,
+      "eligible": true,
+      "blockers": []
+    },
+    {
+      "account_id": 17,
+      "label": "",
+      "phase": "day",
+      "in_pool": true,
+      "queue": 0,
+      "selection_score": 110,
+      "eligible": true,
+      "blockers": []
+    }
+  ]
+}

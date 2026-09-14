@@ -1,0 +1,62 @@
+{
+  "started_at": "2026-08-29T09:50:19.214015+00:00",
+  "MESSAGE_SENT": false,
+  "OTP_REQUESTED": false,
+  "NEW_ACCOUNT_COUNT_CREATED": 0,
+  "NEW_CONTACT_COUNT_CREATED": 0,
+  "cleaned_up": false,
+  "campaign101_status": "paused",
+  "message338_attempt_count": 1,
+  "contact2_phone_masked": {
+    "digit_len": 12,
+    "prefix": "98",
+    "suffix4": "9743",
+    "e164_ir": true
+  },
+  "REPLACEMENT_CONTACT_ID": 2,
+  "PHONE_VALID_IR_E164": true,
+  "CONSENT_ALLOWED": true,
+  "BLACKLISTED": false,
+  "ACCOUNT79_FINAL_ALLOWED": true,
+  "ACCOUNT79_WORKER_COVERAGE": true,
+  "QUEUE79": 0,
+  "ACCOUNT79_CODE": "READY",
+  "first_commit_ok": true,
+  "R10_REPLACEMENT_CAMPAIGN_ID": 102,
+  "NEW_CAMPAIGN_COUNT_CREATED": 1,
+  "NEW_MESSAGE_COUNT_CREATED": 1,
+  "R10_REPLACEMENT_MESSAGE_ID": 339,
+  "R10_REPLACEMENT_CONTACT_ID": 2,
+  "UNRESOLVED_PLACEHOLDER_COUNT": 0,
+  "campaign_preflight": {
+    "code": "CAMPAIGN_READY",
+    "allowed_to_start": true
+  },
+  "rendered_text": "پیام کنترل‌شده R10 جایگزینی Account79 — بدون placeholder.",
+  "created_ids": {
+    "campaign_id": 102,
+    "campaign_account_ids": [
+      104
+    ],
+    "campaign_recipient_ids": [
+      343
+    ],
+    "message_ids": [
+      339
+    ],
+    "rendered_message_ids": [
+      339
+    ],
+    "staged_queue_item_ids": [
+      339
+    ]
+  },
+  "campaign101_status_after": "paused",
+  "message338_attempt_count_after": 1,
+  "prepare": {
+    "ready_count": 1,
+    "redis_queue_pushed": false
+  },
+  "finished_at": "2026-08-29T09:50:19.407510+00:00",
+  "R10_REPLACEMENT_PREP_PASS": true
+}

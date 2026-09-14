@@ -1,0 +1,1089 @@
+{
+  "READ_ONLY": true,
+  "generated_at": "2026-09-01T09:41:03.068966+00:00",
+  "MANUAL_REVIEW_TARGETS": [
+    2,
+    12,
+    19,
+    81,
+    92
+  ],
+  "FORENSIC_TARGET_IDS": [
+    2,
+    12,
+    19,
+    81,
+    92
+  ],
+  "UNAUTHORIZED_ACCOUNT_PROBE_PRESENT": false,
+  "AUDITED_ACCOUNTS": [
+    2,
+    12,
+    19,
+    81,
+    92
+  ],
+  "accounts": [
+    {
+      "account_id": 2,
+      "platform": "rubika",
+      "enabled": "active",
+      "account_status": "active",
+      "rubika_identity_status": "unbound",
+      "account_guid_hash": null,
+      "canonical_managed": false,
+      "legacy_protected": true,
+      "worker_covered": false,
+      "worker_pinned": false,
+      "WORKER_PRESENT": false,
+      "WORKER_PINNED": false,
+      "DYNAMIC_ELIGIBLE": false,
+      "WORKER_HEALTH": "absent",
+      "CURRENT_RUNTIME_SOURCE": {
+        "eligible": false,
+        "exclusion_reason": "AMBIGUOUS_LEGACY_SESSIONS",
+        "legacy_runtime_status": "multi_legacy:2",
+        "canonical_status": "NO_ACTIVE"
+      },
+      "DISPATCH_READY": false,
+      "CANONICAL_MANAGED": false,
+      "MANUAL_REVIEW_BLOCKER": "LEGACY_MULTI_SESSION",
+      "runtime_status": "MANUAL_REVIEW",
+      "runtime_reason": "LEGACY_MULTI_SESSION",
+      "dispatch_ready": false,
+      "discovery": {
+        "eligible": false,
+        "exclusion_reason": "AMBIGUOUS_LEGACY_SESSIONS",
+        "legacy_runtime_status": "multi_legacy:2",
+        "canonical_status": "NO_ACTIVE"
+      },
+      "message_usage": {
+        "attempt_count": null,
+        "last_attempt_at": null,
+        "note": "query_unavailable",
+        "error": "ProgrammingError"
+      },
+      "sessions": [
+        {
+          "session_id": 2,
+          "created_at": "2026-07-29T08:47:28.673487",
+          "updated_at": "2026-09-01T09:40:46.835915",
+          "last_refresh_at": null,
+          "validated_at": null,
+          "session_status": "legacy_unclassified",
+          "stored_identity_guid_hash": null,
+          "validation_error_code": null,
+          "key_version": 1,
+          "WORKER_REFERENCES_SESSION": false,
+          "CANONICAL_RUNTIME_CONSIDERS": false,
+          "LEGACY_RUNTIME_CONSIDERS": "ManualReview",
+          "decrypt_status": "DECRYPT_FAILED",
+          "structural_status": "UNKNOWN",
+          "expected_key_version": 1,
+          "encryption_meta": {
+            "has_ciphertext": true,
+            "ciphertext_len": 2208,
+            "blob_format": "URLSAFE_B64",
+            "fernet_token_len": 1656,
+            "decode_error": null,
+            "cipher_family": "UNKNOWN_OR_NON_FERNET",
+            "leading_byte_hex": "67"
+          },
+          "envelope_keys_present": null,
+          "error_code": "SessionDecryptionError",
+          "decrypt_failure_class": "LEGACY_CIPHER_FORMAT",
+          "plaintext_discarded": true,
+          "auth_status": "SKIPPED",
+          "reason_code": "SessionDecryptionError",
+          "identity_guid_hash": null,
+          "identity_match": null
+        },
+        {
+          "session_id": 721,
+          "created_at": "2026-08-27T11:05:48.394614",
+          "updated_at": "2026-09-01T09:40:50.366159",
+          "last_refresh_at": null,
+          "validated_at": null,
+          "session_status": "legacy_unclassified",
+          "stored_identity_guid_hash": null,
+          "validation_error_code": null,
+          "key_version": 1,
+          "WORKER_REFERENCES_SESSION": false,
+          "CANONICAL_RUNTIME_CONSIDERS": false,
+          "LEGACY_RUNTIME_CONSIDERS": "ManualReview",
+          "decrypt_status": "DECRYPT_OK",
+          "structural_status": "STRUCTURALLY_VALID",
+          "expected_key_version": 1,
+          "encryption_meta": {
+            "has_ciphertext": true,
+            "ciphertext_len": 2208,
+            "blob_format": "URLSAFE_B64",
+            "fernet_token_len": 1656,
+            "decode_error": null,
+            "cipher_family": "UNKNOWN_OR_NON_FERNET",
+            "leading_byte_hex": "67"
+          },
+          "envelope_keys_present": [
+            "auth",
+            "guid",
+            "phone_number",
+            "private_key",
+            "user_agent"
+          ],
+          "error_code": null,
+          "decrypt_failure_class": null,
+          "plaintext_discarded": true,
+          "envelope_guid_hash": "80ae1278a40a670a",
+          "auth_status": "AUTH_PASS",
+          "reason_code": "PROOF_PASS",
+          "identity_guid_hash": "80ae1278a40a670a",
+          "identity_match": true,
+          "duration_ms": 528,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "probe_method": "get_me",
+          "RUBIKA_AUTH_PROBE_READ_ONLY": true,
+          "RUBIKA_AUTH_PROBE_PERSISTS_SESSION": false,
+          "RUBIKA_AUTH_PROBE_REQUESTS_OTP": false,
+          "RUBIKA_AUTH_PROBE_WRITES_REDIS": false,
+          "RUBIKA_AUTH_PROBE_WRITES_DB": false
+        }
+      ],
+      "historical_hypothesis": "ONE_VALID_ONE_INVALID",
+      "FORENSIC_CLASSIFICATION": "ONE_PROVEN_ONE_INVALID",
+      "IDENTITY_RELATION": "N/A_SINGLE_VALID",
+      "PROPOSED_AUTHORITATIVE_SESSION_ID": 721,
+      "PROPOSED_NONAUTHORITATIVE_SESSION_IDS": [
+        2
+      ],
+      "OTP_REQUIRED": false,
+      "SAFE_TO_CANONICALIZE": true,
+      "SESSION_RETIREMENT_REQUIRED": true,
+      "OPERATOR_DECISION_REQUIRED": false,
+      "EXACT_REMEDIATION_ACTION": "Promote proven session 721 after operator approval; retire invalid sibling without deleting evidence until approved.",
+      "CANONICALIZATION_SAFETY": "SAFE_TO_CANONICALIZE_AFTER_SELECTING_PROVEN_SESSION",
+      "RISK_LEVEL": "LOW",
+      "VALID_SESSION_IDS": [
+        721
+      ],
+      "INVALID_SESSION_IDS": [],
+      "DECRYPT_FAILED_SESSION_IDS": [
+        2
+      ],
+      "AUTH_PASS_SESSION_IDS": [
+        721
+      ],
+      "AUTH_FAIL_SESSION_IDS": [],
+      "AUTH_INDETERMINATE_SESSION_IDS": [],
+      "HISTORICAL_CLASSIFICATION_CONFIRMED": true,
+      "PROPOSED_INVALID_SESSION_ID": 2,
+      "MAX_ID_SELECTION_USED": false,
+      "ROLLBACK_STRATEGY": "No mutation in M1. Future remediation must bak session rows + override; never touch Sessions 729/725/772/724; keep pin 12,79."
+    },
+    {
+      "account_id": 12,
+      "platform": "rubika",
+      "enabled": "active",
+      "account_status": "active",
+      "rubika_identity_status": "unbound",
+      "account_guid_hash": null,
+      "canonical_managed": false,
+      "legacy_protected": true,
+      "worker_covered": true,
+      "worker_pinned": true,
+      "WORKER_PRESENT": true,
+      "WORKER_PINNED": true,
+      "DYNAMIC_ELIGIBLE": false,
+      "WORKER_HEALTH": "covered",
+      "CURRENT_RUNTIME_SOURCE": {
+        "eligible": false,
+        "exclusion_reason": "AMBIGUOUS_LEGACY_SESSIONS",
+        "legacy_runtime_status": "multi_legacy:2",
+        "canonical_status": "NO_ACTIVE"
+      },
+      "DISPATCH_READY": false,
+      "CANONICAL_MANAGED": false,
+      "MANUAL_REVIEW_BLOCKER": "LEGACY_MULTI_SESSION",
+      "runtime_status": "MANUAL_REVIEW",
+      "runtime_reason": "LEGACY_MULTI_SESSION",
+      "dispatch_ready": false,
+      "discovery": {
+        "eligible": false,
+        "exclusion_reason": "AMBIGUOUS_LEGACY_SESSIONS",
+        "legacy_runtime_status": "multi_legacy:2",
+        "canonical_status": "NO_ACTIVE"
+      },
+      "message_usage": {
+        "attempt_count": null,
+        "last_attempt_at": null,
+        "note": "query_unavailable",
+        "error": "ProgrammingError"
+      },
+      "sessions": [
+        {
+          "session_id": 657,
+          "created_at": "2026-08-25T12:22:46.440358",
+          "updated_at": "2026-09-01T09:40:48.618458",
+          "last_refresh_at": null,
+          "validated_at": null,
+          "session_status": "legacy_unclassified",
+          "stored_identity_guid_hash": null,
+          "validation_error_code": null,
+          "key_version": 1,
+          "WORKER_REFERENCES_SESSION": true,
+          "CANONICAL_RUNTIME_CONSIDERS": false,
+          "LEGACY_RUNTIME_CONSIDERS": "ManualReview",
+          "decrypt_status": "DECRYPT_OK",
+          "structural_status": "STRUCTURALLY_VALID",
+          "expected_key_version": 1,
+          "encryption_meta": {
+            "has_ciphertext": true,
+            "ciphertext_len": 2208,
+            "blob_format": "URLSAFE_B64",
+            "fernet_token_len": 1656,
+            "decode_error": null,
+            "cipher_family": "UNKNOWN_OR_NON_FERNET",
+            "leading_byte_hex": "67"
+          },
+          "envelope_keys_present": [
+            "auth",
+            "guid",
+            "phone_number",
+            "private_key",
+            "user_agent"
+          ],
+          "error_code": null,
+          "decrypt_failure_class": null,
+          "plaintext_discarded": true,
+          "envelope_guid_hash": "09d20ceed38f88d2",
+          "auth_status": "AUTH_PASS",
+          "reason_code": "PROOF_PASS",
+          "identity_guid_hash": "09d20ceed38f88d2",
+          "identity_match": true,
+          "duration_ms": 141,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "probe_method": "get_me",
+          "RUBIKA_AUTH_PROBE_READ_ONLY": true,
+          "RUBIKA_AUTH_PROBE_PERSISTS_SESSION": false,
+          "RUBIKA_AUTH_PROBE_REQUESTS_OTP": false,
+          "RUBIKA_AUTH_PROBE_WRITES_REDIS": false,
+          "RUBIKA_AUTH_PROBE_WRITES_DB": false
+        },
+        {
+          "session_id": 728,
+          "created_at": "2026-08-27T11:34:51.864667",
+          "updated_at": "2026-09-01T09:40:49.800161",
+          "last_refresh_at": null,
+          "validated_at": null,
+          "session_status": "legacy_unclassified",
+          "stored_identity_guid_hash": null,
+          "validation_error_code": null,
+          "key_version": 1,
+          "WORKER_REFERENCES_SESSION": true,
+          "CANONICAL_RUNTIME_CONSIDERS": false,
+          "LEGACY_RUNTIME_CONSIDERS": "ManualReview",
+          "decrypt_status": "DECRYPT_OK",
+          "structural_status": "STRUCTURALLY_VALID",
+          "expected_key_version": 1,
+          "encryption_meta": {
+            "has_ciphertext": true,
+            "ciphertext_len": 2208,
+            "blob_format": "URLSAFE_B64",
+            "fernet_token_len": 1656,
+            "decode_error": null,
+            "cipher_family": "UNKNOWN_OR_NON_FERNET",
+            "leading_byte_hex": "67"
+          },
+          "envelope_keys_present": [
+            "auth",
+            "guid",
+            "phone_number",
+            "private_key",
+            "user_agent"
+          ],
+          "error_code": null,
+          "decrypt_failure_class": null,
+          "plaintext_discarded": true,
+          "envelope_guid_hash": "09d20ceed38f88d2",
+          "auth_status": "AUTH_PASS",
+          "reason_code": "PROOF_PASS",
+          "identity_guid_hash": "09d20ceed38f88d2",
+          "identity_match": true,
+          "duration_ms": 173,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "probe_method": "get_me",
+          "RUBIKA_AUTH_PROBE_READ_ONLY": true,
+          "RUBIKA_AUTH_PROBE_PERSISTS_SESSION": false,
+          "RUBIKA_AUTH_PROBE_REQUESTS_OTP": false,
+          "RUBIKA_AUTH_PROBE_WRITES_REDIS": false,
+          "RUBIKA_AUTH_PROBE_WRITES_DB": false
+        }
+      ],
+      "historical_hypothesis": "MULTIPLE_VALID_SAME_IDENTITY",
+      "FORENSIC_CLASSIFICATION": "MULTIPLE_VALID_SAME_IDENTITY",
+      "IDENTITY_RELATION": "SAME_IDENTITY",
+      "PROPOSED_AUTHORITATIVE_SESSION_ID": null,
+      "PROPOSED_NONAUTHORITATIVE_SESSION_IDS": [],
+      "OTP_REQUIRED": false,
+      "SAFE_TO_CANONICALIZE": false,
+      "SESSION_RETIREMENT_REQUIRED": false,
+      "OPERATOR_DECISION_REQUIRED": true,
+      "EXACT_REMEDIATION_ACTION": "Same identity duplicates with no deterministic non-max(id) winner — operator must select authoritative session.",
+      "CANONICALIZATION_SAFETY": "REQUIRES_SESSION_RETIREMENT_DECISION",
+      "RISK_LEVEL": "MEDIUM",
+      "VALID_SESSION_IDS": [
+        657,
+        728
+      ],
+      "INVALID_SESSION_IDS": [],
+      "DECRYPT_FAILED_SESSION_IDS": [],
+      "AUTH_PASS_SESSION_IDS": [
+        657,
+        728
+      ],
+      "AUTH_FAIL_SESSION_IDS": [],
+      "AUTH_INDETERMINATE_SESSION_IDS": [],
+      "HISTORICAL_CLASSIFICATION_CONFIRMED": true,
+      "MULTIPLE_VALID_SAME_IDENTITY": true,
+      "SESSIONS_EQUIVALENT_NO_SAFE_AUTOMATIC_WINNER": true,
+      "ONE_SESSION_OBJECTIVELY_PREFERRED": false,
+      "MAX_ID_SELECTION_USED": false,
+      "ROLLBACK_STRATEGY": "No mutation in M1. Future remediation must bak session rows + override; never touch Sessions 729/725/772/724; keep pin 12,79."
+    },
+    {
+      "account_id": 19,
+      "platform": "rubika",
+      "enabled": "active",
+      "account_status": "active",
+      "rubika_identity_status": "unbound",
+      "account_guid_hash": null,
+      "canonical_managed": false,
+      "legacy_protected": true,
+      "worker_covered": false,
+      "worker_pinned": false,
+      "WORKER_PRESENT": false,
+      "WORKER_PINNED": false,
+      "DYNAMIC_ELIGIBLE": false,
+      "WORKER_HEALTH": "absent",
+      "CURRENT_RUNTIME_SOURCE": {
+        "eligible": false,
+        "exclusion_reason": "AMBIGUOUS_LEGACY_SESSIONS",
+        "legacy_runtime_status": "multi_legacy:2",
+        "canonical_status": "NO_ACTIVE"
+      },
+      "DISPATCH_READY": false,
+      "CANONICAL_MANAGED": false,
+      "MANUAL_REVIEW_BLOCKER": "LEGACY_MULTI_SESSION",
+      "runtime_status": "MANUAL_REVIEW",
+      "runtime_reason": "LEGACY_MULTI_SESSION",
+      "dispatch_ready": false,
+      "discovery": {
+        "eligible": false,
+        "exclusion_reason": "AMBIGUOUS_LEGACY_SESSIONS",
+        "legacy_runtime_status": "multi_legacy:2",
+        "canonical_status": "NO_ACTIVE"
+      },
+      "message_usage": {
+        "attempt_count": null,
+        "last_attempt_at": null,
+        "note": "query_unavailable",
+        "error": "ProgrammingError"
+      },
+      "sessions": [
+        {
+          "session_id": 726,
+          "created_at": "2026-08-27T11:31:11.615343",
+          "updated_at": "2026-09-01T09:40:47.775885",
+          "last_refresh_at": null,
+          "validated_at": null,
+          "session_status": "legacy_unclassified",
+          "stored_identity_guid_hash": null,
+          "validation_error_code": null,
+          "key_version": 1,
+          "WORKER_REFERENCES_SESSION": false,
+          "CANONICAL_RUNTIME_CONSIDERS": false,
+          "LEGACY_RUNTIME_CONSIDERS": "ManualReview",
+          "decrypt_status": "DECRYPT_OK",
+          "structural_status": "STRUCTURALLY_VALID",
+          "expected_key_version": 1,
+          "encryption_meta": {
+            "has_ciphertext": true,
+            "ciphertext_len": 2208,
+            "blob_format": "URLSAFE_B64",
+            "fernet_token_len": 1656,
+            "decode_error": null,
+            "cipher_family": "UNKNOWN_OR_NON_FERNET",
+            "leading_byte_hex": "67"
+          },
+          "envelope_keys_present": [
+            "auth",
+            "guid",
+            "phone_number",
+            "private_key",
+            "user_agent"
+          ],
+          "error_code": null,
+          "decrypt_failure_class": null,
+          "plaintext_discarded": true,
+          "envelope_guid_hash": "ed094b67d0da0606",
+          "auth_status": "AUTH_PASS",
+          "reason_code": "PROOF_PASS",
+          "identity_guid_hash": "ed094b67d0da0606",
+          "identity_match": true,
+          "duration_ms": 109,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "probe_method": "get_me",
+          "RUBIKA_AUTH_PROBE_READ_ONLY": true,
+          "RUBIKA_AUTH_PROBE_PERSISTS_SESSION": false,
+          "RUBIKA_AUTH_PROBE_REQUESTS_OTP": false,
+          "RUBIKA_AUTH_PROBE_WRITES_REDIS": false,
+          "RUBIKA_AUTH_PROBE_WRITES_DB": false
+        },
+        {
+          "session_id": 727,
+          "created_at": "2026-08-27T11:31:49.088057",
+          "updated_at": "2026-09-01T09:40:50.095769",
+          "last_refresh_at": null,
+          "validated_at": null,
+          "session_status": "legacy_unclassified",
+          "stored_identity_guid_hash": null,
+          "validation_error_code": null,
+          "key_version": 1,
+          "WORKER_REFERENCES_SESSION": false,
+          "CANONICAL_RUNTIME_CONSIDERS": false,
+          "LEGACY_RUNTIME_CONSIDERS": "ManualReview",
+          "decrypt_status": "DECRYPT_OK",
+          "structural_status": "STRUCTURALLY_VALID",
+          "expected_key_version": 1,
+          "encryption_meta": {
+            "has_ciphertext": true,
+            "ciphertext_len": 2208,
+            "blob_format": "URLSAFE_B64",
+            "fernet_token_len": 1656,
+            "decode_error": null,
+            "cipher_family": "UNKNOWN_OR_NON_FERNET",
+            "leading_byte_hex": "67"
+          },
+          "envelope_keys_present": [
+            "auth",
+            "guid",
+            "phone_number",
+            "private_key",
+            "user_agent"
+          ],
+          "error_code": null,
+          "decrypt_failure_class": null,
+          "plaintext_discarded": true,
+          "envelope_guid_hash": "ed094b67d0da0606",
+          "auth_status": "AUTH_PASS",
+          "reason_code": "PROOF_PASS",
+          "identity_guid_hash": "ed094b67d0da0606",
+          "identity_match": true,
+          "duration_ms": 150,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "probe_method": "get_me",
+          "RUBIKA_AUTH_PROBE_READ_ONLY": true,
+          "RUBIKA_AUTH_PROBE_PERSISTS_SESSION": false,
+          "RUBIKA_AUTH_PROBE_REQUESTS_OTP": false,
+          "RUBIKA_AUTH_PROBE_WRITES_REDIS": false,
+          "RUBIKA_AUTH_PROBE_WRITES_DB": false
+        }
+      ],
+      "historical_hypothesis": "MULTIPLE_VALID_SAME_IDENTITY",
+      "FORENSIC_CLASSIFICATION": "MULTIPLE_VALID_SAME_IDENTITY",
+      "IDENTITY_RELATION": "SAME_IDENTITY",
+      "PROPOSED_AUTHORITATIVE_SESSION_ID": null,
+      "PROPOSED_NONAUTHORITATIVE_SESSION_IDS": [],
+      "OTP_REQUIRED": false,
+      "SAFE_TO_CANONICALIZE": false,
+      "SESSION_RETIREMENT_REQUIRED": false,
+      "OPERATOR_DECISION_REQUIRED": true,
+      "EXACT_REMEDIATION_ACTION": "Same identity duplicates with no deterministic non-max(id) winner — operator must select authoritative session.",
+      "CANONICALIZATION_SAFETY": "REQUIRES_SESSION_RETIREMENT_DECISION",
+      "RISK_LEVEL": "MEDIUM",
+      "VALID_SESSION_IDS": [
+        726,
+        727
+      ],
+      "INVALID_SESSION_IDS": [],
+      "DECRYPT_FAILED_SESSION_IDS": [],
+      "AUTH_PASS_SESSION_IDS": [
+        726,
+        727
+      ],
+      "AUTH_FAIL_SESSION_IDS": [],
+      "AUTH_INDETERMINATE_SESSION_IDS": [],
+      "HISTORICAL_CLASSIFICATION_CONFIRMED": true,
+      "MULTIPLE_VALID_SAME_IDENTITY": true,
+      "SESSIONS_EQUIVALENT_NO_SAFE_AUTOMATIC_WINNER": true,
+      "ONE_SESSION_OBJECTIVELY_PREFERRED": false,
+      "MAX_ID_SELECTION_USED": false,
+      "ROLLBACK_STRATEGY": "No mutation in M1. Future remediation must bak session rows + override; never touch Sessions 729/725/772/724; keep pin 12,79."
+    },
+    {
+      "account_id": 81,
+      "platform": "rubika",
+      "enabled": "active",
+      "account_status": "active",
+      "rubika_identity_status": "unbound",
+      "account_guid_hash": null,
+      "canonical_managed": false,
+      "legacy_protected": true,
+      "worker_covered": false,
+      "worker_pinned": false,
+      "WORKER_PRESENT": false,
+      "WORKER_PINNED": false,
+      "DYNAMIC_ELIGIBLE": false,
+      "WORKER_HEALTH": "absent",
+      "CURRENT_RUNTIME_SOURCE": {
+        "eligible": false,
+        "exclusion_reason": "AMBIGUOUS_LEGACY_SESSIONS",
+        "legacy_runtime_status": "multi_legacy:2",
+        "canonical_status": "NO_ACTIVE"
+      },
+      "DISPATCH_READY": false,
+      "CANONICAL_MANAGED": false,
+      "MANUAL_REVIEW_BLOCKER": "LEGACY_MULTI_SESSION",
+      "runtime_status": "MANUAL_REVIEW",
+      "runtime_reason": "LEGACY_MULTI_SESSION",
+      "dispatch_ready": false,
+      "discovery": {
+        "eligible": false,
+        "exclusion_reason": "AMBIGUOUS_LEGACY_SESSIONS",
+        "legacy_runtime_status": "multi_legacy:2",
+        "canonical_status": "NO_ACTIVE"
+      },
+      "message_usage": {
+        "attempt_count": null,
+        "last_attempt_at": null,
+        "note": "query_unavailable",
+        "error": "ProgrammingError"
+      },
+      "sessions": [
+        {
+          "session_id": 722,
+          "created_at": "2026-08-27T11:20:36.613456",
+          "updated_at": "2026-09-01T09:40:48.340910",
+          "last_refresh_at": null,
+          "validated_at": null,
+          "session_status": "legacy_unclassified",
+          "stored_identity_guid_hash": null,
+          "validation_error_code": null,
+          "key_version": 1,
+          "WORKER_REFERENCES_SESSION": false,
+          "CANONICAL_RUNTIME_CONSIDERS": false,
+          "LEGACY_RUNTIME_CONSIDERS": "ManualReview",
+          "decrypt_status": "DECRYPT_OK",
+          "structural_status": "STRUCTURALLY_VALID",
+          "expected_key_version": 1,
+          "encryption_meta": {
+            "has_ciphertext": true,
+            "ciphertext_len": 2208,
+            "blob_format": "URLSAFE_B64",
+            "fernet_token_len": 1656,
+            "decode_error": null,
+            "cipher_family": "UNKNOWN_OR_NON_FERNET",
+            "leading_byte_hex": "67"
+          },
+          "envelope_keys_present": [
+            "auth",
+            "guid",
+            "phone_number",
+            "private_key",
+            "user_agent"
+          ],
+          "error_code": null,
+          "decrypt_failure_class": null,
+          "plaintext_discarded": true,
+          "envelope_guid_hash": "7b7c8f97014c0eeb",
+          "auth_status": "AUTH_PASS",
+          "reason_code": "PROOF_PASS",
+          "identity_guid_hash": "7b7c8f97014c0eeb",
+          "identity_match": true,
+          "duration_ms": 133,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "probe_method": "get_me",
+          "RUBIKA_AUTH_PROBE_READ_ONLY": true,
+          "RUBIKA_AUTH_PROBE_PERSISTS_SESSION": false,
+          "RUBIKA_AUTH_PROBE_REQUESTS_OTP": false,
+          "RUBIKA_AUTH_PROBE_WRITES_REDIS": false,
+          "RUBIKA_AUTH_PROBE_WRITES_DB": false
+        },
+        {
+          "session_id": 723,
+          "created_at": "2026-08-27T11:21:47.584794",
+          "updated_at": "2026-09-01T09:40:49.192471",
+          "last_refresh_at": null,
+          "validated_at": null,
+          "session_status": "legacy_unclassified",
+          "stored_identity_guid_hash": null,
+          "validation_error_code": null,
+          "key_version": 1,
+          "WORKER_REFERENCES_SESSION": false,
+          "CANONICAL_RUNTIME_CONSIDERS": false,
+          "LEGACY_RUNTIME_CONSIDERS": "ManualReview",
+          "decrypt_status": "DECRYPT_OK",
+          "structural_status": "STRUCTURALLY_VALID",
+          "expected_key_version": 1,
+          "encryption_meta": {
+            "has_ciphertext": true,
+            "ciphertext_len": 2208,
+            "blob_format": "URLSAFE_B64",
+            "fernet_token_len": 1656,
+            "decode_error": null,
+            "cipher_family": "UNKNOWN_OR_NON_FERNET",
+            "leading_byte_hex": "67"
+          },
+          "envelope_keys_present": [
+            "auth",
+            "guid",
+            "phone_number",
+            "private_key",
+            "user_agent"
+          ],
+          "error_code": null,
+          "decrypt_failure_class": null,
+          "plaintext_discarded": true,
+          "envelope_guid_hash": "7b7c8f97014c0eeb",
+          "auth_status": "AUTH_PASS",
+          "reason_code": "PROOF_PASS",
+          "identity_guid_hash": "7b7c8f97014c0eeb",
+          "identity_match": true,
+          "duration_ms": 145,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "probe_method": "get_me",
+          "RUBIKA_AUTH_PROBE_READ_ONLY": true,
+          "RUBIKA_AUTH_PROBE_PERSISTS_SESSION": false,
+          "RUBIKA_AUTH_PROBE_REQUESTS_OTP": false,
+          "RUBIKA_AUTH_PROBE_WRITES_REDIS": false,
+          "RUBIKA_AUTH_PROBE_WRITES_DB": false
+        }
+      ],
+      "historical_hypothesis": "MULTIPLE_VALID_SAME_IDENTITY",
+      "FORENSIC_CLASSIFICATION": "MULTIPLE_VALID_SAME_IDENTITY",
+      "IDENTITY_RELATION": "SAME_IDENTITY",
+      "PROPOSED_AUTHORITATIVE_SESSION_ID": null,
+      "PROPOSED_NONAUTHORITATIVE_SESSION_IDS": [],
+      "OTP_REQUIRED": false,
+      "SAFE_TO_CANONICALIZE": false,
+      "SESSION_RETIREMENT_REQUIRED": false,
+      "OPERATOR_DECISION_REQUIRED": true,
+      "EXACT_REMEDIATION_ACTION": "Same identity duplicates with no deterministic non-max(id) winner — operator must select authoritative session.",
+      "CANONICALIZATION_SAFETY": "REQUIRES_SESSION_RETIREMENT_DECISION",
+      "RISK_LEVEL": "MEDIUM",
+      "VALID_SESSION_IDS": [
+        722,
+        723
+      ],
+      "INVALID_SESSION_IDS": [],
+      "DECRYPT_FAILED_SESSION_IDS": [],
+      "AUTH_PASS_SESSION_IDS": [
+        722,
+        723
+      ],
+      "AUTH_FAIL_SESSION_IDS": [],
+      "AUTH_INDETERMINATE_SESSION_IDS": [],
+      "HISTORICAL_CLASSIFICATION_CONFIRMED": true,
+      "MULTIPLE_VALID_SAME_IDENTITY": true,
+      "SESSIONS_EQUIVALENT_NO_SAFE_AUTOMATIC_WINNER": true,
+      "ONE_SESSION_OBJECTIVELY_PREFERRED": false,
+      "MAX_ID_SELECTION_USED": false,
+      "ROLLBACK_STRATEGY": "No mutation in M1. Future remediation must bak session rows + override; never touch Sessions 729/725/772/724; keep pin 12,79."
+    },
+    {
+      "account_id": 92,
+      "platform": "rubika",
+      "enabled": "active",
+      "account_status": "active",
+      "rubika_identity_status": "unbound",
+      "account_guid_hash": null,
+      "canonical_managed": false,
+      "legacy_protected": true,
+      "worker_covered": false,
+      "worker_pinned": false,
+      "WORKER_PRESENT": false,
+      "WORKER_PINNED": false,
+      "DYNAMIC_ELIGIBLE": false,
+      "WORKER_HEALTH": "absent",
+      "CURRENT_RUNTIME_SOURCE": {
+        "eligible": false,
+        "exclusion_reason": "AMBIGUOUS_LEGACY_SESSIONS",
+        "legacy_runtime_status": "multi_legacy:2",
+        "canonical_status": "NO_ACTIVE"
+      },
+      "DISPATCH_READY": false,
+      "CANONICAL_MANAGED": false,
+      "MANUAL_REVIEW_BLOCKER": "LEGACY_MULTI_SESSION",
+      "runtime_status": "MANUAL_REVIEW",
+      "runtime_reason": "LEGACY_MULTI_SESSION",
+      "dispatch_ready": false,
+      "discovery": {
+        "eligible": false,
+        "exclusion_reason": "AMBIGUOUS_LEGACY_SESSIONS",
+        "legacy_runtime_status": "multi_legacy:2",
+        "canonical_status": "NO_ACTIVE"
+      },
+      "message_usage": {
+        "attempt_count": null,
+        "last_attempt_at": null,
+        "note": "query_unavailable",
+        "error": "ProgrammingError"
+      },
+      "sessions": [
+        {
+          "session_id": 11,
+          "created_at": "2026-08-17T12:23:55.043458",
+          "updated_at": "2026-09-01T09:40:48.052846",
+          "last_refresh_at": null,
+          "validated_at": null,
+          "session_status": "legacy_unclassified",
+          "stored_identity_guid_hash": null,
+          "validation_error_code": null,
+          "key_version": 1,
+          "WORKER_REFERENCES_SESSION": false,
+          "CANONICAL_RUNTIME_CONSIDERS": false,
+          "LEGACY_RUNTIME_CONSIDERS": "ManualReview",
+          "decrypt_status": "DECRYPT_FAILED",
+          "structural_status": "UNKNOWN",
+          "expected_key_version": 1,
+          "encryption_meta": {
+            "has_ciphertext": true,
+            "ciphertext_len": 2208,
+            "blob_format": "URLSAFE_B64",
+            "fernet_token_len": 1656,
+            "decode_error": null,
+            "cipher_family": "UNKNOWN_OR_NON_FERNET",
+            "leading_byte_hex": "67"
+          },
+          "envelope_keys_present": null,
+          "error_code": "SessionDecryptionError",
+          "decrypt_failure_class": "LEGACY_CIPHER_FORMAT",
+          "plaintext_discarded": true,
+          "auth_status": "SKIPPED",
+          "reason_code": "SessionDecryptionError",
+          "identity_guid_hash": null,
+          "identity_match": null
+        },
+        {
+          "session_id": 12,
+          "created_at": "2026-08-19T08:04:02.643770",
+          "updated_at": "2026-09-01T09:40:50.661605",
+          "last_refresh_at": null,
+          "validated_at": null,
+          "session_status": "legacy_unclassified",
+          "stored_identity_guid_hash": null,
+          "validation_error_code": null,
+          "key_version": 1,
+          "WORKER_REFERENCES_SESSION": false,
+          "CANONICAL_RUNTIME_CONSIDERS": false,
+          "LEGACY_RUNTIME_CONSIDERS": "ManualReview",
+          "decrypt_status": "DECRYPT_FAILED",
+          "structural_status": "UNKNOWN",
+          "expected_key_version": 1,
+          "encryption_meta": {
+            "has_ciphertext": true,
+            "ciphertext_len": 2208,
+            "blob_format": "URLSAFE_B64",
+            "fernet_token_len": 1656,
+            "decode_error": null,
+            "cipher_family": "UNKNOWN_OR_NON_FERNET",
+            "leading_byte_hex": "67"
+          },
+          "envelope_keys_present": null,
+          "error_code": "SessionDecryptionError",
+          "decrypt_failure_class": "LEGACY_CIPHER_FORMAT",
+          "plaintext_discarded": true,
+          "auth_status": "SKIPPED",
+          "reason_code": "SessionDecryptionError",
+          "identity_guid_hash": null,
+          "identity_match": null
+        }
+      ],
+      "historical_hypothesis": "DECRYPT_REPAIR_REQUIRED",
+      "FORENSIC_CLASSIFICATION": "DECRYPT_REPAIR_REQUIRED",
+      "IDENTITY_RELATION": "UNKNOWN",
+      "PROPOSED_AUTHORITATIVE_SESSION_ID": null,
+      "PROPOSED_NONAUTHORITATIVE_SESSION_IDS": [],
+      "OTP_REQUIRED": true,
+      "SAFE_TO_CANONICALIZE": false,
+      "SESSION_RETIREMENT_REQUIRED": false,
+      "OPERATOR_DECISION_REQUIRED": false,
+      "EXACT_REMEDIATION_ACTION": "All Account92 sessions fail decryption with current SESSION_SECRET; no safe alternate-key repair proven. Relogin/OTP required after approval. Failure classes=['LEGACY_CIPHER_FORMAT']",
+      "CANONICALIZATION_SAFETY": "REQUIRES_DECRYPTION_REPAIR",
+      "RISK_LEVEL": "HIGH",
+      "VALID_SESSION_IDS": [],
+      "INVALID_SESSION_IDS": [],
+      "DECRYPT_FAILED_SESSION_IDS": [
+        11,
+        12
+      ],
+      "AUTH_PASS_SESSION_IDS": [],
+      "AUTH_FAIL_SESSION_IDS": [],
+      "AUTH_INDETERMINATE_SESSION_IDS": [],
+      "HISTORICAL_CLASSIFICATION_CONFIRMED": true,
+      "ACCOUNT92_DECRYPT_FAILURE_CLASSES": [
+        "LEGACY_CIPHER_FORMAT"
+      ],
+      "ACCOUNT92_REPAIR_WITHOUT_OTP_POSSIBLE": false,
+      "ACCOUNT92_RELOGIN_REQUIRED": true,
+      "MAX_ID_SELECTION_USED": false,
+      "ROLLBACK_STRATEGY": "No mutation in M1. Future remediation must bak session rows + override; never touch Sessions 729/725/772/724; keep pin 12,79."
+    }
+  ],
+  "pre": {
+    "GLOBAL_ACTIVE_SESSION_COUNT": 4,
+    "ACTIVES": {
+      "13": 729,
+      "23": 725,
+      "27": 772,
+      "74": 724
+    },
+    "ACTUAL_WORKER_IDS": [
+      12,
+      13,
+      23,
+      27,
+      74,
+      79
+    ],
+    "DYNAMIC_ELIGIBLE_IDS": [
+      13,
+      23,
+      27,
+      74,
+      79
+    ],
+    "msg": 5,
+    "ch": 3,
+    "sess_rows": 16,
+    "target_sessions": {
+      "2": [
+        {
+          "id": 2,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 721,
+          "status": "legacy_unclassified"
+        }
+      ],
+      "12": [
+        {
+          "id": 657,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 728,
+          "status": "legacy_unclassified"
+        }
+      ],
+      "19": [
+        {
+          "id": 726,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 727,
+          "status": "legacy_unclassified"
+        }
+      ],
+      "81": [
+        {
+          "id": 722,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 723,
+          "status": "legacy_unclassified"
+        }
+      ],
+      "92": [
+        {
+          "id": 11,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 12,
+          "status": "legacy_unclassified"
+        }
+      ]
+    },
+    "a12_protected": true,
+    "a79_protected": true
+  },
+  "post": {
+    "GLOBAL_ACTIVE_SESSION_COUNT": 4,
+    "ACTIVES": {
+      "13": 729,
+      "23": 725,
+      "27": 772,
+      "74": 724
+    },
+    "ACTUAL_WORKER_IDS": [
+      12,
+      13,
+      23,
+      27,
+      74,
+      79
+    ],
+    "DYNAMIC_ELIGIBLE_IDS": [
+      13,
+      23,
+      27,
+      74,
+      79
+    ],
+    "msg": 5,
+    "ch": 3,
+    "sess_rows": 16,
+    "target_sessions": {
+      "2": [
+        {
+          "id": 2,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 721,
+          "status": "legacy_unclassified"
+        }
+      ],
+      "12": [
+        {
+          "id": 657,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 728,
+          "status": "legacy_unclassified"
+        }
+      ],
+      "19": [
+        {
+          "id": 726,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 727,
+          "status": "legacy_unclassified"
+        }
+      ],
+      "81": [
+        {
+          "id": 722,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 723,
+          "status": "legacy_unclassified"
+        }
+      ],
+      "92": [
+        {
+          "id": 11,
+          "status": "legacy_unclassified"
+        },
+        {
+          "id": 12,
+          "status": "legacy_unclassified"
+        }
+      ]
+    },
+    "a12_protected": true,
+    "a79_protected": true
+  },
+  "db_safety": {
+    "DB_READ_ONLY_ENFORCED": true,
+    "DB_WRITE_PATH_PRESENT": false,
+    "ORM_AUTOFLUSH_WRITE_RISK": false,
+    "ORM_COMMIT_PATH_PRESENT": false,
+    "ORM_FLUSH_PATH_PRESENT": false,
+    "postgresql_readonly": false,
+    "set_transaction_read_only": true
+  },
+  "REDIS_READ_ONLY": true,
+  "REDIS_MUTATION_PATH_PRESENT": false,
+  "RUBIKA_AUTH_PROBE_READ_ONLY": true,
+  "RUBIKA_AUTH_PROBE_PERSISTS_SESSION": false,
+  "RUBIKA_AUTH_PROBE_REQUESTS_OTP": false,
+  "RUBIKA_AUTH_PROBE_WRITES_REDIS": false,
+  "RUBIKA_AUTH_PROBE_WRITES_DB": false,
+  "M1_NETWORK_CALLS": [
+    "rubpy.Client.connect",
+    "rubpy.Client.get_me",
+    "rubpy.Client.get_user_info",
+    "rubpy.Client.get_abs_objects",
+    "rubpy.Client.disconnect"
+  ],
+  "M1_NETWORK_MUTATION_PRESENT": false,
+  "REPORT_WRITE_SCOPE_EXACT": true,
+  "MAX_ID_SELECTION_USED": false,
+  "M1_HELPER_HASHES": {
+    "scripts/_m1_manual_review_forensic_audit.py": "d06a83b1def28631bdb113b6aa0799653e1eeeb7daa2919a9bca370ce8de4100",
+    "scripts/_m1_forensic_auth_probe.py": "367d1d603ac81edc9cca41573fe6fab8d4f91ec5324c66cdc5465959ce433c91"
+  },
+  "READ_ONLY_AUDIT_PASS": true,
+  "M1_READ_ONLY_INVARIANT_PASS": true,
+  "SESSION_ROWS_MUTATED": 0,
+  "SESSION_STATUS_CHANGES": 0,
+  "IDENTITY_BINDING_CHANGES": 0,
+  "LOGIN_CHALLENGE_DELTA": 0,
+  "MESSAGE_ATTEMPT_DELTA": 0,
+  "QUEUE_MUTATION_DETECTED": false,
+  "REDIS_MUTATION_DETECTED": false,
+  "WORKER_SET_UNCHANGED": true,
+  "CANONICAL_CONFIG_UNCHANGED": true,
+  "L17_CONFIG_UNCHANGED": true,
+  "L18_STATUS_PIPELINE_UNCHANGED": true,
+  "MESSAGE_SENT": false,
+  "OTP_REQUESTED": false,
+  "RECOMMENDED_REMEDIATION_ORDER": [
+    {
+      "account_id": 2,
+      "reason": "one proven valid + invalid sibling",
+      "OTP_REQUIRED": false,
+      "OPERATOR_DECISION_REQUIRED": false,
+      "RISK_LEVEL": "LOW"
+    },
+    {
+      "account_id": 12,
+      "reason": "same-identity duplicate needs operator session choice",
+      "OTP_REQUIRED": false,
+      "OPERATOR_DECISION_REQUIRED": true,
+      "RISK_LEVEL": "MEDIUM"
+    },
+    {
+      "account_id": 19,
+      "reason": "same-identity duplicate needs operator session choice",
+      "OTP_REQUIRED": false,
+      "OPERATOR_DECISION_REQUIRED": true,
+      "RISK_LEVEL": "MEDIUM"
+    },
+    {
+      "account_id": 81,
+      "reason": "same-identity duplicate needs operator session choice",
+      "OTP_REQUIRED": false,
+      "OPERATOR_DECISION_REQUIRED": true,
+      "RISK_LEVEL": "MEDIUM"
+    },
+    {
+      "account_id": 92,
+      "reason": "decrypt/key repair investigation",
+      "OTP_REQUIRED": true,
+      "OPERATOR_DECISION_REQUIRED": false,
+      "RISK_LEVEL": "HIGH"
+    }
+  ],
+  "SAFE_WITHOUT_OTP_ACCOUNTS": [
+    2
+  ],
+  "OTP_REQUIRED_ACCOUNTS": [
+    92
+  ],
+  "OPERATOR_DECISION_REQUIRED_ACCOUNTS": [
+    12,
+    19,
+    81
+  ],
+  "CURRENT_PHASE": "M1_MANUAL_REVIEW_FORENSIC_AUDIT",
+  "PHASE_STATUS": "COMPLETE"
+}

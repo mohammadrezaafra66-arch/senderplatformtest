@@ -1,0 +1,83 @@
+{
+  "started_at": "2026-08-29T09:56:09.961584+00:00",
+  "OTP_REQUESTED": false,
+  "TOTAL_REAL_MESSAGES_ALLOWED": 1,
+  "MESSAGE_SENT": true,
+  "preflight": {
+    "campaign_code": "CAMPAIGN_READY",
+    "account79_code": "READY",
+    "queues_before": {
+      "QUEUE79": 0,
+      "QUEUE12": 0,
+      "COV79": true,
+      "COV12": true
+    },
+    "campaign101_status": "paused",
+    "message338_attempt_count": 1
+  },
+  "start_result": {
+    "status": "running",
+    "campaign_id": 102,
+    "bridge_result": {
+      "pushed": 1,
+      "skipped_consent": 0,
+      "skipped_no_account": 0,
+      "skipped_invalid": 0,
+      "failed": 0,
+      "deferred_backpressure": 0
+    },
+    "preflight": {
+      "code": "CAMPAIGN_READY",
+      "allowed_to_start": true,
+      "warnings": [],
+      "execution_safety_state": "READY",
+      "estimated_completion_at": "2026-08-30T08:00:00+03:30",
+      "estimated_today_capacity": 1
+    }
+  },
+  "queues_after_start": {
+    "QUEUE79": 1,
+    "QUEUE12": 0,
+    "COV79": true,
+    "COV12": true
+  },
+  "attempt": {
+    "attempt_id": 17,
+    "message_id": 339,
+    "status": "SUCCESS",
+    "error_code": null,
+    "error_message": null,
+    "started_at": "2026-08-29 09:56:12.473828",
+    "accepted_at": "2026-08-29 09:56:12.473830"
+  },
+  "queues_after": {
+    "QUEUE79": 0,
+    "QUEUE12": 0,
+    "COV79": true,
+    "COV12": true
+  },
+  "stop_result": {
+    "status": "paused",
+    "campaign_id": 102,
+    "message": "Campaign stopped successfully.",
+    "paused_in_redis": true
+  },
+  "campaign102_status_after": "paused",
+  "attempt_count": 1,
+  "NO_DUPLICATE_SEND": true,
+  "NO_CROSS_ACCOUNT_SEND": true,
+  "CAMPAIGN101_UNCHANGED": true,
+  "MESSAGE338_ATTEMPT_COUNT": 1,
+  "QUEUE79": 0,
+  "R10_REPLACEMENT_MESSAGE_ID": 339,
+  "R10_REPLACEMENT_ATTEMPT_ID": 17,
+  "R10_REPLACEMENT_STATUS": "SUCCESS",
+  "ACCOUNT79_REPLACEMENT_TRANSPORT_PASS": true,
+  "routing": {
+    "campaign_id": 102,
+    "message_id": 339,
+    "account_id": 79,
+    "contact_id": 2
+  },
+  "finished_at": "2026-08-29T09:56:14.256254+00:00"
+}

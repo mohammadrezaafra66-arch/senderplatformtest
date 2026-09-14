@@ -1,0 +1,14 @@
+{
+  "generated_at": "2026-09-01T18:47:00+03:30",
+  "dry_run": true,
+  "total_campaigns": 33,
+  "existing_valid_drafts": 10,
+  "existing_blocked_drafts": 9,
+  "already_prepared": 14,
+  "existing_auto_prepared": 0,
+  "existing_prepare_failed": 0,
+  "would_auto_prepare": 10,
+  "would_remain_blocked": 9,
+  "unexpected_state_changes": 0,
+  "note": "Dry-run inventory from reconcile_draft_campaign_preparation.py before --apply. Apply reconciliation requires controlled execution post-deploy."
+}

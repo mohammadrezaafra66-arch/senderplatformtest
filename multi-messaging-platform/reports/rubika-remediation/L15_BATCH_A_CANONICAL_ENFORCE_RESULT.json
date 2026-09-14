@@ -1,0 +1,97 @@
+{
+  "CURRENT_PHASE": "L15_BATCH_A_CANONICAL_ENFORCE",
+  "PHASE_STATUS": "COMPLETE",
+  "E1_ACCOUNT13_ENFORCE_PASS": true,
+  "E2_ACCOUNT23_ENFORCE_PASS": true,
+  "E3_ACCOUNT74_ENFORCE_PASS": true,
+  "CANONICAL_ENFORCE_BATCH_A_ENABLED": true,
+  "CANONICAL_MODE": "enforce",
+  "CANONICAL_ALLOWLIST": "13,23,74",
+  "ACCOUNT13_AUTHORITATIVE_SESSION": 729,
+  "ACCOUNT23_AUTHORITATIVE_SESSION": 725,
+  "ACCOUNT74_AUTHORITATIVE_SESSION": 724,
+  "ACCOUNT13_WORKER_HEALTH_PASS": true,
+  "ACCOUNT23_WORKER_HEALTH_PASS": true,
+  "ACCOUNT74_WORKER_HEALTH_PASS": true,
+  "ACTUAL_WORKER_IDS": [12, 13, 23, 74, 79],
+  "WORKER_DISCOVERY_MODE": "dynamic",
+  "WORKER_DISCOVERY_COHORT": "13,23,74",
+  "WORKER_PIN": "12,79",
+  "ACCOUNT12_UNCHANGED": true,
+  "ACCOUNT79_UNCHANGED": true,
+  "ACCOUNT12_SESSIONS": "657:legacy_unclassified,728:legacy_unclassified",
+  "ACCOUNT79_SESSIONS": "600:legacy_unclassified",
+  "ENFORCE_FAIL_CLOSED_VERIFIED": true,
+  "GLOBAL_ACTIVE_SESSION_COUNT": 3,
+  "MESSAGE_ATTEMPT_BASELINE": 5,
+  "MESSAGE_ATTEMPT_FINAL": 5,
+  "LOGIN_CHALLENGE_BASELINE": 0,
+  "LOGIN_CHALLENGE_FINAL": 0,
+  "MESSAGE_SENT": false,
+  "OTP_REQUESTED": false,
+  "ROLLBACK_PERFORMED": false,
+  "ROLLBACK_TO_STAGE": null,
+  "SAFE_TO_BEGIN_OTP_LIFECYCLE_PILOT": true,
+  "NEXT_SAFE_ACTION": "Select one no-session Rubika account for controlled OTP lifecycle pilot",
+  "provenance": {
+    "CANONICAL_CONFIG_FILE": "docker-compose.override.yml",
+    "CORE_API_CANONICAL_CONFIG_CONSUMER": true,
+    "RUBIKA_WORKER_CANONICAL_CONFIG_CONSUMER": true,
+    "CELERY_CANONICAL_CONFIG_CONSUMER": false,
+    "services_recreated_per_stage": ["core_api", "rubika_worker"],
+    "image_rebuild": false
+  },
+  "rollback_files": {
+    "full_shadow": {
+      "path": "docker-compose.override.yml.before-l15-enforce-20260831_104203.bak",
+      "sha256": "0a81439e9c137da452f3a96f1598d1507439ba5728c20c8d60afaf77544df18b",
+      "size": 2214,
+      "mode": "shadow",
+      "allowlist": "13,23,74"
+    },
+    "e1_proven": "docker-compose.override.yml.l15-e1-proven.bak",
+    "e2_proven": "docker-compose.override.yml.l15-e2-proven.bak",
+    "e3_proven": "docker-compose.override.yml.l15-e3-proven.bak"
+  },
+  "stages": {
+    "E1": {
+      "mode": "enforce",
+      "allowlist": "13",
+      "pass": true,
+      "account13_source": "canonical_enforce",
+      "account13_session": 729,
+      "account23_source": "legacy",
+      "account74_source": "legacy"
+    },
+    "E2": {
+      "mode": "enforce",
+      "allowlist": "13,23",
+      "pass": true,
+      "account13_source": "canonical_enforce",
+      "account23_source": "canonical_enforce",
+      "account23_session": 725,
+      "account74_source": "legacy"
+    },
+    "E3": {
+      "mode": "enforce",
+      "allowlist": "13,23,74",
+      "pass": true,
+      "account13_source": "canonical_enforce",
+      "account23_source": "canonical_enforce",
+      "account74_source": "canonical_enforce",
+      "account74_session": 724,
+      "observation_cycles": 3,
+      "stable": true
+    }
+  },
+  "fail_closed": {
+    "network": "mmp_test_isolation",
+    "tests_passed": 4,
+    "tests": [
+      "test_enforce_canonical_failure_no_max_id_fallback",
+      "test_enforce_affects_allowlisted_only",
+      "test_enforce_uses_active_not_max_id",
+      "test_duplicate_canonical_active_hard_fails"
+    ]
+  }
+}

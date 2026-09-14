@@ -1,0 +1,9 @@
+ROLLBACK_COPY=docker-compose.override.yml.before-l15-enforce-20260831_104203.bak
+SHA256=0a81439e9c137da452f3a96f1598d1507439ba5728c20c8d60afaf77544df18b
+SIZE=2214
+STAGE=shadow_full_batch_a
+MODE=shadow
+ALLOWLIST=13,23,74
+DISCOVERY=dynamic
+COHORT=13,23,74
+PIN=12,79

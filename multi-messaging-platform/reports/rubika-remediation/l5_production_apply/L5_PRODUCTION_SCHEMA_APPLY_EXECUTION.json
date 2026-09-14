@@ -1,0 +1,68 @@
+{
+  "step": "l2",
+  "timestamp": "2026-08-31T07:23:44.924703+00:00",
+  "production_apply_note": "manual step only",
+  "l2": {
+    "backup": {
+      "backup_path": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\reports\\rubika-remediation\\l5_production_apply\\backups\\20260831T072323Z\\mmp_db_pre_l5_20260831T072323Z.dump",
+      "sha256": "ced57addabdd0b46a8f3e91d65d2e4fd5c0f5f18a1bf4e0a11a91ec5f887a591",
+      "size_bytes": 206156,
+      "meta_path": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\reports\\rubika-remediation\\l5_production_apply\\backups\\20260831T072323Z\\mmp_db_pre_l5_20260831T072323Z.dump.meta.json",
+      "source_db": "mmp_db",
+      "created_at": "2026-08-31T07:23:23.591143+00:00",
+      "age_seconds": 21.334103
+    },
+    "source_hashes": {
+      "rubika_l2_canonical_session_001.py": "0d1b82fa765cdeeccea484f2c8ff5f53ab3d0201f8c4674b27f43069e27faec6",
+      "rubika_l3_login_challenge_001.py": "aed15577c4717c42b2a00d3bc6c86920760494d84a53c3b3a80fa762b9373587",
+      "scripts/_l5_production_schema_apply.py": "bd8c3d1aa8391e2720a8bf94164f787c2665f1ae4979f490318328dbbd6ae994"
+    },
+    "baseline": {
+      "alembic_version": "campaign_accounts_001",
+      "total_rubika_accounts": 43,
+      "total_channel_session_count": 15,
+      "account12_session_ids": [
+        657,
+        728
+      ],
+      "account79_session_ids": [
+        600
+      ],
+      "session_owners": {
+        "600": 79,
+        "657": 12,
+        "728": 12
+      },
+      "duplicate_account_ids": [
+        2,
+        12,
+        19,
+        81,
+        92
+      ],
+      "captured_at": "2026-08-31T07:23:46.685560+00:00"
+    },
+    "verify_l2": {
+      "alembic_version": "rubika_l2_canonical_session_001",
+      "total_sessions": 15,
+      "legacy_unclassified": 15,
+      "active": 0,
+      "account12": [
+        657,
+        728
+      ],
+      "account79": [
+        600
+      ],
+      "duplicates": [
+        2,
+        12,
+        19,
+        81,
+        92
+      ]
+    },
+    "STOP": true,
+    "next": "Operator reviews L2 verification before any L5_APPLY_STEP=l3"
+  }
+}

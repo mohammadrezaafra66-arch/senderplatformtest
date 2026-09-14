@@ -1,0 +1,69 @@
+{
+  "generated_at": "2026-09-01T10:19:52.666193+00:00",
+  "C1_EXECUTED_CUSTOM_FILES": [
+    "core_engine/services/campaign_sender_eligibility.py",
+    "core_engine/services/campaign_sender_assignment.py",
+    "core_engine/services/campaign_preflight.py",
+    "core_engine/api/campaigns.py",
+    "core_engine/api/accounts.py",
+    "core_engine/api/schemas.py",
+    "scripts/_c1_readonly_eligibility_sim.py",
+    "scripts/_c1_deploy.ps1"
+  ],
+  "C1_AUDITED_FILE_META": {
+    "core_engine/services/campaign_sender_eligibility.py": {
+      "PATH": "core_engine/services/campaign_sender_eligibility.py",
+      "SIZE": 11213,
+      "SHA256_AUDITED": "2531f361f969043ef1133289df5f47584d744c76d5d9dc89b3a8f04612062207"
+    },
+    "core_engine/services/campaign_sender_assignment.py": {
+      "PATH": "core_engine/services/campaign_sender_assignment.py",
+      "SIZE": 3284,
+      "SHA256_AUDITED": "42b6bc11718b0285d875e142b784be0d8024018032572488c1f136ac59e7ec73"
+    },
+    "core_engine/services/campaign_preflight.py": {
+      "PATH": "core_engine/services/campaign_preflight.py",
+      "SIZE": 49043,
+      "SHA256_AUDITED": "2ea05fdd135e480b88211c541fcbe2d1afc5a702dc223a4a52962ee75c7e336b"
+    },
+    "core_engine/api/campaigns.py": {
+      "PATH": "core_engine/api/campaigns.py",
+      "SIZE": 30589,
+      "SHA256_AUDITED": "4fbdfab6cc1b0d3b749855892bfe781a359e6131df9a4d7bb6c218eea4a3a2c1"
+    },
+    "core_engine/api/accounts.py": {
+      "PATH": "core_engine/api/accounts.py",
+      "SIZE": 30455,
+      "SHA256_AUDITED": "a97a93ea368785a46ec81ebb5b32799ab259a8f595ee70352c3e0df38e0867c6"
+    },
+    "core_engine/api/schemas.py": {
+      "PATH": "core_engine/api/schemas.py",
+      "SIZE": 25771,
+      "SHA256_AUDITED": "93600b9b8ba16fd286243d1cf4fe5dc65283e8cc8d15792fa939053bbff104d8"
+    },
+    "scripts/_c1_readonly_eligibility_sim.py": {
+      "PATH": "scripts/_c1_readonly_eligibility_sim.py",
+      "SIZE": 4680,
+      "SHA256_AUDITED": "613c1654bcfc68195e6d2b3867920cb9211aeb997031396b841edf3daed2754b"
+    },
+    "scripts/_c1_deploy.ps1": {
+      "PATH": "scripts/_c1_deploy.ps1",
+      "SIZE": 3318,
+      "SHA256_AUDITED": "a37abc79b1002254ca6c069d9bae81df839057bb42ba0ffc39464ae505dab6d9"
+    }
+  },
+  "C1_ALL_EXECUTED_CUSTOM_FILES_AUDITED": true,
+  "USES_ELIGIBILITY_FUNCTION": true,
+  "AUTO_SELECT_USES_ELIGIBILITY": true,
+  "SIM_READ_ONLY": true,
+  "OTP_PATH_PRESENT": false,
+  "MESSAGE_PATH_PRESENT": false,
+  "DB_MIGRATION_PATH_PRESENT": false,
+  "L17_CONFIG_MUTATION_PATH": false,
+  "SESSION_MUTATION_PATH": false,
+  "C1_DEPLOY_SCOPE_EXACT": true,
+  "C1_HASH_LOCK_PASS": true,
+  "C1_ROLLBACK_READY": true,
+  "failures": [],
+  "C1_SOURCE_AUDIT_PASS": true
+}

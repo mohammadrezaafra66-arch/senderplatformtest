@@ -1,0 +1,63 @@
+{
+  "generated_at": "2026-09-01T18:47:00+03:30",
+  "matrix": [
+    {
+      "case": "A",
+      "gpt": false,
+      "products": false,
+      "create_pass": true,
+      "auto_prepare": true,
+      "final_message": true,
+      "render_status": "rendered",
+      "preflight": true,
+      "start_eligibility": "when_sender_ready",
+      "test": "test_new_campaign_auto_prepares_plain_text"
+    },
+    {
+      "case": "B",
+      "gpt": true,
+      "products": false,
+      "create_pass": true,
+      "auto_prepare": true,
+      "final_message": true,
+      "render_status": "rendered",
+      "preflight": true,
+      "start_eligibility": "when_sender_ready",
+      "test": "test_gpt_auto_prepare_pass"
+    },
+    {
+      "case": "C",
+      "gpt": false,
+      "products": true,
+      "create_pass": true,
+      "auto_prepare": true,
+      "final_message": true,
+      "render_status": "rendered",
+      "preflight": true,
+      "start_eligibility": "when_sender_ready",
+      "test": "test_products_on_auto_prepare_pass"
+    },
+    {
+      "case": "D",
+      "gpt": true,
+      "products": true,
+      "create_pass": true,
+      "auto_prepare": "blocked_when_insufficient_feed",
+      "final_message": false,
+      "blocker": "INSUFFICIENT_ADVERTISING_PRODUCTS",
+      "test": "test_products_on_blocked_when_insufficient"
+    }
+  ],
+  "additional_tests": {
+    "auto_prepare_after_sender_update": "PASS",
+    "prepare_idempotent": "PASS",
+    "product_free_independent": "PASS",
+    "gpt_failure_surfaces": "PASS",
+    "blocked_draft_stays_draft": "PASS",
+    "concurrent_prepare_safe": "PASS",
+    "manual_prepare_suite": "14/14 PASS",
+    "auto_prepare_suite": "10/10 PASS"
+  },
+  "GLOBAL_PREPARATION_BACKEND_TESTS_FAILED": 0,
+  "GLOBAL_PREPARATION_FRONTEND_TESTS_FAILED": 0
+}

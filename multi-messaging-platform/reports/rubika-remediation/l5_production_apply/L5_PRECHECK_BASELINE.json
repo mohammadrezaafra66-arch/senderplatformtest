@@ -1,0 +1,25 @@
+{
+  "alembic_version": "campaign_accounts_001",
+  "total_rubika_accounts": 43,
+  "total_channel_session_count": 15,
+  "account12_session_ids": [
+    657,
+    728
+  ],
+  "account79_session_ids": [
+    600
+  ],
+  "session_owners": {
+    "600": 79,
+    "657": 12,
+    "728": 12
+  },
+  "duplicate_account_ids": [
+    2,
+    12,
+    19,
+    81,
+    92
+  ],
+  "captured_at": "2026-08-31T07:23:46.685560+00:00"
+}

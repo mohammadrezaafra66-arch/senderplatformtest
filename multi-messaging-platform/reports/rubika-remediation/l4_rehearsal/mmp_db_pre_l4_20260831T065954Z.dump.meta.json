@@ -1,0 +1,8 @@
+{
+  "path": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\reports\\rubika-remediation\\l4_rehearsal\\mmp_db_pre_l4_20260831T065954Z.dump",
+  "sha256": "9d102681dd83c5cffca5a16998cea973d04715f406bf6b8db07d0ff14969374c",
+  "created_at": "20260831T065954Z",
+  "source_db": "mmp_db",
+  "source_mode": "pg_dump_read_only",
+  "mutation": false
+}

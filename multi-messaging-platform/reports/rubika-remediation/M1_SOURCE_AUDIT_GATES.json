@@ -1,0 +1,112 @@
+{
+  "generated_at": "2026-09-01T09:38:30.484888+00:00",
+  "generated_by": "scripts/_m1_source_audit_gates.py",
+  "M1_EXECUTED_CUSTOM_FILES": [
+    "scripts/_m1_manual_review_forensic_audit.py",
+    "scripts/_m1_forensic_auth_probe.py",
+    "scripts/_m1_pre_audit_sentinels.py",
+    "scripts/_m1_run_readonly_forensic.ps1"
+  ],
+  "M1_ALL_EXECUTED_CUSTOM_FILES_AUDITED": true,
+  "M1_SCRIPT_EXISTS": true,
+  "M1_SCRIPT_PATH": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\scripts\\_m1_manual_review_forensic_audit.py",
+  "M1_SCRIPT_SIZE": 53180,
+  "M1_SCRIPT_SHA256_AUDITED": "d06a83b1def28631bdb113b6aa0799653e1eeeb7daa2919a9bca370ce8de4100",
+  "M1_AUTH_PROBE_SHA256_AUDITED": "367d1d603ac81edc9cca41573fe6fab8d4f91ec5324c66cdc5465959ce433c91",
+  "M1_SENTINEL_SHA256_AUDITED": "5f8ccac772015a046434424da812bc54df82958dce0207a7780e28eeaadd6dce",
+  "M1_RUNNER_SHA256_AUDITED": "2a6e6687403586b33f95a4cc82fe13aa7fe45cf824699880b37efcbf29be7b81",
+  "M1_HELPER_HASHES": {
+    "scripts/_m1_manual_review_forensic_audit.py": "d06a83b1def28631bdb113b6aa0799653e1eeeb7daa2919a9bca370ce8de4100",
+    "scripts/_m1_forensic_auth_probe.py": "367d1d603ac81edc9cca41573fe6fab8d4f91ec5324c66cdc5465959ce433c91",
+    "scripts/_m1_pre_audit_sentinels.py": "5f8ccac772015a046434424da812bc54df82958dce0207a7780e28eeaadd6dce",
+    "scripts/_m1_run_readonly_forensic.ps1": "2a6e6687403586b33f95a4cc82fe13aa7fe45cf824699880b37efcbf29be7b81"
+  },
+  "M1_AUDITED_FILE_META": {
+    "scripts/_m1_manual_review_forensic_audit.py": {
+      "PATH": "scripts/_m1_manual_review_forensic_audit.py",
+      "SIZE": 53180,
+      "SHA256_AUDITED": "d06a83b1def28631bdb113b6aa0799653e1eeeb7daa2919a9bca370ce8de4100"
+    },
+    "scripts/_m1_forensic_auth_probe.py": {
+      "PATH": "scripts/_m1_forensic_auth_probe.py",
+      "SIZE": 9434,
+      "SHA256_AUDITED": "367d1d603ac81edc9cca41573fe6fab8d4f91ec5324c66cdc5465959ce433c91"
+    },
+    "scripts/_m1_pre_audit_sentinels.py": {
+      "PATH": "scripts/_m1_pre_audit_sentinels.py",
+      "SIZE": 5348,
+      "SHA256_AUDITED": "5f8ccac772015a046434424da812bc54df82958dce0207a7780e28eeaadd6dce"
+    },
+    "scripts/_m1_run_readonly_forensic.ps1": {
+      "PATH": "scripts/_m1_run_readonly_forensic.ps1",
+      "SIZE": 7730,
+      "SHA256_AUDITED": "2a6e6687403586b33f95a4cc82fe13aa7fe45cf824699880b37efcbf29be7b81"
+    }
+  },
+  "FORENSIC_TARGET_IDS": [
+    2,
+    12,
+    19,
+    81,
+    92
+  ],
+  "UNAUTHORIZED_ACCOUNT_PROBE_PRESENT": false,
+  "DB_READ_ONLY_ENFORCED": true,
+  "M1_FORENSIC_DB_READ_ONLY_ENFORCED": true,
+  "M1_SENTINEL_DB_READ_ONLY_ENFORCED": true,
+  "M1_SENTINEL_DB_READ_ONLY": true,
+  "DB_WRITE_PATH_PRESENT": false,
+  "ORM_AUTOFLUSH_WRITE_RISK": false,
+  "ORM_COMMIT_PATH_PRESENT": false,
+  "ORM_FLUSH_PATH_PRESENT": false,
+  "REDIS_READ_ONLY": true,
+  "REDIS_MUTATION_PATH_PRESENT": false,
+  "M1_SENTINEL_REDIS_READ_ONLY": true,
+  "M1_SENTINEL_DB_MUTATION_PATH": false,
+  "M1_SENTINEL_REDIS_MUTATION_PATH": false,
+  "M1_SENTINEL_SESSION_MUTATION_PATH": false,
+  "M1_SENTINEL_LOGIN_MUTATION_PATH": false,
+  "M1_SENTINEL_MESSAGE_MUTATION_PATH": false,
+  "M1_SENTINEL_RUNTIME_MUTATION_PATH": false,
+  "RUBIKA_AUTH_PROBE_READ_ONLY": true,
+  "RUBIKA_AUTH_PROBE_PERSISTS_SESSION": false,
+  "RUBIKA_AUTH_PROBE_REQUESTS_OTP": false,
+  "RUBIKA_AUTH_PROBE_SUBMITS_OTP": false,
+  "RUBIKA_AUTH_PROBE_SENDS_MESSAGE": false,
+  "RUBIKA_AUTH_PROBE_LOGOUTS_OR_REVOKES": false,
+  "RUBIKA_AUTH_PROBE_WRITES_REDIS": false,
+  "RUBIKA_AUTH_PROBE_WRITES_DB": false,
+  "M1_NETWORK_MUTATION_PRESENT": false,
+  "SESSION_MUTATION_PATH_PRESENT": false,
+  "IDENTITY_MUTATION_PATH_PRESENT": false,
+  "LOGIN_MUTATION_PATH_PRESENT": false,
+  "MESSAGE_MUTATION_PATH_PRESENT": false,
+  "WORKER_MUTATION_PATH_PRESENT": false,
+  "CONFIG_MUTATION_PATH_PRESENT": false,
+  "POOL_MUTATION_PATH_PRESENT": false,
+  "REPORT_WRITE_SCOPE_EXACT": true,
+  "M1_SENTINEL_SOURCE_AUDIT_PASS": true,
+  "M1_RUNNER_SOURCE_AUDIT_PASS": true,
+  "forbidden_call_hits": [],
+  "redis_mutation_call_hits": [],
+  "runner_dangerous": [],
+  "runner_missing_required": [],
+  "M1_SOURCE_AUDIT_PASS": true,
+  "failures": [],
+  "M1_SCRIPT_HASH_LOCK_PASS": null,
+  "M1_AUTH_PROBE_HASH_LOCK_PASS": null,
+  "M1_SENTINEL_HASH_LOCK_PASS": null,
+  "M1_RUNNER_HASH_LOCK_PASS": null,
+  "M1_ALL_HELPER_HASH_LOCK_PASS": null,
+  "M1_PREEXEC_ALL_GATES_PASS": null,
+  "M1_GATE_FILE_SELF_CONSISTENT": true,
+  "M1_SCRIPT_SHA256_PREEXEC_EXPECTED": "d06a83b1def28631bdb113b6aa0799653e1eeeb7daa2919a9bca370ce8de4100",
+  "M1_HELPER_HASHES_PREEXEC_EXPECTED": {
+    "scripts/_m1_manual_review_forensic_audit.py": "d06a83b1def28631bdb113b6aa0799653e1eeeb7daa2919a9bca370ce8de4100",
+    "scripts/_m1_forensic_auth_probe.py": "367d1d603ac81edc9cca41573fe6fab8d4f91ec5324c66cdc5465959ce433c91",
+    "scripts/_m1_pre_audit_sentinels.py": "5f8ccac772015a046434424da812bc54df82958dce0207a7780e28eeaadd6dce",
+    "scripts/_m1_run_readonly_forensic.ps1": "2a6e6687403586b33f95a4cc82fe13aa7fe45cf824699880b37efcbf29be7b81"
+  },
+  "M1_SOURCE_AUDIT_GATES_SHA256": "7f0331ead12d2d11ebbe4d0ec2575cfc1ac79dc8e50bd7901c989f8daa0866ca",
+  "M1_GATE_FILE_CURRENT": true
+}

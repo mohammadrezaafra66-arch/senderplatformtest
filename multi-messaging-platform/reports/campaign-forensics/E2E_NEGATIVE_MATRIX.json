@@ -1,0 +1,15 @@
+{
+  "generated_at": "2026-09-01T12:00:00+00:00",
+  "NEGATIVE_E2E_PASS": true,
+  "cases": [
+    {"case": "LOGIN_REQUIRED", "expected_blocker": "LOGIN_REQUIRED", "layer": "C1", "pass": true},
+    {"case": "MANUAL_REVIEW", "expected_blocker": "MANUAL_REVIEW", "layer": "C1", "pass": true},
+    {"case": "SESSION_ERROR", "expected_blocker": "SESSION_ERROR", "layer": "C1", "pass": true},
+    {"case": "AUTHENTICATED_NO_WORKER", "expected_blocker": "AUTHENTICATED_NO_WORKER", "layer": "C1", "pass": true},
+    {"case": "CAPACITY_EXHAUSTED", "expected_blocker": "CAPACITY_EXHAUSTED", "layer": "C1+capacity", "pass": true},
+    {"case": "assigned_manual_review_start", "expected": "ASSIGNED_SENDER_MANUAL_REVIEW", "layer": "start_blocker", "pass": true},
+    {"case": "campaign_not_prepared", "expected": "CAMPAIGN_NOT_PREPARED", "layer": "preflight", "pass": true},
+    {"case": "double_start", "expected": "idempotent already running message", "layer": "campaign_control", "pass": true}
+  ],
+  "test_file": "tests/core_engine/test_e2e_campaign_golden_path.py"
+}

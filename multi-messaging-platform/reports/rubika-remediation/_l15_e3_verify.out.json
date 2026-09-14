@@ -1,0 +1,242 @@
+{
+  "ok": true,
+  "canonical_mode": "enforce",
+  "canonical_allow": "13,23,74",
+  "allowlist": [
+    13,
+    23,
+    74
+  ],
+  "obs": [
+    {
+      "actual": [
+        12,
+        13,
+        23,
+        74,
+        79
+      ],
+      "coverage": {
+        "12": {
+          "cov": true,
+          "q": 0
+        },
+        "13": {
+          "cov": true,
+          "q": 0
+        },
+        "23": {
+          "cov": true,
+          "q": 0
+        },
+        "74": {
+          "cov": true,
+          "q": 0
+        },
+        "79": {
+          "cov": true,
+          "q": 0
+        }
+      },
+      "mode": "dynamic",
+      "cohort": [
+        13,
+        23,
+        74
+      ]
+    },
+    {
+      "actual": [
+        12,
+        13,
+        23,
+        74,
+        79
+      ],
+      "coverage": {
+        "12": {
+          "cov": true,
+          "q": 0
+        },
+        "13": {
+          "cov": true,
+          "q": 0
+        },
+        "23": {
+          "cov": true,
+          "q": 0
+        },
+        "74": {
+          "cov": true,
+          "q": 0
+        },
+        "79": {
+          "cov": true,
+          "q": 0
+        }
+      },
+      "mode": "dynamic",
+      "cohort": [
+        13,
+        23,
+        74
+      ]
+    },
+    {
+      "actual": [
+        12,
+        13,
+        23,
+        74,
+        79
+      ],
+      "coverage": {
+        "12": {
+          "cov": true,
+          "q": 0
+        },
+        "13": {
+          "cov": true,
+          "q": 0
+        },
+        "23": {
+          "cov": true,
+          "q": 0
+        },
+        "74": {
+          "cov": true,
+          "q": 0
+        },
+        "79": {
+          "cov": true,
+          "q": 0
+        }
+      },
+      "mode": "dynamic",
+      "cohort": [
+        13,
+        23,
+        74
+      ]
+    }
+  ],
+  "stable": true,
+  "accounts": {
+    "13": {
+      "in_enforce": true,
+      "runtime_session_id": 729,
+      "runtime_source": "canonical_enforce",
+      "runtime_mode": "enforce",
+      "shadow": {
+        "account_id": 13,
+        "legacy_selected_session_id": 729,
+        "canonical_selected_session_id": 729,
+        "canonical_error": null,
+        "match": true,
+        "metric": "SHADOW_MATCH"
+      },
+      "expected_session": 729,
+      "dispatch_readiness": true,
+      "dispatch_err": null,
+      "reconnect": {
+        "ok": true,
+        "code": "PROOF_PASS",
+        "identity_match": true,
+        "duration_ms": 275,
+        "sanitized_message": "authenticated reconnect and identity verified"
+      }
+    },
+    "23": {
+      "in_enforce": true,
+      "runtime_session_id": 725,
+      "runtime_source": "canonical_enforce",
+      "runtime_mode": "enforce",
+      "shadow": {
+        "account_id": 23,
+        "legacy_selected_session_id": 725,
+        "canonical_selected_session_id": 725,
+        "canonical_error": null,
+        "match": true,
+        "metric": "SHADOW_MATCH"
+      },
+      "expected_session": 725,
+      "dispatch_readiness": true,
+      "dispatch_err": null,
+      "reconnect": {
+        "ok": true,
+        "code": "PROOF_PASS",
+        "identity_match": true,
+        "duration_ms": 402,
+        "sanitized_message": "authenticated reconnect and identity verified"
+      }
+    },
+    "74": {
+      "in_enforce": true,
+      "runtime_session_id": 724,
+      "runtime_source": "canonical_enforce",
+      "runtime_mode": "enforce",
+      "shadow": {
+        "account_id": 74,
+        "legacy_selected_session_id": 724,
+        "canonical_selected_session_id": 724,
+        "canonical_error": null,
+        "match": true,
+        "metric": "SHADOW_MATCH"
+      },
+      "expected_session": 724,
+      "dispatch_readiness": true,
+      "dispatch_err": null,
+      "reconnect": {
+        "ok": true,
+        "code": "PROOF_PASS",
+        "identity_match": true,
+        "duration_ms": 221,
+        "sanitized_message": "authenticated reconnect and identity verified"
+      }
+    }
+  },
+  "account_ok": {
+    "13": true,
+    "23": true,
+    "74": true
+  },
+  "actual": [
+    12,
+    13,
+    23,
+    74,
+    79
+  ],
+  "coverage": {
+    "12": {
+      "cov": true,
+      "q": 0
+    },
+    "13": {
+      "cov": true,
+      "q": 0
+    },
+    "23": {
+      "cov": true,
+      "q": 0
+    },
+    "74": {
+      "cov": true,
+      "q": 0
+    },
+    "79": {
+      "cov": true,
+      "q": 0
+    }
+  },
+  "global_active": 3,
+  "msg": 5,
+  "login": 0,
+  "msg_baseline": 5,
+  "login_baseline": 0,
+  "counts_ok": true,
+  "a12": "657:legacy_unclassified,728:legacy_unclassified",
+  "a79": "600:legacy_unclassified",
+  "message_sent": false,
+  "otp_requested": false
+}

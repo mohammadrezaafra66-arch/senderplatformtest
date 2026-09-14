@@ -1,0 +1,174 @@
+{
+  "observations": [
+    {
+      "i": 1,
+      "probe": {
+        "ok": true,
+        "mode": "dynamic",
+        "cohort": [
+          13,
+          23,
+          27,
+          74
+        ],
+        "pin": [
+          12,
+          79
+        ],
+        "actual": [
+          12,
+          13,
+          23,
+          27,
+          74,
+          79
+        ],
+        "canon_mode": "enforce",
+        "canon_allow": "13,23,74"
+      },
+      "coverage": {
+        "12": {
+          "cov": true,
+          "q": 0
+        },
+        "13": {
+          "cov": true,
+          "q": 0
+        },
+        "23": {
+          "cov": true,
+          "q": 0
+        },
+        "27": {
+          "cov": true,
+          "q": 0
+        },
+        "74": {
+          "cov": true,
+          "q": 0
+        },
+        "79": {
+          "cov": true,
+          "q": 0
+        }
+      }
+    },
+    {
+      "i": 2,
+      "probe": {
+        "ok": true,
+        "mode": "dynamic",
+        "cohort": [
+          13,
+          23,
+          27,
+          74
+        ],
+        "pin": [
+          12,
+          79
+        ],
+        "actual": [
+          12,
+          13,
+          23,
+          27,
+          74,
+          79
+        ],
+        "canon_mode": "enforce",
+        "canon_allow": "13,23,74"
+      },
+      "coverage": {
+        "12": {
+          "cov": true,
+          "q": 0
+        },
+        "13": {
+          "cov": true,
+          "q": 0
+        },
+        "23": {
+          "cov": true,
+          "q": 0
+        },
+        "27": {
+          "cov": true,
+          "q": 0
+        },
+        "74": {
+          "cov": true,
+          "q": 0
+        },
+        "79": {
+          "cov": true,
+          "q": 0
+        }
+      }
+    },
+    {
+      "i": 3,
+      "probe": {
+        "ok": true,
+        "mode": "dynamic",
+        "cohort": [
+          13,
+          23,
+          27,
+          74
+        ],
+        "pin": [
+          12,
+          79
+        ],
+        "actual": [
+          12,
+          13,
+          23,
+          27,
+          74,
+          79
+        ],
+        "canon_mode": "enforce",
+        "canon_allow": "13,23,74"
+      },
+      "coverage": {
+        "12": {
+          "cov": true,
+          "q": 0
+        },
+        "13": {
+          "cov": true,
+          "q": 0
+        },
+        "23": {
+          "cov": true,
+          "q": 0
+        },
+        "27": {
+          "cov": true,
+          "q": 0
+        },
+        "74": {
+          "cov": true,
+          "q": 0
+        },
+        "79": {
+          "cov": true,
+          "q": 0
+        }
+      }
+    }
+  ],
+  "PILOT_WORKER_PRESENT": true,
+  "PILOT_WORKER_HEALTH_PASS": true,
+  "PILOT_WORKER_COVERAGE_STABLE": true,
+  "ACTUAL_WORKER_IDS": [
+    12,
+    13,
+    23,
+    27,
+    74,
+    79
+  ]
+}

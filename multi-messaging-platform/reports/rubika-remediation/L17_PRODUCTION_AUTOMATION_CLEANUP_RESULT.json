@@ -1,0 +1,274 @@
+{
+  "PRODUCTION_AUTOMATION_CLEANUP_EXECUTED": true,
+  "CONFIG_FILE": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\docker-compose.override.yml",
+  "CORE_API_L17_CONSUMER": true,
+  "RUBIKA_WORKER_L17_CONSUMER": true,
+  "CELERY_L17_CONSUMER": false,
+  "RUBIKA_WORKER_REBUILD_REQUIRED": true,
+  "RUBIKA_L3_LOGIN_ROUTING": "auto_evidence",
+  "AUTO_ENROLL_RUBIKA_POOL": true,
+  "RUBIKA_WORKER_DISCOVERY_SCOPE": "all_eligible",
+  "RUBIKA_CANONICAL_SESSION_SCOPE": "canonical_active",
+  "AUTO_CANONICAL_ENFORCE_ACCOUNT_IDS": [
+    13,
+    23,
+    27,
+    74
+  ],
+  "DYNAMIC_ELIGIBLE_IDS": [
+    13,
+    23,
+    27,
+    74,
+    79
+  ],
+  "ACTUAL_WORKER_IDS": [
+    12,
+    13,
+    23,
+    27,
+    74,
+    79
+  ],
+  "ACCOUNT12_PROTECTED": true,
+  "ACCOUNT79_PROTECTED": true,
+  "WORKER_PIN_12_79_PRESERVED": true,
+  "GLOBAL_ACTIVE_SESSION_COUNT": 4,
+  "NEW_ACCOUNT_AUTO_LOGIN_L3_READY": true,
+  "NEW_ACCOUNT_AUTO_SESSION_PROMOTION_READY": true,
+  "NEW_ACCOUNT_AUTO_POOL_READY": true,
+  "NEW_ACCOUNT_AUTO_DISCOVERY_READY": true,
+  "NEW_ACCOUNT_AUTO_WORKER_COVERAGE_READY": true,
+  "NEW_ACCOUNT_AUTO_CANONICAL_ENFORCE_READY": true,
+  "FULL_AUTOMATIC_NEW_ACCOUNT_LIFECYCLE_READY": true,
+  "L17_PRODUCTION_OBSERVATION_COUNT": 3,
+  "L17_PRODUCTION_AUTOMATION_STABLE": true,
+  "MESSAGE_SENT": false,
+  "OTP_REQUESTED": false,
+  "ROLLBACK_PERFORMED": false,
+  "ROLLBACK_RESULT": null,
+  "ROLLBACK_FILE": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\docker-compose.override.yml.before-l17-automation-20260831_132509.bak",
+  "ROLLBACK_SHA256": "b9c23cb69b9450caa69c47cabb2cf2b7fcb497ff45591b42c9fa4d4db2edd8b3",
+  "CURRENT_PHASE": "L17_FULL_NEW_ACCOUNT_AUTOMATION_PRODUCTION",
+  "PHASE_STATUS": "COMPLETE",
+  "NEXT_SAFE_ACTION": "L18 final production reconciliation + UI truth audit across all 48 accounts",
+  "observe": [
+    {
+      "i": 1,
+      "actual": [
+        12,
+        13,
+        23,
+        27,
+        74,
+        79
+      ],
+      "enforce": [
+        13,
+        23,
+        27,
+        74
+      ],
+      "dynamic": [
+        13,
+        23,
+        27,
+        74,
+        79
+      ],
+      "global_active": 4,
+      "actives": {
+        "13": 729,
+        "23": 725,
+        "27": 772,
+        "74": 724
+      },
+      "msg": 5,
+      "challenges": 3
+    },
+    {
+      "i": 2,
+      "actual": [
+        12,
+        13,
+        23,
+        27,
+        74,
+        79
+      ],
+      "enforce": [
+        13,
+        23,
+        27,
+        74
+      ],
+      "dynamic": [
+        13,
+        23,
+        27,
+        74,
+        79
+      ],
+      "global_active": 4,
+      "actives": {
+        "13": 729,
+        "23": 725,
+        "27": 772,
+        "74": 724
+      },
+      "msg": 5,
+      "challenges": 3
+    },
+    {
+      "i": 3,
+      "actual": [
+        12,
+        13,
+        23,
+        27,
+        74,
+        79
+      ],
+      "enforce": [
+        13,
+        23,
+        27,
+        74
+      ],
+      "dynamic": [
+        13,
+        23,
+        27,
+        74,
+        79
+      ],
+      "global_active": 4,
+      "actives": {
+        "13": 729,
+        "23": 725,
+        "27": 772,
+        "74": 724
+      },
+      "msg": 5,
+      "challenges": 3
+    }
+  ],
+  "api_env": {
+    "ok": true,
+    "l3_routing": "auto_evidence",
+    "auto_enroll": true,
+    "canon_mode": "enforce",
+    "canon_allow": "13,23,27,74",
+    "canon_scope": "canonical_active",
+    "pilot": "27"
+  },
+  "worker_probe": {
+    "ok": true,
+    "mode": "dynamic",
+    "cohort": [
+      13,
+      23,
+      27,
+      74
+    ],
+    "pin": [
+      12,
+      79
+    ],
+    "scope": "all_eligible",
+    "canon_mode": "enforce",
+    "canon_allow": "13,23,27,74",
+    "canon_scope": "canonical_active",
+    "auto_enroll": true,
+    "actual": [
+      12,
+      13,
+      23,
+      27,
+      74,
+      79
+    ]
+  },
+  "impact": {
+    "READ_ONLY": true,
+    "phase": "day",
+    "AUTO_L3_ACCOUNT_IDS": [
+      3,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      67,
+      69,
+      70,
+      72,
+      73,
+      74,
+      76,
+      77,
+      78,
+      80,
+      82,
+      83,
+      84,
+      85,
+      86,
+      87,
+      88,
+      89,
+      91
+    ],
+    "AUTO_CANONICAL_ENFORCE_ACCOUNT_IDS": [
+      13,
+      23,
+      27,
+      74
+    ],
+    "LEGACY_PROTECTED_ACCOUNT_IDS": [
+      1,
+      2,
+      12,
+      19,
+      79,
+      81,
+      92
+    ],
+    "DYNAMIC_ELIGIBLE_IDS": [
+      13,
+      23,
+      27,
+      74,
+      79
+    ],
+    "RESULTING_WORKER_IDS": [
+      12,
+      13,
+      23,
+      27,
+      74,
+      79
+    ],
+    "ACCOUNT12_PROTECTED": true,
+    "ACCOUNT79_PROTECTED": true,
+    "WORKER_PIN_12_79_PRESERVED": true,
+    "EXPECTED_ENFORCE_SUBSET_OK": true,
+    "UNSAFE_ENFORCE_IDS": [],
+    "PRODUCTION_IMPACT_SIMULATION_PASS": true,
+    "NEW_ACCOUNT_SCHEDULE_AUTOMATION_REQUIRED": false,
+    "SCHEDULE_NOTE": "RubikaSenderSchedule is global phase windows (Iran TZ), not per-account. Dispatch eligibility requires being inside an active window; auto-creating business schedules is intentionally out of scope."
+  },
+  "baseline_msg": 5,
+  "baseline_challenges": 3
+}

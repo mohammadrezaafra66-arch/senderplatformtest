@@ -1,0 +1,82 @@
+{
+  "generated_at": "2026-09-02T11:18:00+03:30",
+  "controlled_production_enabled_current": true,
+  "verification_method": "isolated_tests_plus_exact_artifact_equivalence_plus_live_readonly_ui",
+  "production_start_click_intentionally_not_performed": true,
+  "tests": {
+    "isolation": {
+      "TEST_DB_IS_PRODUCTION": false,
+      "TEST_REDIS_IS_PRODUCTION": false,
+      "TEST_QUEUE_IS_FAKE": true,
+      "TEST_EXTERNAL_SEND_POSSIBLE": false,
+      "network": "mmp_test_isolation"
+    },
+    "backend_api": {
+      "executed": true,
+      "failed": 0,
+      "passed": 20,
+      "files": [
+        "tests/api/test_controlled_production_gate_hermetic.py",
+        "tests/api/test_controlled_production_gate.py"
+      ]
+    },
+    "frontend": {
+      "executed": true,
+      "failed": 0,
+      "passed": 19,
+      "files": [
+        "src/components/ConfirmDialog.controlled.test.ts",
+        "src/lib/controlled-production.frontend.test.ts",
+        "src/lib/campaign-api.start.test.ts",
+        "src/utils/campaign-preflight-display.test.ts"
+      ]
+    },
+    "isolated_modal": {
+      "render_pass": true,
+      "persian_pass": true,
+      "counts_pass": true,
+      "cancel_start_api_calls": 0,
+      "confirm_request_count": 1,
+      "confirm_body_pass": true
+    }
+  },
+  "artifacts": {
+    "source_manifest_sha256": "ecf21f912c46e367696cc65a18dc01c46dba162d2ace55c5052b7a880f7e5bbe",
+    "tested_frontend_build_id": "sha256:1a1be3bf1527670fc3f764ae0ce0fc16ab4e11b215d1631ae2ae7fd72cfbfdae",
+    "deployed_frontend_build_id": "sha256:1a1be3bf1527670fc3f764ae0ce0fc16ab4e11b215d1631ae2ae7fd72cfbfdae",
+    "tested_controlled_bundle_sha256": "c3f6ebab649e01d79440be44c541f93c6c8541e75d87bd9d72a0fa52241fe6e0",
+    "deployed_controlled_bundle_sha256": "c3f6ebab649e01d79440be44c541f93c6c8541e75d87bd9d72a0fa52241fe6e0",
+    "exact_tested_frontend_artifact_live": true
+  },
+  "live_campaigns": {
+    "125": {
+      "prepared": true,
+      "technical_ready_ui": true,
+      "controlled_confirm_required_ui": true,
+      "start_button_rendered": true,
+      "ui_pass": true
+    },
+    "126": {
+      "prepared": true,
+      "technical_ready_ui": true,
+      "controlled_confirm_required_ui": true,
+      "start_button_rendered": true,
+      "ui_pass": true
+    },
+    "127": {
+      "prepared": true,
+      "technical_ready_ui": true,
+      "controlled_confirm_required_ui": true,
+      "start_button_rendered": true,
+      "ui_pass": true
+    }
+  },
+  "side_effects": {
+    "production_start_button_click_count": 0,
+    "production_confirm_button_click_count": 0,
+    "production_start_post_count": 0,
+    "external_send_attempts": 0,
+    "message_sent": false,
+    "m4_started": false
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "generated_at": "2026-09-01T08:30:44.575772+00:00",
+  "L18_DEPLOY_SCRIPT_EXISTS": true,
+  "L18_DEPLOY_SCRIPT_PATH": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\scripts\\_l18_production_deploy.py",
+  "L18_DEPLOY_SCRIPT_SIZE": 23728,
+  "L18_DEPLOY_SCRIPT_SHA256_PREAUDIT": "a51a590fb7b60403de4b4dd61726d04ae8a7293a81d156c35506b889f11c0961",
+  "L18_DEPLOY_SCRIPT_SHA256_AUDITED": "a51a590fb7b60403de4b4dd61726d04ae8a7293a81d156c35506b889f11c0961",
+  "L18_DEPLOY_SCRIPT_GIT_STATE": "untracked",
+  "L18_DEPLOY_MUTATION_SCOPE_EXACT": true,
+  "services_touched": [
+    "core_api",
+    "frontend"
+  ],
+  "helper": {
+    "path": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\scripts\\_l18_production_truth_audit.py",
+    "size": 8235,
+    "sha256": "6d53b4e5047585559e71079a09f8a09b748d673206267a68c8d7f562201b72f8",
+    "git_state": "untracked",
+    "read_only": true,
+    "audit_pass": true
+  },
+  "OTP_REQUEST_EXECUTABLE_PATH_PRESENT": false,
+  "OTP_SUBMIT_EXECUTABLE_PATH_PRESENT": false,
+  "MESSAGE_SEND_EXECUTABLE_PATH_PRESENT": false,
+  "MESSAGE_ENQUEUE_EXECUTABLE_PATH_PRESENT": false,
+  "SESSION_MUTATION_EXECUTABLE_PATH_PRESENT": false,
+  "IDENTITY_MUTATION_EXECUTABLE_PATH_PRESENT": false,
+  "POOL_MUTATION_EXECUTABLE_PATH_PRESENT": false,
+  "DB_MIGRATION_EXECUTABLE_PATH_PRESENT": false,
+  "DESTRUCTIVE_DB_PATH_PRESENT": false,
+  "UNRELATED_FRONTEND_MUTATION_PRESENT": false,
+  "ROLLBACK_SCOPE_EXACT": true,
+  "l17_keys_intact_in_override": true,
+  "forbidden_calls_found": [],
+  "WORKER_CONFIG_MUTATION_EXECUTABLE_PATH_PRESENT": false,
+  "CANONICAL_CONFIG_MUTATION_EXECUTABLE_PATH_PRESENT": false,
+  "L17_CONFIG_MUTATION_EXECUTABLE_PATH_PRESENT": false,
+  "L18_DIRECT_HELPERS_AUDITED": true,
+  "L18_DIRECT_HELPERS_HASH_LOCK_PASS": true,
+  "L18_DEPLOY_SCRIPT_HASH_LOCK_PASS": true,
+  "L18_DEPLOY_SCRIPT_AUDIT_PASS": true
+}

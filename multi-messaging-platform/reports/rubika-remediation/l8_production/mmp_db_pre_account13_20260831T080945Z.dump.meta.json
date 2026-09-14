@@ -1,0 +1,11 @@
+{
+  "BACKUP_PATH": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\reports\\rubika-remediation\\l8_production\\mmp_db_pre_account13_20260831T080945Z.dump",
+  "backup_path": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\reports\\rubika-remediation\\l8_production\\mmp_db_pre_account13_20260831T080945Z.dump",
+  "BACKUP_SHA256": "f1d1d114b97624600fbe2eaabd3cfa93aa56669cc3366596efff477c02b43acb",
+  "sha256": "f1d1d114b97624600fbe2eaabd3cfa93aa56669cc3366596efff477c02b43acb",
+  "BACKUP_TIMESTAMP": "20260831T080945Z",
+  "created_at": "20260831T080945Z",
+  "BACKUP_SIZE": 212582,
+  "size_bytes": 212582,
+  "source_db": "mmp_db"
+}

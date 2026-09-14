@@ -1,0 +1,397 @@
+{
+  "EXPECTED_DELETE_ACCOUNTS_STILL_PRESENT": 39,
+  "EXPECTED_DELETE_CAMPAIGNS_STILL_PRESENT": 56,
+  "ACCOUNT2269_PRESERVED": true,
+  "CAMPAIGN183_PRESERVED": true,
+  "CAMPAIGN191_PRESERVED": true,
+  "CAMPAIGN199_PRESERVED": true,
+  "CAMPAIGN232_PRESERVED": true,
+  "CAMPAIGN233_PRESERVED": true,
+  "CAMPAIGN233_ATTEMPTS_PRESERVED": 2,
+  "PREVIOUS_CLEANUP_FULLY_ROLLED_BACK": true,
+  "CLEANUP_PLAN_SHA256": "8c491cbb5d7174bff661376a44853453e5c19307767f5f2b939fbb39ef53a7c3",
+  "CLEANUP_PLAN_HASH_MATCH": true,
+  "DELETE_ACCOUNT_COUNT": 39,
+  "DELETE_CAMPAIGN_COUNT": 56,
+  "ACCOUNT2269_SELECTED_FOR_DELETE": false,
+  "RUNNING_CAMPAIGNS_SELECTED_FOR_DELETE": 0,
+  "DELETE_ID_SET_CHANGED": false,
+  "NEW_CLEANUP_SCRIPT_SHA256": "2263649485728ff0f996983325a1b9ef4a02cc8721d44676a6eb6148cf5febc0",
+  "OLD_CLEANUP_SCRIPT_SHA256": "9eed2e098612b35a25d8fbf7387304b963890f9fcd00dd7367373cd4d35638ad",
+  "script_audit": {
+    "exact_ids_via_ANY": true,
+    "no_BETWEEN_sql": true,
+    "no_TRUNCATE": true,
+    "no_FK_disable": true,
+    "no_CASCADE_keyword_in_delete": true,
+    "refuses_2269": true,
+    "assert_233_excluded": true,
+    "recipients_before_messages": true,
+    "attempts_before_messages": true,
+    "staged_before_rendered": true
+  },
+  "SCRIPT_DIFF_ONLY_FK_ORDER_FIX": true,
+  "FULL_DELETE_ORDER": [
+    "1. message_attempts (messages of DELETE campaigns)",
+    "2. staged_queue_items (DELETE campaigns)  # before rendered_messages",
+    "3. rendered_messages (DELETE campaigns)",
+    "4. campaign_recipients (DELETE campaigns)  # before messages (final_message_id FK)",
+    "5. messages (DELETE campaigns)",
+    "6. messages (DELETE accounts, campaign_id IS DISTINCT FROM 233)",
+    "7. campaign_accounts (DELETE campaigns)",
+    "8. UPDATE rubika_global_sent_registry SET last_sent_campaign_id=NULL",
+    "9. campaigns (exact DELETE_CAMPAIGN_IDS)",
+    "10. channel_sessions (DELETE accounts)",
+    "11. rubika_account_pool (DELETE accounts)",
+    "12. rubika_login_challenges (DELETE accounts)",
+    "13. rate_policies (DELETE accounts)",
+    "14. account_send_settings (DELETE accounts)",
+    "15. campaign_accounts (remaining DELETE accounts)",
+    "16. accounts (exact DELETE_ACCOUNT_IDS)"
+  ],
+  "FULL_FK_DELETE_ORDER_AUDIT_PASS": true,
+  "CURRENT_SCRIPT_SOURCE_AUDIT_PASS": true,
+  "FK_GRAPH": [
+    {
+      "from": "account_send_settings",
+      "cols": [
+        "account_id"
+      ],
+      "to": "accounts",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "accounts",
+      "cols": [
+        "policy_id"
+      ],
+      "to": "rate_policies",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "campaign_accounts",
+      "cols": [
+        "account_id"
+      ],
+      "to": "accounts",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": "CASCADE"
+    },
+    {
+      "from": "campaign_accounts",
+      "cols": [
+        "campaign_id"
+      ],
+      "to": "campaigns",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": "CASCADE"
+    },
+    {
+      "from": "campaign_recipients",
+      "cols": [
+        "campaign_id"
+      ],
+      "to": "campaigns",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "campaign_recipients",
+      "cols": [
+        "contact_id"
+      ],
+      "to": "contacts",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "campaign_recipients",
+      "cols": [
+        "final_message_id"
+      ],
+      "to": "messages",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "channel_sessions",
+      "cols": [
+        "account_id"
+      ],
+      "to": "accounts",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "contacts",
+      "cols": [
+        "campaign_id"
+      ],
+      "to": "campaigns",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "contacts",
+      "cols": [
+        "source_import_id"
+      ],
+      "to": "import_batches",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "contacts",
+      "cols": [
+        "source_import_row_id"
+      ],
+      "to": "import_rows",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "import_rows",
+      "cols": [
+        "duplicate_of_contact_id"
+      ],
+      "to": "contacts",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "message_attempts",
+      "cols": [
+        "message_id"
+      ],
+      "to": "messages",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "messages",
+      "cols": [
+        "account_id"
+      ],
+      "to": "accounts",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "messages",
+      "cols": [
+        "campaign_id"
+      ],
+      "to": "campaigns",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "messages",
+      "cols": [
+        "contact_id"
+      ],
+      "to": "contacts",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "messages",
+      "cols": [
+        "product_snapshot_id"
+      ],
+      "to": "product_snapshots",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "opt_events",
+      "cols": [
+        "contact_id"
+      ],
+      "to": "contacts",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "rate_policies",
+      "cols": [
+        "account_id"
+      ],
+      "to": "accounts",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "rendered_messages",
+      "cols": [
+        "campaign_id"
+      ],
+      "to": "campaigns",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "rendered_messages",
+      "cols": [
+        "contact_id"
+      ],
+      "to": "contacts",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "rendered_messages",
+      "cols": [
+        "product_snapshot_id"
+      ],
+      "to": "product_snapshots",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "rubika_account_pool",
+      "cols": [
+        "account_id"
+      ],
+      "to": "accounts",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "rubika_allowed_groups",
+      "cols": [
+        "listener_account_id"
+      ],
+      "to": "accounts",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": "SET NULL"
+    },
+    {
+      "from": "rubika_global_sent_registry",
+      "cols": [
+        "contact_id"
+      ],
+      "to": "contacts",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "rubika_global_sent_registry",
+      "cols": [
+        "last_sent_campaign_id"
+      ],
+      "to": "campaigns",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": "SET NULL"
+    },
+    {
+      "from": "rubika_login_challenges",
+      "cols": [
+        "account_id"
+      ],
+      "to": "accounts",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "staged_queue_items",
+      "cols": [
+        "campaign_id"
+      ],
+      "to": "campaigns",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "staged_queue_items",
+      "cols": [
+        "contact_id"
+      ],
+      "to": "contacts",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    },
+    {
+      "from": "staged_queue_items",
+      "cols": [
+        "rendered_message_id"
+      ],
+      "to": "rendered_messages",
+      "ref_cols": [
+        "id"
+      ],
+      "ondelete": null
+    }
+  ],
+  "DRY_RUN_FK_BLOCKERS": 0,
+  "BLOCKER_DETAIL": [],
+  "ORPHAN_RISK_COUNT": 0,
+  "SUCCESSFUL_REAL_SEND_RECORDS_SELECTED_FOR_DELETE": 0,
+  "LIVE_QUEUE_REFERENCES_SELECTED_FOR_DELETE": 0,
+  "ACTIVE_SESSION_RECORDS_SELECTED_FOR_DELETE": 0,
+  "REAL_OPERATIONAL_DEPENDENCIES_SELECTED_FOR_DELETE": 0,
+  "EXECUTED": false,
+  "DELETION_RETRY_READY": true,
+  "DESTRUCTIVE_OPERATION_REQUIRED": true,
+  "WAITING_FOR_OPERATOR_APPROVAL": true
+}

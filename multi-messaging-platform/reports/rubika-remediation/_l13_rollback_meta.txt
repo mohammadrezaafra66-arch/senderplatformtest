@@ -1,0 +1,6 @@
+ROLLBACK_COPY=docker-compose.override.yml.l13-rollback-to-l12-shadow.bak
+CONFIG_FILE=docker-compose.override.yml
+NOTE=restores_L12_discovery_shadow_pin_12_79
+DISCOVERY_MODE_ON_ROLLBACK=shadow
+DISCOVERY_COHORT_ON_ROLLBACK=
+PIN_ON_ROLLBACK=12,79

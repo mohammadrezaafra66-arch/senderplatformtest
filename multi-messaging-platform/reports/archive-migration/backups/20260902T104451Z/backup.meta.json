@@ -1,0 +1,8 @@
+{
+    "SOURCE_DB":  "mmp_db",
+    "PURPOSE":  "generic_archive_001",
+    "BACKUP_SHA256":  "156971e7033b9724d72aeade07821ba3f9ac871535a80bdd88fcecb65411208d",
+    "BACKUP_TIMESTAMP":  "20260902T104451Z",
+    "BACKUP_SIZE":  224011,
+    "BACKUP_PATH":  "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\reports\\archive-migration\\backups\\20260902T104451Z\\mmp_db_pre_archive_20260902T104451Z.dump"
+}

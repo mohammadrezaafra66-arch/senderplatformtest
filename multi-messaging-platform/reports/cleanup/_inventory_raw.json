@@ -1,0 +1,3822 @@
+{
+  "captured_at": "2026-09-02T09:22:58.881062+00:00",
+  "mode": "READ_ONLY_INVENTORY",
+  "account_range": [
+    2223,
+    2311
+  ],
+  "campaign_range": [
+    128,
+    232
+  ],
+  "fk_map": {
+    "account_send_settings": [
+      {
+        "constrained_columns": [
+          "account_id"
+        ],
+        "referred_table": "accounts",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      }
+    ],
+    "accounts": [
+      {
+        "constrained_columns": [
+          "policy_id"
+        ],
+        "referred_table": "rate_policies",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      }
+    ],
+    "campaign_accounts": [
+      {
+        "constrained_columns": [
+          "account_id"
+        ],
+        "referred_table": "accounts",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {
+          "ondelete": "CASCADE"
+        }
+      },
+      {
+        "constrained_columns": [
+          "campaign_id"
+        ],
+        "referred_table": "campaigns",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {
+          "ondelete": "CASCADE"
+        }
+      }
+    ],
+    "campaign_recipients": [
+      {
+        "constrained_columns": [
+          "campaign_id"
+        ],
+        "referred_table": "campaigns",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      },
+      {
+        "constrained_columns": [
+          "contact_id"
+        ],
+        "referred_table": "contacts",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      },
+      {
+        "constrained_columns": [
+          "final_message_id"
+        ],
+        "referred_table": "messages",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      }
+    ],
+    "channel_sessions": [
+      {
+        "constrained_columns": [
+          "account_id"
+        ],
+        "referred_table": "accounts",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      }
+    ],
+    "contacts": [
+      {
+        "constrained_columns": [
+          "campaign_id"
+        ],
+        "referred_table": "campaigns",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      },
+      {
+        "constrained_columns": [
+          "source_import_id"
+        ],
+        "referred_table": "import_batches",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      },
+      {
+        "constrained_columns": [
+          "source_import_row_id"
+        ],
+        "referred_table": "import_rows",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      }
+    ],
+    "evolution_webhook_events": [
+      {
+        "constrained_columns": [
+          "message_attempt_id"
+        ],
+        "referred_table": "message_attempts",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {
+          "ondelete": "SET NULL"
+        }
+      }
+    ],
+    "import_rows": [
+      {
+        "constrained_columns": [
+          "batch_id"
+        ],
+        "referred_table": "import_batches",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      },
+      {
+        "constrained_columns": [
+          "duplicate_of_contact_id"
+        ],
+        "referred_table": "contacts",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      }
+    ],
+    "message_attempts": [
+      {
+        "constrained_columns": [
+          "message_id"
+        ],
+        "referred_table": "messages",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      }
+    ],
+    "messages": [
+      {
+        "constrained_columns": [
+          "account_id"
+        ],
+        "referred_table": "accounts",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      },
+      {
+        "constrained_columns": [
+          "campaign_id"
+        ],
+        "referred_table": "campaigns",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      },
+      {
+        "constrained_columns": [
+          "contact_id"
+        ],
+        "referred_table": "contacts",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      },
+      {
+        "constrained_columns": [
+          "product_snapshot_id"
+        ],
+        "referred_table": "product_snapshots",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      }
+    ],
+    "opt_events": [
+      {
+        "constrained_columns": [
+          "contact_id"
+        ],
+        "referred_table": "contacts",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      }
+    ],
+    "rate_policies": [
+      {
+        "constrained_columns": [
+          "account_id"
+        ],
+        "referred_table": "accounts",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      }
+    ],
+    "rendered_messages": [
+      {
+        "constrained_columns": [
+          "campaign_id"
+        ],
+        "referred_table": "campaigns",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      },
+      {
+        "constrained_columns": [
+          "contact_id"
+        ],
+        "referred_table": "contacts",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      },
+      {
+        "constrained_columns": [
+          "product_snapshot_id"
+        ],
+        "referred_table": "product_snapshots",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      }
+    ],
+    "rubika_account_pool": [
+      {
+        "constrained_columns": [
+          "account_id"
+        ],
+        "referred_table": "accounts",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      }
+    ],
+    "rubika_allowed_groups": [
+      {
+        "constrained_columns": [
+          "listener_account_id"
+        ],
+        "referred_table": "accounts",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {
+          "ondelete": "SET NULL"
+        }
+      }
+    ],
+    "rubika_global_sent_registry": [
+      {
+        "constrained_columns": [
+          "contact_id"
+        ],
+        "referred_table": "contacts",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      },
+      {
+        "constrained_columns": [
+          "last_sent_campaign_id"
+        ],
+        "referred_table": "campaigns",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {
+          "ondelete": "SET NULL"
+        }
+      }
+    ],
+    "rubika_group_messages": [
+      {
+        "constrained_columns": [
+          "group_guid"
+        ],
+        "referred_table": "rubika_allowed_groups",
+        "referred_columns": [
+          "group_guid"
+        ],
+        "options": {}
+      }
+    ],
+    "rubika_login_challenges": [
+      {
+        "constrained_columns": [
+          "account_id"
+        ],
+        "referred_table": "accounts",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      }
+    ],
+    "staged_queue_items": [
+      {
+        "constrained_columns": [
+          "campaign_id"
+        ],
+        "referred_table": "campaigns",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      },
+      {
+        "constrained_columns": [
+          "contact_id"
+        ],
+        "referred_table": "contacts",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      },
+      {
+        "constrained_columns": [
+          "rendered_message_id"
+        ],
+        "referred_table": "rendered_messages",
+        "referred_columns": [
+          "id"
+        ],
+        "options": {}
+      }
+    ]
+  },
+  "accounts": [
+    {
+      "ACCOUNT_ID": 2223,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-efb30a90",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:14:57.944846",
+      "UPDATED_AT": "2026-09-01T15:14:57.944849",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        128
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2224,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-3dcdef8a",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:14:58.299255",
+      "UPDATED_AT": "2026-09-01T15:14:58.299257",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        129
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2225,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-e07c1166",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:14:58.518374",
+      "UPDATED_AT": "2026-09-01T15:14:58.518375",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        130
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2226,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-bba2d561",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:14:58.726244",
+      "UPDATED_AT": "2026-09-01T15:14:58.726246",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        131
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2227,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-2a41912b",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:14:59.043888",
+      "UPDATED_AT": "2026-09-01T15:14:59.043890",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        132
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2228,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-b3834b34",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:14:59.419759",
+      "UPDATED_AT": "2026-09-01T15:14:59.419761",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        133
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 0,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 0,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2229,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-b002ea95",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:14:59.567510",
+      "UPDATED_AT": "2026-09-01T15:14:59.567513",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        134
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 0,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 0,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2230,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-5862e988",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:14:59.937733",
+      "UPDATED_AT": "2026-09-01T15:14:59.937734",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        135
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 0,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 0,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2231,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-6775b42f",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:15:00.083089",
+      "UPDATED_AT": "2026-09-01T15:15:00.083091",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        136
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 0,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 0,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2232,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-5b62b54b",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:15:00.223090",
+      "UPDATED_AT": "2026-09-01T15:15:00.223091",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        137
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2243,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-442f004f",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:16:02.467933",
+      "UPDATED_AT": "2026-09-01T15:16:02.467937",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        148
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2244,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-99891bfe",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:16:02.804139",
+      "UPDATED_AT": "2026-09-01T15:16:02.804141",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        149
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2245,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-9351be71",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:16:03.019681",
+      "UPDATED_AT": "2026-09-01T15:16:03.019684",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        150
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2246,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-35226686",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:16:03.226069",
+      "UPDATED_AT": "2026-09-01T15:16:03.226071",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        151
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2247,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-58c774ef",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:16:03.558815",
+      "UPDATED_AT": "2026-09-01T15:16:03.558817",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        152
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2248,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-0809cd0c",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:16:03.784883",
+      "UPDATED_AT": "2026-09-01T15:16:03.784885",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        153
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 0,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 0,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2249,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-1df9ac5a",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:16:03.918304",
+      "UPDATED_AT": "2026-09-01T15:16:03.918305",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        154
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2250,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-d863abd2",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:16:04.149611",
+      "UPDATED_AT": "2026-09-01T15:16:04.149613",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        155
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 0,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 0,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2251,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-01a6e448",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:16:04.294064",
+      "UPDATED_AT": "2026-09-01T15:16:04.294065",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        156
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 0,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 0,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2252,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "auto-prep-67eb813c",
+      "PHONE_MASKED": null,
+      "CREATED_AT": "2026-09-01T15:16:04.428256",
+      "UPDATED_AT": "2026-09-01T15:16:04.428258",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 0,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 0,
+      "CAMPAIGN_REFERENCES": [
+        157
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2263,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "pf",
+      "PHONE_MASKED": "***6313",
+      "CREATED_AT": "2026-09-01T15:39:30.330897",
+      "UPDATED_AT": "2026-09-01T15:39:30.330900",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        168
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 321,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2264,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "off",
+      "PHONE_MASKED": "***5909",
+      "CREATED_AT": "2026-09-01T15:39:30.629059",
+      "UPDATED_AT": "2026-09-01T15:39:30.629061",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        169
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 322,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2265,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "api409",
+      "PHONE_MASKED": "***4483",
+      "CREATED_AT": "2026-09-01T15:39:30.861279",
+      "UPDATED_AT": "2026-09-01T15:39:30.861282",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        171
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 323,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2266,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "api409b",
+      "PHONE_MASKED": "***1978",
+      "CREATED_AT": "2026-09-01T15:39:31.008564",
+      "UPDATED_AT": "2026-09-01T15:39:31.008565",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        172
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 324,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2267,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "pf",
+      "PHONE_MASKED": "***7698",
+      "CREATED_AT": "2026-09-01T15:39:51.973298",
+      "UPDATED_AT": "2026-09-01T15:39:51.973301",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        176
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 325,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2268,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "off",
+      "PHONE_MASKED": "***2410",
+      "CREATED_AT": "2026-09-01T15:39:52.176935",
+      "UPDATED_AT": "2026-09-01T15:39:52.176936",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        177
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 326,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2269,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "api409",
+      "PHONE_MASKED": "***0438",
+      "CREATED_AT": "2026-09-01T15:39:52.369008",
+      "UPDATED_AT": "2026-09-01T15:39:52.369009",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        179,
+        233
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [
+        233
+      ],
+      "MESSAGE_REFERENCES": 2,
+      "MESSAGE_ATTEMPT_REFERENCES": 2,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 2,
+      "LIVE_QUEUE_REFERENCES": 1,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 327,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": true
+    },
+    {
+      "ACCOUNT_ID": 2270,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "api409b",
+      "PHONE_MASKED": "***2447",
+      "CREATED_AT": "2026-09-01T15:39:52.484443",
+      "UPDATED_AT": "2026-09-01T15:39:52.484444",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        180
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 328,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2271,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "pf",
+      "PHONE_MASKED": "***9292",
+      "CREATED_AT": "2026-09-01T15:44:33.620675",
+      "UPDATED_AT": "2026-09-01T15:44:33.620678",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        184
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 329,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2272,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "off",
+      "PHONE_MASKED": "***7284",
+      "CREATED_AT": "2026-09-01T15:44:33.906640",
+      "UPDATED_AT": "2026-09-01T15:44:33.906642",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        185
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 330,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2273,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "api409",
+      "PHONE_MASKED": "***9241",
+      "CREATED_AT": "2026-09-01T15:44:34.130476",
+      "UPDATED_AT": "2026-09-01T15:44:34.130477",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        187
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 331,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2274,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "api409b",
+      "PHONE_MASKED": "***6013",
+      "CREATED_AT": "2026-09-01T15:44:34.246108",
+      "UPDATED_AT": "2026-09-01T15:44:34.246110",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        188
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 332,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2275,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "pf",
+      "PHONE_MASKED": "***1644",
+      "CREATED_AT": "2026-09-01T15:50:29.013009",
+      "UPDATED_AT": "2026-09-01T15:50:29.013011",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        192
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 333,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2276,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "off",
+      "PHONE_MASKED": "***2329",
+      "CREATED_AT": "2026-09-01T15:50:29.420196",
+      "UPDATED_AT": "2026-09-01T15:50:29.420198",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        193
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 334,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2277,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "api409",
+      "PHONE_MASKED": "***5580",
+      "CREATED_AT": "2026-09-01T15:50:29.658113",
+      "UPDATED_AT": "2026-09-01T15:50:29.658114",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        195
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 335,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2278,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "api409b",
+      "PHONE_MASKED": "***4808",
+      "CREATED_AT": "2026-09-01T15:50:29.781169",
+      "UPDATED_AT": "2026-09-01T15:50:29.781171",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        196
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 336,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2308,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "pf",
+      "PHONE_MASKED": "***8365",
+      "CREATED_AT": "2026-09-02T06:49:57.101126",
+      "UPDATED_AT": "2026-09-02T06:49:57.101129",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        225
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 366,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2309,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "off",
+      "PHONE_MASKED": "***8777",
+      "CREATED_AT": "2026-09-02T06:49:57.467848",
+      "UPDATED_AT": "2026-09-02T06:49:57.467850",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        226
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 367,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2310,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "api409",
+      "PHONE_MASKED": "***0414",
+      "CREATED_AT": "2026-09-02T06:49:57.686914",
+      "UPDATED_AT": "2026-09-02T06:49:57.686915",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        228
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 368,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    },
+    {
+      "ACCOUNT_ID": 2311,
+      "PLATFORM": "RUBIKA",
+      "DISPLAY_IDENTITY": "api409b",
+      "PHONE_MASKED": "***6788",
+      "CREATED_AT": "2026-09-02T06:49:57.810812",
+      "UPDATED_AT": "2026-09-02T06:49:57.810813",
+      "STATUS": "ACTIVE",
+      "RUBIKA_IDENTITY_STATUS": "unbound",
+      "SESSION_COUNT": 1,
+      "ACTIVE_SESSION_COUNT": 0,
+      "PRESENT_SESSION_COUNT": 1,
+      "CAMPAIGN_REFERENCES": [
+        229
+      ],
+      "OUTSIDE_RANGE_CAMPAIGN_REFERENCES": [],
+      "MESSAGE_REFERENCES": 1,
+      "MESSAGE_ATTEMPT_REFERENCES": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "QUEUE_REFERENCES": 1,
+      "LIVE_QUEUE_REFERENCES": 0,
+      "AUDIT_REFERENCES": 0,
+      "WORKER_BINDING": {
+        "pool_rows": [
+          {
+            "id": 369,
+            "phase": "day",
+            "priority": 1
+          }
+        ],
+        "schedule_count": 0
+      },
+      "OTHER_DEPENDENCIES": {
+        "rubika_global_sent_registry": 0,
+        "rubika_login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0
+      },
+      "LABEL_LOOKS_TEST": false,
+      "MANDATORY_KEEP": false
+    }
+  ],
+  "campaigns": [
+    {
+      "CAMPAIGN_ID": 128,
+      "NAME": "auto-prep-cfef1fb1",
+      "CREATED_AT": "2026-09-01T15:14:58.003537",
+      "UPDATED_AT": "2026-09-01T15:14:58.143478",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2223
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 129,
+      "NAME": "draft-no-sender",
+      "CREATED_AT": "2026-09-01T15:14:58.300777",
+      "UPDATED_AT": "2026-09-01T15:14:58.480533",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2224
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 130,
+      "NAME": "auto-prep-05013d5d",
+      "CREATED_AT": "2026-09-01T15:14:58.538463",
+      "UPDATED_AT": "2026-09-01T15:14:58.658081",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2225
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 131,
+      "NAME": "auto-prep-1b53828e",
+      "CREATED_AT": "2026-09-01T15:14:58.748798",
+      "UPDATED_AT": "2026-09-01T15:14:58.923227",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2226
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 132,
+      "NAME": "auto-prep-d1f7ae19",
+      "CREATED_AT": "2026-09-01T15:14:59.063553",
+      "UPDATED_AT": "2026-09-01T15:14:59.180592",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2227
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 133,
+      "NAME": "auto-prep-3c1d4275",
+      "CREATED_AT": "2026-09-01T15:14:59.449650",
+      "UPDATED_AT": "2026-09-01T15:14:59.449653",
+      "STATUS": "draft",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2228
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 134,
+      "NAME": "auto-prep-4571835a",
+      "CREATED_AT": "2026-09-01T15:14:59.588217",
+      "UPDATED_AT": "2026-09-01T15:14:59.588221",
+      "STATUS": "draft",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2229
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 135,
+      "NAME": "auto-prep-bf24860b",
+      "CREATED_AT": "2026-09-01T15:14:59.958527",
+      "UPDATED_AT": "2026-09-01T15:14:59.958530",
+      "STATUS": "draft",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2230
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 136,
+      "NAME": "auto-prep-fc0950ab",
+      "CREATED_AT": "2026-09-01T15:15:00.099951",
+      "UPDATED_AT": "2026-09-01T15:15:00.099954",
+      "STATUS": "draft",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2231
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 137,
+      "NAME": "auto-prep-c7ddc149",
+      "CREATED_AT": "2026-09-01T15:15:00.243327",
+      "UPDATED_AT": "2026-09-01T15:15:00.331275",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2232
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 148,
+      "NAME": "auto-prep-15816db3",
+      "CREATED_AT": "2026-09-01T15:16:02.529295",
+      "UPDATED_AT": "2026-09-01T15:16:02.659133",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2243
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 149,
+      "NAME": "draft-no-sender",
+      "CREATED_AT": "2026-09-01T15:16:02.805876",
+      "UPDATED_AT": "2026-09-01T15:16:02.970659",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2244
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 150,
+      "NAME": "auto-prep-5cd72dc9",
+      "CREATED_AT": "2026-09-01T15:16:03.048307",
+      "UPDATED_AT": "2026-09-01T15:16:03.145669",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2245
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 151,
+      "NAME": "auto-prep-f5a77952",
+      "CREATED_AT": "2026-09-01T15:16:03.251125",
+      "UPDATED_AT": "2026-09-01T15:16:03.420910",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2246
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 152,
+      "NAME": "auto-prep-7985d605",
+      "CREATED_AT": "2026-09-01T15:16:03.578078",
+      "UPDATED_AT": "2026-09-01T15:16:03.672270",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2247
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 153,
+      "NAME": "auto-prep-82377ae2",
+      "CREATED_AT": "2026-09-01T15:16:03.803644",
+      "UPDATED_AT": "2026-09-01T15:16:03.803646",
+      "STATUS": "draft",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2248
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 154,
+      "NAME": "auto-prep-f2960d06",
+      "CREATED_AT": "2026-09-01T15:16:03.936374",
+      "UPDATED_AT": "2026-09-01T15:16:04.032079",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2249
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 155,
+      "NAME": "auto-prep-5ca9b453",
+      "CREATED_AT": "2026-09-01T15:16:04.172773",
+      "UPDATED_AT": "2026-09-01T15:16:04.172777",
+      "STATUS": "draft",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2250
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 156,
+      "NAME": "auto-prep-8243a1fb",
+      "CREATED_AT": "2026-09-01T15:16:04.316305",
+      "UPDATED_AT": "2026-09-01T15:16:04.316308",
+      "STATUS": "draft",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2251
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 157,
+      "NAME": "auto-prep-6858916f",
+      "CREATED_AT": "2026-09-01T15:16:04.454201",
+      "UPDATED_AT": "2026-09-01T15:16:04.547900",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2252
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 168,
+      "NAME": "cp-gate-7cef8904",
+      "CREATED_AT": "2026-09-01T15:39:30.380727",
+      "UPDATED_AT": "2026-09-01T15:39:30.445199",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2263
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 169,
+      "NAME": "cp-gate-83bfe0ed",
+      "CREATED_AT": "2026-09-01T15:39:30.641979",
+      "UPDATED_AT": "2026-09-01T15:39:30.666039",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2264
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 170,
+      "NAME": "cp-block",
+      "CREATED_AT": "2026-09-01T15:39:30.818927",
+      "UPDATED_AT": "2026-09-01T15:39:30.818929",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 171,
+      "NAME": "cp-gate-a9e9bda6",
+      "CREATED_AT": "2026-09-01T15:39:30.876994",
+      "UPDATED_AT": "2026-09-01T15:39:30.902321",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2265
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 172,
+      "NAME": "cp-gate-43a02030",
+      "CREATED_AT": "2026-09-01T15:39:31.022353",
+      "UPDATED_AT": "2026-09-01T15:39:31.047134",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2266
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 173,
+      "NAME": "cp-noprep",
+      "CREATED_AT": "2026-09-01T15:39:31.099436",
+      "UPDATED_AT": "2026-09-01T15:39:31.099439",
+      "STATUS": "draft",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 174,
+      "NAME": "cp-ok",
+      "CREATED_AT": "2026-09-01T15:39:31.140408",
+      "UPDATED_AT": "2026-09-01T15:39:31.140411",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 175,
+      "NAME": "bale-cp",
+      "CREATED_AT": "2026-09-01T15:39:31.179125",
+      "UPDATED_AT": "2026-09-01T15:39:31.179128",
+      "STATUS": "draft",
+      "PLATFORM": "BALE",
+      "CHANNEL": "bale",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 176,
+      "NAME": "cp-gate-5fd7487b",
+      "CREATED_AT": "2026-09-01T15:39:51.986989",
+      "UPDATED_AT": "2026-09-01T15:39:52.016197",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2267
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 177,
+      "NAME": "cp-gate-2dcb5d56",
+      "CREATED_AT": "2026-09-01T15:39:52.186692",
+      "UPDATED_AT": "2026-09-01T15:39:52.206643",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2268
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 178,
+      "NAME": "cp-block",
+      "CREATED_AT": "2026-09-01T15:39:52.329105",
+      "UPDATED_AT": "2026-09-01T15:39:52.329107",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 179,
+      "NAME": "cp-gate-01b4c2e4",
+      "CREATED_AT": "2026-09-01T15:39:52.379493",
+      "UPDATED_AT": "2026-09-01T15:39:52.399957",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2269
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 180,
+      "NAME": "cp-gate-3cb41c62",
+      "CREATED_AT": "2026-09-01T15:39:52.494313",
+      "UPDATED_AT": "2026-09-01T15:39:52.516148",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2270
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 181,
+      "NAME": "cp-noprep",
+      "CREATED_AT": "2026-09-01T15:39:52.558198",
+      "UPDATED_AT": "2026-09-01T15:39:52.558200",
+      "STATUS": "draft",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 182,
+      "NAME": "cp-ok",
+      "CREATED_AT": "2026-09-01T15:39:52.592687",
+      "UPDATED_AT": "2026-09-01T15:39:52.592689",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 183,
+      "NAME": "bale-cp",
+      "CREATED_AT": "2026-09-01T15:39:52.627815",
+      "UPDATED_AT": "2026-09-01T15:39:52.643813",
+      "STATUS": "running",
+      "PLATFORM": "BALE",
+      "CHANNEL": "bale",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": true
+    },
+    {
+      "CAMPAIGN_ID": 184,
+      "NAME": "cp-gate-9c21ba20",
+      "CREATED_AT": "2026-09-01T15:44:33.641222",
+      "UPDATED_AT": "2026-09-01T15:44:33.690672",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2271
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 185,
+      "NAME": "cp-gate-da8497c6",
+      "CREATED_AT": "2026-09-01T15:44:33.918888",
+      "UPDATED_AT": "2026-09-01T15:44:33.944855",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2272
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 186,
+      "NAME": "cp-block",
+      "CREATED_AT": "2026-09-01T15:44:34.093920",
+      "UPDATED_AT": "2026-09-01T15:44:34.093924",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 187,
+      "NAME": "cp-gate-643fe791",
+      "CREATED_AT": "2026-09-01T15:44:34.142322",
+      "UPDATED_AT": "2026-09-01T15:44:34.163352",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2273
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 188,
+      "NAME": "cp-gate-083bb4cd",
+      "CREATED_AT": "2026-09-01T15:44:34.257674",
+      "UPDATED_AT": "2026-09-01T15:44:34.281570",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2274
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 189,
+      "NAME": "cp-noprep",
+      "CREATED_AT": "2026-09-01T15:44:34.339302",
+      "UPDATED_AT": "2026-09-01T15:44:34.339306",
+      "STATUS": "draft",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 190,
+      "NAME": "cp-ok",
+      "CREATED_AT": "2026-09-01T15:44:34.376280",
+      "UPDATED_AT": "2026-09-01T15:44:34.376283",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 191,
+      "NAME": "bale-cp",
+      "CREATED_AT": "2026-09-01T15:44:34.420069",
+      "UPDATED_AT": "2026-09-01T15:44:34.439004",
+      "STATUS": "running",
+      "PLATFORM": "BALE",
+      "CHANNEL": "bale",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": true
+    },
+    {
+      "CAMPAIGN_ID": 192,
+      "NAME": "cp-gate-ce00c5f5",
+      "CREATED_AT": "2026-09-01T15:50:29.027445",
+      "UPDATED_AT": "2026-09-01T15:50:29.061753",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2275
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 193,
+      "NAME": "cp-gate-37d3a969",
+      "CREATED_AT": "2026-09-01T15:50:29.432173",
+      "UPDATED_AT": "2026-09-01T15:50:29.456134",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2276
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 194,
+      "NAME": "cp-block",
+      "CREATED_AT": "2026-09-01T15:50:29.617482",
+      "UPDATED_AT": "2026-09-01T15:50:29.617484",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 195,
+      "NAME": "cp-gate-cd30d5d4",
+      "CREATED_AT": "2026-09-01T15:50:29.670120",
+      "UPDATED_AT": "2026-09-01T15:50:29.692177",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2277
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 196,
+      "NAME": "cp-gate-ed8b01e1",
+      "CREATED_AT": "2026-09-01T15:50:29.793021",
+      "UPDATED_AT": "2026-09-01T15:50:29.817151",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2278
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 197,
+      "NAME": "cp-noprep",
+      "CREATED_AT": "2026-09-01T15:50:29.864682",
+      "UPDATED_AT": "2026-09-01T15:50:29.864685",
+      "STATUS": "draft",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 198,
+      "NAME": "cp-ok",
+      "CREATED_AT": "2026-09-01T15:50:29.903748",
+      "UPDATED_AT": "2026-09-01T15:50:29.903751",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 199,
+      "NAME": "bale-cp",
+      "CREATED_AT": "2026-09-01T15:50:29.940341",
+      "UPDATED_AT": "2026-09-01T15:50:29.957913",
+      "STATUS": "running",
+      "PLATFORM": "BALE",
+      "CHANNEL": "bale",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": true
+    },
+    {
+      "CAMPAIGN_ID": 225,
+      "NAME": "cp-gate-b9db21ee",
+      "CREATED_AT": "2026-09-02T06:49:57.121517",
+      "UPDATED_AT": "2026-09-02T06:49:57.205258",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2308
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 226,
+      "NAME": "cp-gate-7b2de12b",
+      "CREATED_AT": "2026-09-02T06:49:57.477797",
+      "UPDATED_AT": "2026-09-02T06:49:57.499168",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2309
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 227,
+      "NAME": "cp-block",
+      "CREATED_AT": "2026-09-02T06:49:57.651748",
+      "UPDATED_AT": "2026-09-02T06:49:57.651750",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 228,
+      "NAME": "cp-gate-ce93ba7d",
+      "CREATED_AT": "2026-09-02T06:49:57.700113",
+      "UPDATED_AT": "2026-09-02T06:49:57.724558",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2310
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 229,
+      "NAME": "cp-gate-03ea61d0",
+      "CREATED_AT": "2026-09-02T06:49:57.822725",
+      "UPDATED_AT": "2026-09-02T06:49:57.850979",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 1,
+      "FINAL_MESSAGE_COUNT": 1,
+      "RENDERED_MESSAGE_COUNT": 1,
+      "ASSIGNED_ACCOUNT_IDS": [
+        2311
+      ],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 1,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": true,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 230,
+      "NAME": "cp-noprep",
+      "CREATED_AT": "2026-09-02T06:49:57.914413",
+      "UPDATED_AT": "2026-09-02T06:49:57.914414",
+      "STATUS": "draft",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 231,
+      "NAME": "cp-ok",
+      "CREATED_AT": "2026-09-02T06:49:57.953024",
+      "UPDATED_AT": "2026-09-02T06:49:57.953027",
+      "STATUS": "prepared",
+      "PLATFORM": "RUBIKA",
+      "CHANNEL": "rubika",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": false
+    },
+    {
+      "CAMPAIGN_ID": 232,
+      "NAME": "bale-cp",
+      "CREATED_AT": "2026-09-02T06:49:57.993604",
+      "UPDATED_AT": "2026-09-02T06:49:58.013343",
+      "STATUS": "running",
+      "PLATFORM": "BALE",
+      "CHANNEL": "bale",
+      "RECIPIENT_COUNT": 0,
+      "FINAL_MESSAGE_COUNT": 0,
+      "RENDERED_MESSAGE_COUNT": 0,
+      "ASSIGNED_ACCOUNT_IDS": [],
+      "MESSAGE_ATTEMPT_COUNT": 0,
+      "SUCCESS_ATTEMPT_COUNT": 0,
+      "FAILED_ATTEMPT_COUNT": 0,
+      "QUEUE_RECORD_COUNT": 0,
+      "STAGED_QUEUE_LIVE_COUNT": 0,
+      "AUDIT_COUNT": 0,
+      "STARTED_AT": null,
+      "COMPLETED_AT": null,
+      "EXTERNAL_SEND_EVIDENCE": 0,
+      "NAME_LOOKS_TEST": false,
+      "IS_RUNNING": true
+    }
+  ],
+  "provenance_summary": {
+    "account_label_prefix_counts": [
+      [
+        "auto",
+        20
+      ],
+      [
+        "pf",
+        5
+      ],
+      [
+        "off",
+        5
+      ],
+      [
+        "api409",
+        5
+      ],
+      [
+        "api409b",
+        5
+      ]
+    ],
+    "campaign_name_counts": [
+      [
+        "cp-block",
+        5
+      ],
+      [
+        "cp-noprep",
+        5
+      ],
+      [
+        "cp-ok",
+        5
+      ],
+      [
+        "bale-cp",
+        5
+      ],
+      [
+        "draft-no-sender",
+        2
+      ],
+      [
+        "auto-prep-cfef1fb1",
+        1
+      ],
+      [
+        "auto-prep-05013d5d",
+        1
+      ],
+      [
+        "auto-prep-1b53828e",
+        1
+      ],
+      [
+        "auto-prep-d1f7ae19",
+        1
+      ],
+      [
+        "auto-prep-3c1d4275",
+        1
+      ],
+      [
+        "auto-prep-4571835a",
+        1
+      ],
+      [
+        "auto-prep-bf24860b",
+        1
+      ],
+      [
+        "auto-prep-fc0950ab",
+        1
+      ],
+      [
+        "auto-prep-c7ddc149",
+        1
+      ],
+      [
+        "auto-prep-15816db3",
+        1
+      ],
+      [
+        "auto-prep-5cd72dc9",
+        1
+      ],
+      [
+        "auto-prep-f5a77952",
+        1
+      ],
+      [
+        "auto-prep-7985d605",
+        1
+      ],
+      [
+        "auto-prep-82377ae2",
+        1
+      ],
+      [
+        "auto-prep-f2960d06",
+        1
+      ],
+      [
+        "auto-prep-5ca9b453",
+        1
+      ],
+      [
+        "auto-prep-8243a1fb",
+        1
+      ],
+      [
+        "auto-prep-6858916f",
+        1
+      ],
+      [
+        "cp-gate-7cef8904",
+        1
+      ],
+      [
+        "cp-gate-83bfe0ed",
+        1
+      ],
+      [
+        "cp-gate-a9e9bda6",
+        1
+      ],
+      [
+        "cp-gate-43a02030",
+        1
+      ],
+      [
+        "cp-gate-5fd7487b",
+        1
+      ],
+      [
+        "cp-gate-2dcb5d56",
+        1
+      ],
+      [
+        "cp-gate-01b4c2e4",
+        1
+      ],
+      [
+        "cp-gate-3cb41c62",
+        1
+      ],
+      [
+        "cp-gate-9c21ba20",
+        1
+      ],
+      [
+        "cp-gate-da8497c6",
+        1
+      ],
+      [
+        "cp-gate-643fe791",
+        1
+      ],
+      [
+        "cp-gate-083bb4cd",
+        1
+      ],
+      [
+        "cp-gate-ce00c5f5",
+        1
+      ],
+      [
+        "cp-gate-37d3a969",
+        1
+      ],
+      [
+        "cp-gate-cd30d5d4",
+        1
+      ],
+      [
+        "cp-gate-ed8b01e1",
+        1
+      ],
+      [
+        "cp-gate-b9db21ee",
+        1
+      ],
+      [
+        "cp-gate-7b2de12b",
+        1
+      ],
+      [
+        "cp-gate-ce93ba7d",
+        1
+      ],
+      [
+        "cp-gate-03ea61d0",
+        1
+      ]
+    ],
+    "account_created_day_counts": [
+      [
+        "2026-09-01",
+        36
+      ],
+      [
+        "2026-09-02",
+        4
+      ]
+    ],
+    "campaign_created_day_counts": [
+      [
+        "2026-09-01",
+        52
+      ],
+      [
+        "2026-09-02",
+        8
+      ]
+    ],
+    "account_status_counts": [
+      [
+        "ACTIVE",
+        40
+      ]
+    ],
+    "campaign_status_counts": [
+      [
+        "prepared",
+        43
+      ],
+      [
+        "draft",
+        13
+      ],
+      [
+        "running",
+        4
+      ]
+    ],
+    "accounts_label_looks_test": 0,
+    "campaigns_name_looks_test": 20,
+    "accounts_with_success_attempts": [],
+    "accounts_with_outside_campaigns": [
+      {
+        "account_id": 2269,
+        "campaigns": [
+          233
+        ]
+      }
+    ],
+    "accounts_with_sessions": [
+      2263,
+      2264,
+      2265,
+      2266,
+      2267,
+      2268,
+      2269,
+      2270,
+      2271,
+      2272,
+      2273,
+      2274,
+      2275,
+      2276,
+      2277,
+      2278,
+      2308,
+      2309,
+      2310,
+      2311
+    ],
+    "campaigns_with_external_send": [],
+    "campaigns_running": [
+      183,
+      191,
+      199,
+      232
+    ],
+    "campaigns_with_attempts": []
+  },
+  "accounts_missing_in_range": [
+    2233,
+    2234,
+    2235,
+    2236,
+    2237,
+    2238,
+    2239,
+    2240,
+    2241,
+    2242,
+    2253,
+    2254,
+    2255,
+    2256,
+    2257,
+    2258,
+    2259,
+    2260,
+    2261,
+    2262,
+    2279,
+    2280,
+    2281,
+    2282,
+    2283,
+    2284,
+    2285,
+    2286,
+    2287,
+    2288,
+    2289,
+    2290,
+    2291,
+    2292,
+    2293,
+    2294,
+    2295,
+    2296,
+    2297,
+    2298,
+    2299,
+    2300,
+    2301,
+    2302,
+    2303,
+    2304,
+    2305,
+    2306,
+    2307
+  ],
+  "accounts_existing_count": 40,
+  "campaigns_missing_in_range": [
+    138,
+    139,
+    140,
+    141,
+    142,
+    143,
+    144,
+    145,
+    146,
+    147,
+    158,
+    159,
+    160,
+    161,
+    162,
+    163,
+    164,
+    165,
+    166,
+    167,
+    200,
+    201,
+    202,
+    203,
+    204,
+    205,
+    206,
+    207,
+    208,
+    209,
+    210,
+    211,
+    212,
+    213,
+    214,
+    215,
+    216,
+    217,
+    218,
+    219,
+    220,
+    221,
+    222,
+    223,
+    224
+  ],
+  "campaigns_existing_count": 60,
+  "campaign_audit_sample": [],
+  "campaign_audit_event_types": [],
+  "account_audit_sample": [],
+  "account_audit_event_types": []
+}

@@ -1,0 +1,142 @@
+{
+  "execution": {
+    "started_at": "2026-08-29T09:04:50.576588+00:00",
+    "committed": true,
+    "rolled_back": false,
+    "deleted_counts": {
+      "message_attempts": 12,
+      "staged_queue_items": 335,
+      "rendered_messages": 335,
+      "campaign_recipients": 335,
+      "messages": 335,
+      "campaign_accounts": 95,
+      "opt_events": 0,
+      "rubika_global_sent_registry": 0,
+      "contacts": 334,
+      "campaigns": 95,
+      "rubika_sender_schedules": 20,
+      "rubika_account_pool": 55,
+      "channel_sessions": 105,
+      "accounts": 110
+    },
+    "delete_row_count_actual": 2166,
+    "keep_updates": [
+      {
+        "table": "campaign_recipients",
+        "id": 4,
+        "column": "final_message_id",
+        "from": 201,
+        "to": null
+      },
+      {
+        "table": "campaign_recipients",
+        "id": 4,
+        "column": "send_status",
+        "from": "DELIVERED",
+        "to": "PENDING"
+      },
+      {
+        "table": "contacts",
+        "id": 92,
+        "column": "campaign_id",
+        "from": 40,
+        "to": null
+      }
+    ],
+    "delete_set_contact_predetach": {
+      "required": false,
+      "count": 0,
+      "ids": []
+    },
+    "prechecks": {
+      "PRE_CLEANUP_BACKUP_VERIFIED": true,
+      "AMBIGUOUS_RECORD_COUNT": 0
+    },
+    "queues_before": {
+      "QUEUE12": 0,
+      "QUEUE79": 0,
+      "COVERAGE12": false,
+      "COVERAGE79": false
+    },
+    "in_txn_checks": {
+      "accounts": 48,
+      "rubika_accounts": 43,
+      "campaigns": 4,
+      "contacts": 3,
+      "messages": 1,
+      "r22_or_p6_campaigns": 0,
+      "accounts_gt_92": 0,
+      "camp_1": 1,
+      "camp_2": 1,
+      "camp_3": 1,
+      "camp_4": 1,
+      "contact_1": 1,
+      "contact_2": 1,
+      "contact_92": 1,
+      "message_1": 1,
+      "account_12": 1,
+      "account_79": 1,
+      "account_92": 1,
+      "sess_600": 1,
+      "sess_657": 1,
+      "sess_728": 1,
+      "sess_11": 1,
+      "sess_12": 1,
+      "sched_195_active_day": 1,
+      "pool_12": 1,
+      "pool_79": 1,
+      "pool_92": 2,
+      "recip_4": 1,
+      "recip_4_final_null": 1,
+      "recip_4_send_pending": 1,
+      "contact_92_camp_null": 1
+    },
+    "readiness": {
+      "ACCOUNT12_READY": true,
+      "ACCOUNT12_CODE": "READY",
+      "ACCOUNT79_READY": true,
+      "ACCOUNT79_CODE": "READY"
+    },
+    "queues_in_txn": {
+      "QUEUE12": 0,
+      "QUEUE79": 0,
+      "COVERAGE12": false,
+      "COVERAGE79": false
+    },
+    "finished_at": "2026-08-29T09:04:50.754591+00:00"
+  },
+  "post_verification": {
+    "committed": true,
+    "ACTUAL_ACCOUNTS_AFTER": 48,
+    "ACTUAL_RUBIKA_ACCOUNTS_AFTER": 43,
+    "ACTUAL_CAMPAIGNS_AFTER": 4,
+    "ACTUAL_CONTACTS_AFTER": 3,
+    "ACTUAL_MESSAGES_AFTER": 1,
+    "ACTUAL_TEST_DEBRIS_REMAINING": 0,
+    "ACTIVE_SCHEDULE_IDS": [
+      195
+    ],
+    "ACCOUNT12_READY": true,
+    "ACCOUNT79_READY": true,
+    "KEEP_CAMPAIGNS": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "KEEP_CONTACTS": [
+      1,
+      2,
+      92
+    ],
+    "QUEUE12": 0,
+    "QUEUE79": 0,
+    "FK_INTEGRITY_PASS": true,
+    "PRODUCTION_PRESERVATION_PASS": true
+  },
+  "MESSAGE_SENT": false,
+  "OTP_REQUESTED": false,
+  "RUBIKA_WORKER_STARTED": false,
+  "DELETE_ROW_COUNT_ACTUAL": 2166,
+  "R10_FORENSIC_CLEANUP_PASS": true
+}

@@ -1,0 +1,106 @@
+{
+  "account_id": 2,
+  "created_at": "2026-09-01T10:11:09.863304+00:00",
+  "session721": {
+    "session_id": 721,
+    "account_id": 2,
+    "session_status": "active",
+    "key_version": 1,
+    "has_ciphertext": true,
+    "ciphertext_len": 2208,
+    "identity_guid_hash": "80ae1278a40a670a",
+    "validation_error_code": null,
+    "validated_at": "2026-09-01T10:05:40.245565+00:00",
+    "invalidated_at": null,
+    "created_at": "2026-08-27T11:05:48.394614",
+    "updated_at": "2026-09-01T10:10:55.166653"
+  },
+  "session2": {
+    "session_id": 2,
+    "account_id": 2,
+    "session_status": "legacy_unclassified",
+    "key_version": 1,
+    "has_ciphertext": true,
+    "ciphertext_len": 2208,
+    "identity_guid_hash": null,
+    "validation_error_code": null,
+    "validated_at": null,
+    "invalidated_at": null,
+    "created_at": "2026-07-29T08:47:28.673487",
+    "updated_at": "2026-09-01T10:10:54.883694"
+  },
+  "account_identity": {
+    "account_status": "active",
+    "rubika_guid_hash": "80ae1278a40a670a",
+    "rubika_identity_status": "verified",
+    "rubika_identity_verified_at": "2026-09-01T10:05:40.245565+00:00"
+  },
+  "pre_actives": {
+    "2": 721,
+    "13": 729,
+    "23": 725,
+    "27": 772,
+    "74": 724
+  },
+  "pre_workers": [
+    2,
+    12,
+    13,
+    23,
+    27,
+    74,
+    79
+  ],
+  "pre_msg": 5,
+  "pre_ch": 3,
+  "pre_sess_rows": 16,
+  "protected_sessions": {
+    "12": [
+      {
+        "id": 657,
+        "status": "legacy_unclassified"
+      },
+      {
+        "id": 728,
+        "status": "legacy_unclassified"
+      }
+    ],
+    "19": [
+      {
+        "id": 726,
+        "status": "legacy_unclassified"
+      },
+      {
+        "id": 727,
+        "status": "legacy_unclassified"
+      }
+    ],
+    "81": [
+      {
+        "id": 722,
+        "status": "legacy_unclassified"
+      },
+      {
+        "id": 723,
+        "status": "legacy_unclassified"
+      }
+    ],
+    "92": [
+      {
+        "id": 11,
+        "status": "legacy_unclassified"
+      },
+      {
+        "id": 12,
+        "status": "legacy_unclassified"
+      }
+    ],
+    "79": [
+      {
+        "id": 600,
+        "status": "legacy_unclassified"
+      }
+    ]
+  },
+  "ACCOUNT2_ROLLBACK_READY": true
+}

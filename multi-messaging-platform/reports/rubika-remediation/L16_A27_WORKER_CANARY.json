@@ -1,0 +1,225 @@
+{
+  "WORKER_ROLLOUT_MUTATION_SCOPE_EXACT": true,
+  "CANONICAL_CONFIG_MUTATED_BY_WORKER_SUBCOMMANDS": false,
+  "WORKER_PROBE_READ_ONLY": true,
+  "BACKUP_COHORT_SCOPE_SAFE": true,
+  "SET_COHORT_TARGET_EXACT": true,
+  "RECREATE_WORKER_SCOPE_EXACT": true,
+  "PILOT_ACTIVE_SESSION_ID": 772,
+  "PILOT_DYNAMIC_ELIGIBLE": true,
+  "PILOT_WORKER_PRESENT": true,
+  "PILOT_WORKER_HEALTH_PASS": true,
+  "PILOT_WORKER_DUPLICATE": false,
+  "PILOT_WORKER_COVERAGE_STABLE": true,
+  "ACTUAL_WORKER_IDS": [
+    12,
+    13,
+    23,
+    27,
+    74,
+    79
+  ],
+  "WORKER_DISCOVERY_COHORT": "13,23,27,74",
+  "CANONICAL_MODE": "enforce",
+  "CANONICAL_ALLOWLIST": "13,23,74",
+  "GLOBAL_ACTIVE_SESSION_COUNT": 4,
+  "MESSAGE_SENT": false,
+  "OTP_REQUESTED_AGAIN": false,
+  "ROLLBACK_PERFORMED": false,
+  "ROLLBACK_RESULT": null,
+  "rollback_copy": "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\docker-compose.override.yml.before-l16-a27-cohort-20260831_124407.bak",
+  "CURRENT_PHASE": "L16_ACCOUNT27_WORKER_CANARY",
+  "PHASE_STATUS": "COMPLETE",
+  "EXACT_OPERATOR_INPUT_REQUIRED": "Proceed with Account27 canonical ENFORCE rollout",
+  "observe": {
+    "observations": [
+      {
+        "i": 1,
+        "probe": {
+          "ok": true,
+          "mode": "dynamic",
+          "cohort": [
+            13,
+            23,
+            27,
+            74
+          ],
+          "pin": [
+            12,
+            79
+          ],
+          "actual": [
+            12,
+            13,
+            23,
+            27,
+            74,
+            79
+          ],
+          "canon_mode": "enforce",
+          "canon_allow": "13,23,74"
+        },
+        "coverage": {
+          "12": {
+            "cov": true,
+            "q": 0
+          },
+          "13": {
+            "cov": true,
+            "q": 0
+          },
+          "23": {
+            "cov": true,
+            "q": 0
+          },
+          "27": {
+            "cov": true,
+            "q": 0
+          },
+          "74": {
+            "cov": true,
+            "q": 0
+          },
+          "79": {
+            "cov": true,
+            "q": 0
+          }
+        }
+      },
+      {
+        "i": 2,
+        "probe": {
+          "ok": true,
+          "mode": "dynamic",
+          "cohort": [
+            13,
+            23,
+            27,
+            74
+          ],
+          "pin": [
+            12,
+            79
+          ],
+          "actual": [
+            12,
+            13,
+            23,
+            27,
+            74,
+            79
+          ],
+          "canon_mode": "enforce",
+          "canon_allow": "13,23,74"
+        },
+        "coverage": {
+          "12": {
+            "cov": true,
+            "q": 0
+          },
+          "13": {
+            "cov": true,
+            "q": 0
+          },
+          "23": {
+            "cov": true,
+            "q": 0
+          },
+          "27": {
+            "cov": true,
+            "q": 0
+          },
+          "74": {
+            "cov": true,
+            "q": 0
+          },
+          "79": {
+            "cov": true,
+            "q": 0
+          }
+        }
+      },
+      {
+        "i": 3,
+        "probe": {
+          "ok": true,
+          "mode": "dynamic",
+          "cohort": [
+            13,
+            23,
+            27,
+            74
+          ],
+          "pin": [
+            12,
+            79
+          ],
+          "actual": [
+            12,
+            13,
+            23,
+            27,
+            74,
+            79
+          ],
+          "canon_mode": "enforce",
+          "canon_allow": "13,23,74"
+        },
+        "coverage": {
+          "12": {
+            "cov": true,
+            "q": 0
+          },
+          "13": {
+            "cov": true,
+            "q": 0
+          },
+          "23": {
+            "cov": true,
+            "q": 0
+          },
+          "27": {
+            "cov": true,
+            "q": 0
+          },
+          "74": {
+            "cov": true,
+            "q": 0
+          },
+          "79": {
+            "cov": true,
+            "q": 0
+          }
+        }
+      }
+    ],
+    "PILOT_WORKER_PRESENT": true,
+    "PILOT_WORKER_HEALTH_PASS": true,
+    "PILOT_WORKER_COVERAGE_STABLE": true,
+    "ACTUAL_WORKER_IDS": [
+      12,
+      13,
+      23,
+      27,
+      74,
+      79
+    ]
+  },
+  "sentinels": {
+    "ok": true,
+    "active_session_id": 772,
+    "session_count": 1,
+    "global_active": 4,
+    "msg": 5,
+    "challenge_count": 2,
+    "dispatch_ok": true,
+    "canon_mode": "enforce",
+    "canon_allow": "13,23,74",
+    "cohort": "13,23,27,74",
+    "pin": "12,79",
+    "mode": "dynamic",
+    "q27": 0,
+    "cov27": true
+  },
+  "STOPPED_BEFORE_CANONICAL_ENFORCE": true
+}

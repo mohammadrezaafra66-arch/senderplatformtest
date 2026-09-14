@@ -1,0 +1,75 @@
+{
+  "TEST_DB_NAME": "mmp_isolated_pytest",
+  "PRODUCTION_DB_NAME": "mmp_db",
+  "TEST_DB_IS_PRODUCTION": false,
+  "PRODUCTION_ROW_VISIBILITY_FROM_TEST_DB": false,
+  "test_db_created_this_run": true,
+  "connected_database": "mmp_isolated_pytest",
+  "TEST_DB_TEARDOWN_DEFERRED": true,
+  "TEST_DB_TEARDOWN_SCRIPT": "scripts/_teardown_test_isolation.py",
+  "TEST_REDIS_NAME": "mmp_test_redis_iso",
+  "TEST_NETWORK": "mmp_test_isolation",
+  "TEST_REDIS_ISOLATED": true,
+  "TEST_REDIS_ON_PRODUCTION_NETWORK": false,
+  "test_redis_network_names": [
+    "mmp_test_isolation"
+  ],
+  "worker_network_names": [
+    "multi-messaging-platform_default"
+  ],
+  "worker_redis_host": "redis",
+  "worker_redis_port": 6379,
+  "worker_redis_db_index": 0,
+  "_credential_fields_omitted": true,
+  "_scrub_applied": true,
+  "same_as_test_redis": false,
+  "PRODUCTION_WORKER_CAN_CONSUME_TEST_QUEUE": false,
+  "TEST_REDIS_PING": "PONG",
+  "REAL_QUEUE_PUSH_TO_PRODUCTION": false,
+  "LIVE_WORKERS_USED_FOR_TESTS": false,
+  "test_network_created_this_run": true,
+  "test_redis_created_this_run": true,
+  "TEST_REDIS_TEARDOWN_DEFERRED": true,
+  "TEST_NETWORK_TEARDOWN_DEFERRED": true,
+  "TEARDOWN_SCRIPT": "scripts/_teardown_test_isolation.py",
+  "ALLOWED_MUTATIONS": [
+    "CREATE DATABASE mmp_isolated_pytest",
+    "docker network create mmp_test_isolation",
+    "docker run --name mmp_test_redis_iso --network mmp_test_isolation",
+    "write reports/rubika-remediation/ISOLATION_PROOF.json"
+  ],
+  "fail_fast_refuses_production_db": true,
+  "fail_fast_refuses_production_redis": true,
+  "fail_fast_accepts_test_db": true,
+  "fail_fast_accepts_test_redis": true,
+  "is_production_database_url_mmp_db": true,
+  "accepted_test_db_error": null,
+  "accepted_test_redis_error": null,
+  "TEST_DB_ISOLATED": true,
+  "SAFE_TO_RUN_ISOLATED_REGRESSION_TESTS": true,
+  "TESTS_EXECUTED": false,
+  "TEARDOWN_OWNERSHIP": {
+    "deferred_until": "after_isolated_pytest_verification",
+    "teardown_script": "scripts/_teardown_test_isolation.py",
+    "exact_targets": {
+      "database": "mmp_isolated_pytest",
+      "redis_container": "mmp_test_redis_iso",
+      "docker_network": "mmp_test_isolation"
+    },
+    "never_targets": {
+      "database": "mmp_db",
+      "redis_container": "mmp_redis",
+      "docker_network": "multi-messaging-platform_default"
+    }
+  },
+  "REPORT_SECRET_SAFE": true,
+  "recommended_env": {
+    "DATABASE_URL": "postgresql://$MMP_TEST_DB_USER:$MMP_TEST_DB_PASSWORD@postgres:5432/mmp_isolated_pytest",
+    "REDIS_URL": "redis://mmp_test_redis_iso:6379/0",
+    "REAL_QUEUE_PUSH_ENABLED": "false",
+    "REAL_MESSAGE_SENDING_ENABLED": "false",
+    "WORKER_EXECUTION_ENABLED": "false",
+    "CHANNEL_CONNECTORS_ENABLED": "false",
+    "note": "Test runner must attach to networks 'mmp_test_isolation' (for Redis) and 'multi-messaging-platform_default' (for Postgres host 'postgres' only). Do not attach mmp_rubika_worker to the test Redis network. After pytest, run scripts/_teardown_test_isolation.py."
+  }
+}

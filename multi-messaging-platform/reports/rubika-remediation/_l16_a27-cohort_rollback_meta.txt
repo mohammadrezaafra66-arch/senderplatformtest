@@ -1,0 +1,9 @@
+rollback_file=C:\Users\poorchista\senderplatformtest\multi-messaging-platform\docker-compose.override.yml.before-l16-a27-cohort-20260831_124407.bak
+sha256=98b27a71def72f47a718fbee80451b4d05e8e7d70f9ca0527687b1d9a37af3d6
+size=2271
+mode=['enforce', 'enforce', 'enforce']
+allow=['13,23,74', '13,23,74', '13,23,74']
+discovery=['dynamic']
+cohort=['13,23,74']
+pin=['12,79']
+login_pilot=['27']

@@ -1,0 +1,258 @@
+{
+  "phase": "L5_PRODUCTION_SCHEMA_APPLY_RUNBOOK",
+  "status": "RUNBOOK_ONLY",
+  "production_apply_executed": false,
+  "created_at_utc": "2026-08-31",
+  "target_database": "mmp_db",
+  "postgres_container": "mmp_postgres",
+  "compose_network": "multi-messaging-platform_default",
+  "alembic_runner": {
+    "name": "mmp_l5_production_alembic_runner",
+    "uses_mmp_core_api_as_runner": false,
+    "image_source": "docker inspect mmp_core_api -> .Config.Image",
+    "mount": "{PROJECT_ROOT}:/app:ro",
+    "database_url_template": "postgresql://mmp_user:mmp_pass@postgres:5432/mmp_db"
+  },
+  "authorization": {
+    "required_env": {
+      "ALLOW_PRODUCTION_SCHEMA_MIGRATION": "1",
+      "FRESH_BACKUP_PATH": "absolute path to verified pg_dump",
+      "FRESH_BACKUP_SHA256": "lowercase sha256 hex"
+    },
+    "wrapper_script": "scripts/_l5_production_schema_apply.py",
+    "l4_rehearsal_guard_removed": false,
+    "positive_authorization_only": true
+  },
+  "revision_chain": {
+    "current_production": "campaign_accounts_001",
+    "step_1": "rubika_l2_canonical_session_001",
+    "step_2": "rubika_l3_login_challenge_001",
+    "use_explicit_revisions": true,
+    "avoid_ambiguous_upgrade_head_on_first_apply": true,
+    "head_after_apply": "rubika_l3_login_challenge_001",
+    "other_branches_from_current": []
+  },
+  "migration_source_hashes": {
+    "rubika_l2_canonical_session_001.py": "0d1b82fa765cdeeccea484f2c8ff5f53ab3d0201f8c4674b27f43069e27faec6",
+    "rubika_l3_login_challenge_001.py": "aed15577c4717c42b2a00d3bc6c86920760494d84a53c3b3a80fa762b9373587",
+    "scripts/_l5_production_schema_apply.py": "a5c2e253ac6fc8260d6938efc328d4216864c662fd810e5e7fa7a9a5d02b19a9"
+  },
+  "migration_source_hash_refresh": {
+    "refreshed_at": "2026-08-31T07:45:00+00:00",
+    "reason": "Post-L3 wrapper fix: verify_post/verify_l3 expect rubika_l3_login_challenge_001; verify_l2 still expects L2; shared session invariants unchanged. No migration re-run.",
+    "previous": {
+      "rubika_l2_canonical_session_001.py": "0d1b82fa765cdeeccea484f2c8ff5f53ab3d0201f8c4674b27f43069e27faec6",
+      "rubika_l3_login_challenge_001.py": "aed15577c4717c42b2a00d3bc6c86920760494d84a53c3b3a80fa762b9373587",
+      "scripts/_l5_production_schema_apply.py": "bd8c3d1aa8391e2720a8bf94164f787c2665f1ae4979f490318328dbbd6ae994"
+    },
+    "current": {
+      "rubika_l2_canonical_session_001.py": "0d1b82fa765cdeeccea484f2c8ff5f53ab3d0201f8c4674b27f43069e27faec6",
+      "rubika_l3_login_challenge_001.py": "aed15577c4717c42b2a00d3bc6c86920760494d84a53c3b3a80fa762b9373587",
+      "scripts/_l5_production_schema_apply.py": "a5c2e253ac6fc8260d6938efc328d4216864c662fd810e5e7fa7a9a5d02b19a9"
+    }
+  },
+  "l4_rehearsal_evidence": {
+    "l2_rehearsal_pass": true,
+    "l3_rehearsal_pass": true,
+    "downgrade_rehearsal_pass": true,
+    "canonical_active_sessions_created_by_migration": 0,
+    "account12_preserved": true,
+    "account79_preserved": true,
+    "legacy_duplicates_preserved": true,
+    "rehearsal_backup_evidence_only": "reports/rubika-remediation/l4_rehearsal/mmp_db_pre_l4_20260831T065954Z.dump"
+  },
+  "authoritative_production_baseline": {
+    "total_rubika_accounts": 43,
+    "account12_session_ids": [657, 728],
+    "account79_session_ids": [600],
+    "session_600_account_id": 79,
+    "session_657_account_id": 12,
+    "session_728_account_id": 12,
+    "account12_real_send_evidence": true,
+    "account79_real_send_evidence": true,
+    "session_status_column_present": false,
+    "alembic_version": "campaign_accounts_001",
+    "campaign_101_status": "paused",
+    "campaign_102_status": "paused"
+  },
+  "fresh_backup": {
+    "required": true,
+    "mandatory_immediately_before_apply": true,
+    "directory_template": "reports/rubika-remediation/l5_production_apply/backups/{UTC_TIMESTAMP}/",
+    "filename_template": "mmp_db_pre_l5_{UTC_TIMESTAMP}.dump",
+    "commands": [
+      "docker exec mmp_postgres pg_dump -U mmp_user -Fc -f /tmp/mmp_db_pre_l5_{TS}.dump mmp_db",
+      "docker cp mmp_postgres:/tmp/mmp_db_pre_l5_{TS}.dump {BACKUP_DIR}/",
+      "Get-FileHash -Algorithm SHA256 {BACKUP_FILE}"
+    ],
+    "record_fields": ["BACKUP_PATH", "BACKUP_SHA256", "BACKUP_SIZE", "BACKUP_TIMESTAMP"],
+    "do_not_use_l4_rehearsal_backup_as_rollback": true
+  },
+  "prechecks": {
+    "abort_on_failure": true,
+    "checks": [
+      {"name": "alembic_version", "expected": "campaign_accounts_001"},
+      {"name": "rubika_accounts", "expected": 43},
+      {"name": "account12_sessions", "expected": [657, 728]},
+      {"name": "account79_sessions", "expected": [600]},
+      {"name": "session_600_owner", "expected": 79},
+      {"name": "session_657_owner", "expected": 12},
+      {"name": "session_728_owner", "expected": 12},
+      {"name": "session_status_column", "expected": "absent"},
+      {"name": "campaign_101", "expected": "paused"},
+      {"name": "campaign_102", "expected": "paused"},
+      {"name": "queue_rubika_12", "expected": 0},
+      {"name": "queue_rubika_79", "expected": 0},
+      {"name": "rubika_canonical_session_v1", "expected": false},
+      {"name": "rubika_account_ids", "expected_contains": ["12", "79"]},
+      {"name": "no_active_r10_remediation_campaign", "expected": true},
+      {"name": "account12_success_attempts", "expected_min": 2},
+      {"name": "account79_success_attempts", "expected_min": 1}
+    ],
+    "wrapper_step": "L5_APPLY_STEP=precheck"
+  },
+  "upgrade_sequence": [
+    {
+      "order": 1,
+      "revision": "rubika_l2_canonical_session_001",
+      "command": "alembic upgrade rubika_l2_canonical_session_001",
+      "wrapper_step": "L5_APPLY_STEP=l2",
+      "stop_after": true
+    },
+    {
+      "order": 2,
+      "gate": "l2_verification_pass",
+      "revision": "rubika_l3_login_challenge_001",
+      "command": "alembic upgrade rubika_l3_login_challenge_001",
+      "wrapper_step": "L5_APPLY_STEP=l3"
+    }
+  ],
+  "l2_intermediate_verification": {
+    "required_before_l3": true,
+    "wrapper_step": "L5_APPLY_STEP=verify_l2",
+    "assertions": [
+      "alembic_version=rubika_l2_canonical_session_001",
+      "session_status column exists",
+      "all channel_sessions.session_status=legacy_unclassified",
+      "active session count=0",
+      "no session deleted",
+      "account12 sessions 657,728 exist",
+      "account79 session 600 exists",
+      "duplicate rows preserved",
+      "RUBIKA_CANONICAL_SESSION_V1 remains false"
+    ]
+  },
+  "l3_verification": {
+    "wrapper_step": "L5_APPLY_STEP=verify_post",
+    "assertions": [
+      "alembic_version=rubika_l3_login_challenge_001",
+      "rubika_login_challenges table exists",
+      "rubikaloginchallengestate enum exists once",
+      "challenge row count=0",
+      "no OTP values persisted",
+      "all sessions remain legacy_unclassified",
+      "active count=0"
+    ]
+  },
+  "feature_flags_after_apply": {
+    "RUBIKA_CANONICAL_SESSION_V1": false,
+    "AUTO_ENROLL_RUBIKA_POOL": false,
+    "RUBIKA_ACCOUNT_IDS": "12,79",
+    "canonical_runtime_enabled": false,
+    "canonical_active_sessions_expected": 0
+  },
+  "restart_plan": {
+    "before_restart": ["queue:rubika:12=0", "queue:rubika:79=0"],
+    "core_api": {
+      "action": "docker compose restart core_api",
+      "reason": "mounted core_engine; refresh ORM/pool",
+      "required": true
+    },
+    "rubika_worker": {
+      "action": "defer",
+      "reason": "no code volume mount; legacy path ignores new columns while flag=false",
+      "required": false,
+      "restart_only_if_readiness_regression": true
+    },
+    "celery_worker": {"required": false},
+    "celery_beat": {"required": false},
+    "post_restart_checks": [
+      "core_api healthy",
+      "rubika_worker healthy",
+      "worker:coverage:rubika:12 true",
+      "worker:coverage:rubika:79 true",
+      "queue:rubika:12=0",
+      "queue:rubika:79=0",
+      "no message send"
+    ]
+  },
+  "post_migration_verification": {
+    "total_rubika_accounts": 43,
+    "account12_session_ids": [657, 728],
+    "account79_session_ids": [600],
+    "all_sessions_legacy_unclassified": true,
+    "canonical_active_count": 0,
+    "login_challenge_count": 0,
+    "campaigns_101_102_paused": true,
+    "no_new_messages_or_attempts": true,
+    "real_send_historical_preserved": true
+  },
+  "rollback": {
+    "triggers": [
+      {"condition": "l2 migration error", "action": "D_full_restore"},
+      {"condition": "l2 verify active row > 0", "action": "C_downgrade_l3_l2_or_D"},
+      {"condition": "session id/count mismatch", "action": "D_full_restore"},
+      {"condition": "account12 or account79 session loss", "action": "D_full_restore"},
+      {"condition": "l3 migration error with l2 good", "action": "B_downgrade_l3"},
+      {"condition": "post restart api unhealthy", "action": "D_if_needed"},
+      {"condition": "unexpected readiness regression", "action": "D_if_unresolved"}
+    ],
+    "commands": {
+      "downgrade_l3": {
+        "alembic": "alembic downgrade rubika_l2_canonical_session_001",
+        "wrapper_step": "L5_APPLY_STEP=downgrade_l3"
+      },
+      "downgrade_l2": {
+        "alembic": "alembic downgrade campaign_accounts_001",
+        "wrapper_step": "L5_APPLY_STEP=downgrade_l2",
+        "note": "run after downgrade_l3"
+      },
+      "full_restore": {
+        "steps": [
+          "terminate backends on mmp_db",
+          "DROP DATABASE mmp_db",
+          "CREATE DATABASE mmp_db",
+          "pg_restore from FRESH_BACKUP_PATH",
+          "verify alembic_version=campaign_accounts_001",
+          "verify account12/79 session mapping"
+        ]
+      }
+    }
+  },
+  "apply_gates": {
+    "FRESH_BACKUP_CREATED": true,
+    "FRESH_BACKUP_HASH_VERIFIED": true,
+    "PRECHECKS_PASS": true,
+    "MIGRATION_SOURCE_HASHES_RECORDED": true,
+    "L2_REHEARSAL_PASS": true,
+    "L3_REHEARSAL_PASS": true,
+    "DOWNGRADE_REHEARSAL_PASS": true,
+    "ACCOUNT12_MAPPING_RECONCILED": true,
+    "ACCOUNT79_MAPPING_RECONCILED": true,
+    "RUBIKA_CANONICAL_SESSION_V1": false,
+    "OPERATOR_APPROVAL_REQUIRED": true
+  },
+  "forbidden": [
+    "alembic against mmp_db without ALLOW_PRODUCTION_SCHEMA_MIGRATION=1",
+    "enable RUBIKA_CANONICAL_SESSION_V1",
+    "canonicalize legacy sessions",
+    "OTP request",
+    "rubika network calls",
+    "production redis mutation",
+    "worker restart unless post-check requires",
+    "remove RUBIKA_ACCOUNT_IDS pin",
+    "message send"
+  ],
+  "safe_to_request_production_migration_approval": true,
+  "next_safe_action": "Operator review of exact production migration commands before any execution"
+}

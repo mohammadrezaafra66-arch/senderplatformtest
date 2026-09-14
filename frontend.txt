@@ -1,0 +1,112 @@
+Folder PATH listing
+Volume serial number is 0A23-43AF
+F:\SENDERPLATFORMTEST\FRONTEND\SRC
+|   i18n.ts
+|   
++---components
+|   |   ApiTokenSessionPanel.tsx
+|   |   CampaignSenderSelector.tsx
+|   |   CampaignSenderStatusLine.tsx
+|   |   ConfirmDialog.controlled.test.ts
+|   |   ConfirmDialog.tsx
+|   |   DelaySetting.tsx
+|   |   Layout.tsx
+|   |   MessageDetailModal.tsx
+|   |   MessageSenderCell.tsx
+|   |   MessageTextCell.tsx
+|   |   OperationalSendTestForm.tsx
+|   |   ProxyAssignmentForm.tsx
+|   |   RequireAuth.tsx
+|   |   RubikaAssistantCard.tsx
+|   |   RubikaContentScheduleManager.tsx
+|   |   RubikaGroupManager.tsx
+|   |   RubikaPoolPanel.tsx
+|   |   RubikaPoolPanel.tsx.pre-schedule-slots-ui.bak
+|   |   RubikaProtectionCenter.tsx
+|   |   RubikaSendLogPanel.tsx
+|   |   RubikaUserAccountLoginPanel.tsx
+|   |   Toast.tsx
+|   |   TooltipHint.tsx
+|   |   WhatsAppEvolutionPanel.tsx
+|   |   WhatsAppWarmupTrigger.tsx
+|   |   WhatsAppWebPanel.tsx
+|   |   
+|   \---ui
+|           index.tsx
+|           
++---lib
+|   |   accounts-api.ts
+|   |   api.ts
+|   |   audit-api.ts
+|   |   auth-storage.ts
+|   |   backend-proxy.contract.test.ts
+|   |   campaign-account-errors.ts
+|   |   campaign-api.start.test.ts
+|   |   campaign-api.ts
+|   |   campaign-preparation-errors.ts
+|   |   campaign-start-errors.ts
+|   |   contacts-api.ts
+|   |   contacts-import-api.ts
+|   |   controlled-production.frontend.test.ts
+|   |   dashboard-api.ts
+|   |   failure-reason.ts
+|   |   rubika-api.ts
+|   |   rubika-api.ts.pre-schedule-slots-ui.bak
+|   |   whatsapp-api.ts
+|   |   
+|   \---__tests__
+|           archive-api.test.ts
+|           contacts-api.test.ts
+|           
++---pages
+|   |   accounts.tsx
+|   |   contacts.tsx
+|   |   index.tsx
+|   |   login.tsx
+|   |   rubika.tsx
+|   |   settings.tsx
+|   |   _app.tsx
+|   |   _document.tsx
+|   |   
+|   +---api
+|   |       hello.ts
+|   |       
+|   +---campaigns
+|   |       create.tsx
+|   |       index.tsx
+|   |       [id].tsx
+|   |       
+|   \---reports
+|           audit.tsx
+|           messages.tsx
+|           
++---state
+|       auth.tsx
+|       
++---styles
+|       globals.css
+|       Home.module.css
+|       
++---types
+|       account.ts
+|       audit.ts
+|       campaign.ts
+|       contacts-import.ts
+|       contacts.ts
+|       dashboard.ts
+|       moment-jalaali.d.ts
+|       rubika.ts
+|       rubika.ts.pre-schedule-slots-ui.bak
+|       
+\---utils
+        account-status.ts
+        campaign-preflight-display.test.ts
+        campaign-preflight-display.ts
+        campaign-status.ts
+        jalali.ts
+        message-sender.ts
+        permissions.ts
+        sender-accounts.test.ts
+        sender-accounts.ts
+        session-readiness.ts
+        

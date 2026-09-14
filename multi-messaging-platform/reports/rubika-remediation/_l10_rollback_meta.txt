@@ -1,0 +1,7 @@
+﻿ROLLBACK_COPY=docker-compose.override.yml.before-l10-batch-a-shadow-20260831_130359.bak
+SHA256_BEFORE=330a72f35763f98386169c0238cb3824383e25b3a27e32a3660b59043752a0f3
+CONFIG_FILE=docker-compose.override.yml
+COMPOSE_FILE=docker-compose.yml
+SERVICES_AFFECTED=core_api,rubika_worker
+CELERY_LEFT_EXITED=True
+TS=20260831_130359

@@ -1,0 +1,8 @@
+{
+    "SOURCE_DB":  "mmp_db",
+    "PURPOSE":  "contact_soft_delete_001",
+    "BACKUP_SHA256":  "9F36B52893A57F062A4674E2DA96F7AE4133E4665778CBF019A05418C119E64A",
+    "BACKUP_TIMESTAMP":  "20260902T152651Z",
+    "BACKUP_SIZE":  225923,
+    "BACKUP_PATH":  "C:\\Users\\poorchista\\senderplatformtest\\multi-messaging-platform\\reports\\contact-delete-migration\\backups\\20260902T152651Z\\mmp_db_pre_contact_soft_delete_20260902T152651Z.dump"
+}

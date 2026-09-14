@@ -1,0 +1,68 @@
+{
+  "generated_at": "2026-09-01T12:00:00+00:00",
+  "IDENTIFIER_SEMANTIC_COLLISIONS": [
+    {
+      "id": "IDC-001",
+      "symptom": "Sender row showed '1' or '1/1' as identity",
+      "root_cause": "label field or array index rendered as display_identity",
+      "fix": "resolve_display_identity() rejects short numeric and n/n patterns; falls back to phone or اکانت #id",
+      "status": "FIXED"
+    },
+    {
+      "id": "IDC-002",
+      "symptom": "فعال · rubika shown as operational status",
+      "root_cause": "CampaignSenderSelector rendered account.status (lifecycle) not runtime_status",
+      "fix": "Shared resolveCampaignSenderStatusLabel + CampaignSenderStatusLine; redeploy frontend",
+      "status": "FIXED_SOURCE_PENDING_DEPLOY"
+    },
+    {
+      "id": "IDC-003",
+      "symptom": "Preflight READY vs picker فعال mismatch",
+      "root_cause": "Preflight table used account_ready_now/READY strings; picker used lifecycle label",
+      "fix": "Preflight table uses runtime_status_label; ready count uses campaign_eligible_accounts",
+      "status": "FIXED"
+    }
+  ],
+  "identifiers": {
+    "account_id": {
+      "type": "int",
+      "origin": "accounts.id",
+      "semantic": "Primary account PK",
+      "used_in": ["messages.account_id", "campaign_accounts.account_id", "queue payload", "worker"]
+    },
+    "account_identifier": {
+      "type": "string",
+      "origin": "accounts.phone_number",
+      "semantic": "Human phone/display; API alias",
+      "used_in": ["GET /accounts", "SenderAccountResponse"]
+    },
+    "display_identity": {
+      "type": "string",
+      "origin": "resolve_display_identity()",
+      "semantic": "UI-safe sender label",
+      "used_in": ["accounts API", "preflight", "sender picker"]
+    },
+    "message_id": {
+      "type": "int",
+      "origin": "messages.id",
+      "semantic": "Frozen per-recipient send unit",
+      "used_in": ["staged payload", "MessageAttempt.message_id"]
+    },
+    "campaign_account_id": {
+      "type": "int",
+      "origin": "campaign_accounts.id",
+      "semantic": "Assignment link PK — NOT account identity",
+      "collision_risk": "Must never render as display_identity"
+    },
+    "contact_id": {
+      "type": "int",
+      "origin": "contacts.id",
+      "semantic": "Audience member"
+    },
+    "message_attempt_id": {
+      "type": "int",
+      "origin": "message_attempts.id",
+      "semantic": "Dispatch attempt record; created at worker result time"
+    }
+  }
+}

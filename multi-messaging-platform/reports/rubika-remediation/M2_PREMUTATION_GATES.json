@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-09-01T10:11:08.452580+00:00",
+  "READ_ONLY": true,
+  "TARGET_ACCOUNT_ID": 2,
+  "ACCOUNT2_PRE_SESSION_ROWS": [
+    {
+      "id": 2,
+      "status": "legacy_unclassified"
+    },
+    {
+      "id": 721,
+      "status": "active"
+    }
+  ],
+  "GLOBAL_ACTIVE_SESSION_COUNT": 5,
+  "ACTIVES": {
+    "2": 721,
+    "13": 729,
+    "23": 725,
+    "27": 772,
+    "74": 724
+  },
+  "ACTUAL_WORKER_IDS": [
+    2,
+    12,
+    13,
+    23,
+    27,
+    74,
+    79
+  ],
+  "SESSION721_DECRYPT_OK": true,
+  "SESSION721_STRUCTURAL_VALID": true,
+  "SESSION721_AUTH_PASS": true,
+  "SESSION721_IDENTITY_MATCH": true,
+  "SESSION721_FRESH_PROOF_PASS": true,
+  "SESSION2_DECRYPT_FAILED_CONFIRMED": true,
+  "NO_ACCOUNT2_ACTIVE_SESSION": false,
+  "M2_RESUME_PARTIAL": true,
+  "M2_FRESH_PATH": false,
+  "ACCOUNT2_SOLE_ACTIVE_721": true,
+  "NO_ACTIVE_OTP": true,
+  "NO_QUEUE_ACTIVITY": true,
+  "ACCOUNT2_RUNTIME_STATUS": "AUTHENTICATED_NO_WORKER",
+  "ACCOUNT2_RUNTIME_REASON": "NO_WORKER_COVERAGE",
+  "BASELINE_ACTIVES_OK": true,
+  "BASELINE_WORKERS_OK": true,
+  "SESSION_INVENTORY_OK": true,
+  "proof_meta": {
+    "identity_guid_hash": "80ae1278a40a670a",
+    "duration_ms": 302,
+    "reason": null
+  },
+  "queue2": 0,
+  "open_challenge_count": 0,
+  "msg": 5,
+  "ch": 3,
+  "ACCOUNT2_ROLLBACK_READY": true,
+  "rollback_manifest_path": "/app/reports/rubika-remediation/M2_ACCOUNT2_ROLLBACK_MANIFEST.json",
+  "failures": [],
+  "M2_PREMUTATION_GATES_PASS": true
+}

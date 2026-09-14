@@ -1,0 +1,359 @@
+{
+  "phase": "L6_CANONICALIZATION_PLANNING",
+  "phase_status": "COMPLETE",
+  "queried_at_utc": "2026-08-31T07:30:00Z",
+  "mutation": false,
+  "otp_requested": false,
+  "message_sent": false,
+  "production_canonicalization_executed": false,
+  "sources": {
+    "production_db_readonly": "mmp_db channel_sessions + message_attempts join",
+    "health_audit": "reports/rubika-remediation/ALL_RUBIKA_ACCOUNT_HEALTH_AUDIT.json",
+    "owner_decrypt": "reports/rubika-remediation/OWNER_DECRYPT_AUDIT.json",
+    "mapping_reconcile": "reports/rubika-remediation/L4_SESSION_ACCOUNT_MAPPING_RECONCILIATION.json",
+    "legacy_loader_rule": "workers/session_access.load_account_session_plaintext ORDER BY id DESC"
+  },
+  "production_snapshot": {
+    "alembic_version": "rubika_l3_login_challenge_001",
+    "total_channel_session_count": 15,
+    "legacy_unclassified_session_count": 15,
+    "canonical_active_session_count": 0,
+    "login_challenge_row_count": 0,
+    "rubika_canonical_session_v1": false,
+    "auto_enroll_rubika_pool": false
+  },
+  "evidence_rules": {
+    "never_choose_by_max_id_alone": true,
+    "priority": [
+      "successful authenticated reconnect",
+      "identity match",
+      "proven real-send evidence",
+      "current runtime usage (legacy max-id loader)",
+      "created_at as supporting only"
+    ],
+    "note": "Health audit probed the legacy primary (max id) per account. Secondary duplicate rows without a dedicated probe are marked UNPROBED — that alone forces MANUAL_REVIEW for duplicate accounts."
+  },
+  "sessions": [
+    {
+      "session_id": 1,
+      "account_id": 1,
+      "decrypt_status": "SESSION_DECRYPT_FAILED",
+      "structure_status": "N/A",
+      "authenticated_reconnect_status": "SKIPPED",
+      "identity_match": null,
+      "real_send_evidence": {"success_attempt_count": 0, "r10_verified_account": false},
+      "runtime_usage": "would_be_legacy_primary_if_sole",
+      "created_at": "2026-07-20T08:29:36.817824",
+      "probe_scope": "account_primary"
+    },
+    {
+      "session_id": 2,
+      "account_id": 2,
+      "decrypt_status": "UNPROBED",
+      "structure_status": "UNPROBED",
+      "authenticated_reconnect_status": "UNPROBED",
+      "identity_match": null,
+      "real_send_evidence": {"success_attempt_count": 0, "account_level_only": true},
+      "runtime_usage": "not_current_legacy_primary",
+      "created_at": "2026-07-29T08:47:28.673487",
+      "probe_scope": "secondary_unprobed"
+    },
+    {
+      "session_id": 721,
+      "account_id": 2,
+      "decrypt_status": "OK",
+      "structure_status": "OK",
+      "authenticated_reconnect_status": "AUTH_RECONNECT_PASS",
+      "identity_match": true,
+      "real_send_evidence": {"success_attempt_count": 0, "r10_verified_account": false},
+      "runtime_usage": "current_legacy_primary_max_id",
+      "created_at": "2026-08-27T11:05:48.394614",
+      "probe_scope": "account_primary"
+    },
+    {
+      "session_id": 657,
+      "account_id": 12,
+      "decrypt_status": "UNPROBED",
+      "structure_status": "UNPROBED",
+      "authenticated_reconnect_status": "UNPROBED",
+      "identity_match": null,
+      "real_send_evidence": {
+        "account_success_attempts": [2],
+        "note": "SUCCESS attempt id=2 at 2026-08-26T10:32:33 occurred before session 728 existed; legacy loader would have used 657"
+      },
+      "runtime_usage": "historical_legacy_primary_before_728",
+      "created_at": "2026-08-25T12:22:46.440358",
+      "probe_scope": "secondary_unprobed_but_historical_send_window"
+    },
+    {
+      "session_id": 728,
+      "account_id": 12,
+      "decrypt_status": "OK",
+      "structure_status": "OK",
+      "authenticated_reconnect_status": "AUTH_RECONNECT_PASS",
+      "identity_match": true,
+      "real_send_evidence": {
+        "account_success_attempts": [15],
+        "note": "SUCCESS attempt id=15 at 2026-08-29T09:30:22 after 728 created; legacy loader uses max(id)=728"
+      },
+      "runtime_usage": "current_legacy_primary_max_id",
+      "created_at": "2026-08-27T11:34:51.864667",
+      "probe_scope": "account_primary"
+    },
+    {
+      "session_id": 729,
+      "account_id": 13,
+      "decrypt_status": "OK",
+      "structure_status": "OK",
+      "authenticated_reconnect_status": "AUTH_RECONNECT_PASS",
+      "identity_match": true,
+      "real_send_evidence": {"success_attempt_count": 0, "r10_verified_account": false},
+      "runtime_usage": "current_legacy_primary_max_id",
+      "created_at": "2026-08-27T11:36:31.636013",
+      "probe_scope": "account_primary"
+    },
+    {
+      "session_id": 726,
+      "account_id": 19,
+      "decrypt_status": "UNPROBED",
+      "structure_status": "UNPROBED",
+      "authenticated_reconnect_status": "UNPROBED",
+      "identity_match": null,
+      "real_send_evidence": {"success_attempt_count": 0, "account_level_only": true},
+      "runtime_usage": "not_current_legacy_primary",
+      "created_at": "2026-08-27T11:31:11.615343",
+      "probe_scope": "secondary_unprobed"
+    },
+    {
+      "session_id": 727,
+      "account_id": 19,
+      "decrypt_status": "OK",
+      "structure_status": "OK",
+      "authenticated_reconnect_status": "AUTH_RECONNECT_PASS",
+      "identity_match": true,
+      "real_send_evidence": {"success_attempt_count": 0, "r10_verified_account": false},
+      "runtime_usage": "current_legacy_primary_max_id",
+      "created_at": "2026-08-27T11:31:49.088057",
+      "probe_scope": "account_primary"
+    },
+    {
+      "session_id": 725,
+      "account_id": 23,
+      "decrypt_status": "OK",
+      "structure_status": "OK",
+      "authenticated_reconnect_status": "AUTH_RECONNECT_PASS",
+      "identity_match": true,
+      "real_send_evidence": {"success_attempt_count": 0, "r10_verified_account": false},
+      "runtime_usage": "current_legacy_primary_max_id",
+      "created_at": "2026-08-27T11:26:34.342783",
+      "probe_scope": "account_primary"
+    },
+    {
+      "session_id": 724,
+      "account_id": 74,
+      "decrypt_status": "OK",
+      "structure_status": "OK",
+      "authenticated_reconnect_status": "AUTH_RECONNECT_PASS",
+      "identity_match": true,
+      "real_send_evidence": {"success_attempt_count": 0, "r10_verified_account": false},
+      "runtime_usage": "current_legacy_primary_max_id",
+      "created_at": "2026-08-27T11:23:02.379952",
+      "probe_scope": "account_primary"
+    },
+    {
+      "session_id": 600,
+      "account_id": 79,
+      "decrypt_status": "OK",
+      "structure_status": "OK",
+      "authenticated_reconnect_status": "AUTH_RECONNECT_PASS",
+      "identity_match": true,
+      "real_send_evidence": {
+        "success_attempt_count": 1,
+        "r10_verified_account": true,
+        "success_attempt_ids": [17]
+      },
+      "runtime_usage": "current_legacy_primary_sole_session",
+      "created_at": "2026-08-24T10:06:44.281893",
+      "probe_scope": "account_primary",
+      "protection": "PINNED_ACCOUNT_79"
+    },
+    {
+      "session_id": 722,
+      "account_id": 81,
+      "decrypt_status": "UNPROBED",
+      "structure_status": "UNPROBED",
+      "authenticated_reconnect_status": "UNPROBED",
+      "identity_match": null,
+      "real_send_evidence": {"success_attempt_count": 0, "account_level_only": true},
+      "runtime_usage": "not_current_legacy_primary",
+      "created_at": "2026-08-27T11:20:36.613456",
+      "probe_scope": "secondary_unprobed"
+    },
+    {
+      "session_id": 723,
+      "account_id": 81,
+      "decrypt_status": "OK",
+      "structure_status": "OK",
+      "authenticated_reconnect_status": "AUTH_RECONNECT_PASS",
+      "identity_match": true,
+      "real_send_evidence": {"success_attempt_count": 0, "r10_verified_account": false},
+      "runtime_usage": "current_legacy_primary_max_id",
+      "created_at": "2026-08-27T11:21:47.584794",
+      "probe_scope": "account_primary"
+    },
+    {
+      "session_id": 11,
+      "account_id": 92,
+      "decrypt_status": "SESSION_DECRYPT_FAILED",
+      "structure_status": "N/A",
+      "authenticated_reconnect_status": "SKIPPED",
+      "identity_match": null,
+      "real_send_evidence": {"success_attempt_count": 0},
+      "runtime_usage": "not_current_legacy_primary",
+      "created_at": "2026-08-17T12:23:55.043458",
+      "probe_scope": "per_session_owner_decrypt"
+    },
+    {
+      "session_id": 12,
+      "account_id": 92,
+      "decrypt_status": "SESSION_DECRYPT_FAILED",
+      "structure_status": "N/A",
+      "authenticated_reconnect_status": "SKIPPED",
+      "identity_match": null,
+      "real_send_evidence": {"success_attempt_count": 0},
+      "runtime_usage": "current_legacy_primary_max_id",
+      "created_at": "2026-08-19T08:04:02.643770",
+      "probe_scope": "per_session_owner_decrypt"
+    }
+  ],
+  "account_groups": {
+    "SINGLE_PROVEN_SESSION": [13, 23, 74, 79],
+    "MULTIPLE_PROVEN_SESSIONS": [12],
+    "DECRYPT_FAILED": [1, 92],
+    "NO_USABLE_SESSION": [],
+    "MANUAL_REVIEW_REQUIRED": [2, 12, 19, 81, 92]
+  },
+  "group_notes": {
+    "MULTIPLE_PROVEN_SESSIONS": "Account 12 alone has time-windowed real-send evidence implicating both 657 and 728; not max-id selection.",
+    "MANUAL_REVIEW_REQUIRED": "Includes all duplicate-session accounts (secondary UNPROBED) plus decrypt failures. Account 12 also listed under MULTIPLE_PROVEN.",
+    "NO_USABLE_SESSION": "Among accounts that currently have channel_sessions rows, none are empty; many of the 43 Rubika accounts have zero sessions and are out of this session-row inventory (login later)."
+  },
+  "duplicate_candidate_analysis": {
+    "2": {
+      "candidate_session_id": 721,
+      "other_session_ids": [2],
+      "candidate_evidence": [
+        "AUTH_RECONNECT_PASS",
+        "identity_match=true",
+        "current_legacy_primary_max_id",
+        "decrypt_ok_structure_ok"
+      ],
+      "ambiguity": "Secondary session 2 UNPROBED; no real-send on either; cannot treat max-id as sole proof.",
+      "recommended_action": "MANUAL_REVIEW"
+    },
+    "12": {
+      "candidate_session_id": 728,
+      "other_session_ids": [657],
+      "candidate_evidence": [
+        "AUTH_RECONNECT_PASS on 728",
+        "identity_match=true on 728",
+        "SUCCESS attempt 15 after 728 created (runtime max-id)",
+        "worker_coverage true in health audit"
+      ],
+      "ambiguity": "SUCCESS attempt 2 on 2026-08-26 pre-dates session 728 (created 2026-08-27); that send window proves 657 was usable. 657 reconnect/identity UNPROBED in health audit. PROTECTION: do not promote without operator gate.",
+      "recommended_action": "MANUAL_REVIEW",
+      "protection_gate": "ACCOUNT12_PINNED_NO_AUTO_PROMOTE"
+    },
+    "19": {
+      "candidate_session_id": 727,
+      "other_session_ids": [726],
+      "candidate_evidence": [
+        "AUTH_RECONNECT_PASS",
+        "identity_match=true",
+        "current_legacy_primary_max_id"
+      ],
+      "ambiguity": "Secondary 726 UNPROBED; no real-send; created_at only ~38s apart.",
+      "recommended_action": "MANUAL_REVIEW"
+    },
+    "81": {
+      "candidate_session_id": 723,
+      "other_session_ids": [722],
+      "candidate_evidence": [
+        "AUTH_RECONNECT_PASS",
+        "identity_match=true",
+        "current_legacy_primary_max_id"
+      ],
+      "ambiguity": "Secondary 722 UNPROBED; no real-send.",
+      "recommended_action": "MANUAL_REVIEW"
+    },
+    "92": {
+      "candidate_session_id": null,
+      "other_session_ids": [11, 12],
+      "candidate_evidence": [],
+      "ambiguity": "Both sessions SESSION_DECRYPT_FAILED (owner decrypt per-session).",
+      "recommended_action": "MANUAL_REVIEW"
+    }
+  },
+  "protected_accounts": {
+    "12": {
+      "recommended_candidate_session": 728,
+      "ambiguous": true,
+      "reason": "728 is current runtime primary with fresh reconnect/identity and post-728 real-send; 657 has pre-728 real-send evidence and remains unprobed for reconnect.",
+      "action": "NO_PROMOTE_UNTIL_OPERATOR_REVIEW"
+    },
+    "79": {
+      "recommended_candidate_session": 600,
+      "ambiguous": false,
+      "reason": "Sole session; decrypt OK; AUTH_RECONNECT_PASS; identity_match; SUCCESS attempt 17.",
+      "action": "VALID_CANDIDATE_BUT_PINNED_NO_AUTO_PROMOTE"
+    }
+  },
+  "batches": {
+    "A": {
+      "account_ids": [13, 23, 74],
+      "criteria": "single-session, reconnect PASS, identity PASS, no duplicate ambiguity",
+      "excluded_protected": {
+        "79": "SINGLE_PROVEN and valid, but explicit protection gate — promote only with operator approval after Batch A dry-run"
+      }
+    },
+    "B": {
+      "account_ids": [],
+      "criteria": "duplicate accounts with one clearly superior proven candidate and no unresolved secondary",
+      "note": "None qualify yet: 2/19/81 secondaries UNPROBED; 12 has dual-era send evidence. After dedicated secondary probes, re-score before any Batch B promotion."
+    },
+    "C": {
+      "account_ids": [1, 2, 12, 19, 81, 92],
+      "criteria": "manual-review / decrypt anomalies / protected dual-session"
+    }
+  },
+  "promotion_prechecks": [
+    "RUBIKA_CANONICAL_SESSION_V1 remains false globally",
+    "campaigns 101/102 paused; queues empty for touched accounts",
+    "fresh backup of mmp_db with provenance",
+    "target session decrypt + reconnect + identity re-prove read-only immediately before promote",
+    "exactly one ACTIVE after promote; all other account sessions remain legacy_unclassified or demoted non-active",
+    "Account 12/79 require explicit ALLOW_PROMOTE_PROTECTED_ACCOUNT=12|79 env gate",
+    "no OTP, no message send, no worker restart as part of promote step"
+  ],
+  "rollback_behavior": {
+    "per_account": "set promoted session session_status back to legacy_unclassified; clear identity binding if written in same txn; leave ciphertext untouched",
+    "never": "auto-delete session rows; auto-restore full DB for single-account mistake unless operator chooses",
+    "flag": "leave RUBIKA_CANONICAL_SESSION_V1 false so runtime continues legacy loader during rollback"
+  },
+  "feature_flag_strategy": {
+    "current": "RUBIKA_CANONICAL_SESSION_V1 is global bool only (core_engine.config)",
+    "do_not": "set RUBIKA_CANONICAL_SESSION_V1=true after first promotion",
+    "proposed_safer_gates_before_global": [
+      "RUBIKA_CANONICAL_SESSION_ACCOUNT_IDS allowlist (comma-separated) — canonical loader only for listed accounts when V1 false or when V1=shadow",
+      "RUBIKA_CANONICAL_SESSION_MODE=off|shadow|enforce — shadow compares legacy max-id load vs canonical ACTIVE load without switching send path",
+      "cohort enable: pin allowlist to Batch A successes first, then protected 79, never 12 until ambiguity resolved"
+    ],
+    "rollout_sequence": [
+      "1 promote Batch A sessions to ACTIVE (flag still false)",
+      "2 canonical loader verification offline/API dry-run against ACTIVE",
+      "3 shadow/read-only compare legacy vs canonical for allowlisted accounts",
+      "4 enable per-account/cohort gate",
+      "5 only later global RUBIKA_CANONICAL_SESSION_V1=true"
+    ]
+  }
+}

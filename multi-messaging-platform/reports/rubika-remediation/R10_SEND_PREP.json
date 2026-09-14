@@ -1,0 +1,336 @@
+{
+  "started_at": "2026-08-29T09:14:45.231946+00:00",
+  "MESSAGE_SENT": false,
+  "OTP_REQUESTED": false,
+  "queues_before_create": {
+    "QUEUE12": 0,
+    "QUEUE79": 0,
+    "COV12": true,
+    "COV79": true
+  },
+  "R10_CAMPAIGN_ID": 101,
+  "NEW_CAMPAIGN_COUNT_CREATED": 1,
+  "NEW_ACCOUNT_COUNT_CREATED": 0,
+  "NEW_CONTACT_COUNT_CREATED": 0,
+  "prepare": {
+    "campaign_id": 101,
+    "total_contacts": 2,
+    "allowed_contacts": 2,
+    "skipped_contacts": 0,
+    "staged_count": 2,
+    "ready_count": 2,
+    "blocked_count": 0,
+    "already_staged_count": 0,
+    "limit_applied": null,
+    "product_snapshot_id": null,
+    "product_snapshot_valid": true,
+    "force_mock_output": false,
+    "real_gpt_called": false,
+    "real_queue_push_enabled": true,
+    "redis_queue_pushed": false,
+    "items": [
+      {
+        "id": 337,
+        "campaign_id": 101,
+        "contact_id": 2,
+        "rendered_message_id": 337,
+        "channel": "rubika",
+        "status": "ready",
+        "final_text": "سلام {first_name} — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+        "queue_payload": {
+          "phone": "+989921589743",
+          "channel": "rubika",
+          "dry_run": true,
+          "metadata": {
+            "use_gpt": false,
+            "render_version": "campaign-render-v1",
+            "render_batch_id": "6ade69cbc10941b0895a11c710ef5435",
+            "template_source": "base_template",
+            "include_products": false,
+            "final_text_sha256": "71ae0ff37db2d2c81b30d8f577cb000a103503568bf0a33ac2508b4a908ce969"
+          },
+          "account_id": 12,
+          "contact_id": 2,
+          "final_text": "سلام {first_name} — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+          "message_id": 337,
+          "campaign_id": 101,
+          "safety_note": "DB staging only. Not pushed to Redis.",
+          "channel_handle": null,
+          "ready_for_queue": true,
+          "rendered_message_id": 337,
+          "real_queue_push_enabled": true
+        },
+        "skip_reason": null,
+        "created_at": "2026-08-29 09:14:45.322863"
+      },
+      {
+        "id": 338,
+        "campaign_id": 101,
+        "contact_id": 92,
+        "rendered_message_id": 338,
+        "channel": "rubika",
+        "status": "ready",
+        "final_text": "سلام {first_name} — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+        "queue_payload": {
+          "phone": "+98965275364",
+          "channel": "rubika",
+          "dry_run": true,
+          "metadata": {
+            "use_gpt": false,
+            "render_version": "campaign-render-v1",
+            "render_batch_id": "6ade69cbc10941b0895a11c710ef5435",
+            "template_source": "base_template",
+            "include_products": false,
+            "final_text_sha256": "71ae0ff37db2d2c81b30d8f577cb000a103503568bf0a33ac2508b4a908ce969"
+          },
+          "account_id": 79,
+          "contact_id": 92,
+          "final_text": "سلام {first_name} — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+          "message_id": 338,
+          "campaign_id": 101,
+          "safety_note": "DB staging only. Not pushed to Redis.",
+          "channel_handle": null,
+          "ready_for_queue": true,
+          "rendered_message_id": 338,
+          "real_queue_push_enabled": true
+        },
+        "skip_reason": null,
+        "created_at": "2026-08-29 09:14:45.325726"
+      }
+    ]
+  },
+  "assignment": {
+    "messages": [
+      {
+        "id": 337,
+        "account_id": 12,
+        "contact_id": 2
+      },
+      {
+        "id": 338,
+        "account_id": 79,
+        "contact_id": 92
+      }
+    ],
+    "by_account": {
+      "12": 1,
+      "79": 1
+    }
+  },
+  "R10_RECIPIENT_COUNT": 2,
+  "R10_MESSAGE_COUNT": 2,
+  "ACCOUNT12_ASSIGNED_MESSAGE_COUNT": 1,
+  "ACCOUNT79_ASSIGNED_MESSAGE_COUNT": 1,
+  "NEW_MESSAGE_COUNT_CREATED": 2,
+  "preflight": {
+    "campaign": {
+      "allowed_to_start": true,
+      "code": "CAMPAIGN_READY",
+      "message": "کمپین از نظر ایمنی ارسال آماده است.",
+      "campaign_id": 101,
+      "execution_safety_state": "READY",
+      "total_messages": 2,
+      "ready_messages": 2,
+      "blocked_messages": 0,
+      "assigned_accounts": 2,
+      "usable_accounts": 2,
+      "blocked_accounts": 0,
+      "temporary_accounts": 0,
+      "immediate_capacity": 2,
+      "estimated_today_capacity": 2,
+      "estimated_completion_at": "2026-08-30T08:00:00+03:30",
+      "estimated_duration_seconds": 69314,
+      "timezone": "Asia/Tehran",
+      "estimated_hourly_capacity": 2,
+      "warnings": [],
+      "blockers": [],
+      "accounts": [
+        {
+          "account_id": 12,
+          "label": null,
+          "health": "healthy",
+          "readiness": "READY",
+          "lifecycle": "limited",
+          "assigned": 1,
+          "assignment_state": "assigned",
+          "account_ready_now": true,
+          "worker_coverage": true,
+          "daily_remaining": 60,
+          "hourly_remaining": 5,
+          "next_allowed_at": null,
+          "window_state": "open",
+          "cooldown_until": null,
+          "eligible_now": true,
+          "block_code": null,
+          "reason_code": "READY",
+          "bottleneck": false,
+          "reason": null,
+          "delivery_mode": "user_account"
+        },
+        {
+          "account_id": 79,
+          "label": null,
+          "health": "healthy",
+          "readiness": "READY",
+          "lifecycle": "limited",
+          "assigned": 1,
+          "assignment_state": "assigned",
+          "account_ready_now": true,
+          "worker_coverage": true,
+          "daily_remaining": 60,
+          "hourly_remaining": 5,
+          "next_allowed_at": null,
+          "window_state": "open",
+          "cooldown_until": null,
+          "eligible_now": true,
+          "block_code": null,
+          "reason_code": "READY",
+          "bottleneck": false,
+          "reason": null,
+          "delivery_mode": "user_account"
+        }
+      ],
+      "progress": {
+        "total": 2,
+        "prepared": 2,
+        "pending": 2,
+        "ready": 2,
+        "queued": 0,
+        "in_flight": 0,
+        "delivered": 0,
+        "failed_retryable": 0,
+        "failed_permanent": 0,
+        "waiting_capacity": 0,
+        "waiting_window": 0,
+        "blocked_sender": 0
+      },
+      "sender_selection_mode": "manual",
+      "delivery_mode": "user_account",
+      "circuit_state": "closed",
+      "next_window_start": null,
+      "resume_policy": "operator",
+      "ready_to_resume": false,
+      "capacity_confidence": "bounded",
+      "limitations": [
+        "estimate_only",
+        "no_silent_reassignment"
+      ],
+      "evaluated_at": "2026-08-29T12:44:45.335818+03:30",
+      "redis_ok": true,
+      "ready_accounts": 2,
+      "execution_usable_accounts": 2,
+      "assignment_materialized": true,
+      "capacity_applicable": true
+    },
+    "transport_12": {
+      "allowed": true,
+      "final_allowed": true,
+      "code": "READY",
+      "message": "پیش‌پرواز روبیکا مجاز است.",
+      "account_id": 12,
+      "details": {
+        "context": "campaign",
+        "layer": "F",
+        "account_id": 12,
+        "delivery_mode": "user_account",
+        "phase": "day",
+        "policy": {
+          "lifecycle_state": "limited",
+          "warmup_day": 3,
+          "sent_today": 0,
+          "daily_cap": 60,
+          "remaining_daily": 60,
+          "sent_this_hour": 0,
+          "hourly_cap": 5,
+          "remaining_hourly": 5,
+          "minimum_interval_seconds": 420,
+          "timezone": "Asia/Tehran",
+          "send_window_phase": "day"
+        }
+      }
+    },
+    "transport_79": {
+      "allowed": true,
+      "final_allowed": true,
+      "code": "READY",
+      "message": "پیش‌پرواز روبیکا مجاز است.",
+      "account_id": 79,
+      "details": {
+        "context": "campaign",
+        "layer": "F",
+        "account_id": 79,
+        "delivery_mode": "user_account",
+        "phase": "day",
+        "policy": {
+          "lifecycle_state": "limited",
+          "warmup_day": 5,
+          "sent_today": 0,
+          "daily_cap": 60,
+          "remaining_daily": 60,
+          "sent_this_hour": 0,
+          "hourly_cap": 5,
+          "remaining_hourly": 5,
+          "minimum_interval_seconds": 420,
+          "timezone": "Asia/Tehran",
+          "send_window_phase": "day"
+        }
+      }
+    },
+    "queues_after_prepare": {
+      "QUEUE12": 0,
+      "QUEUE79": 0,
+      "COV12": true,
+      "COV79": true
+    }
+  },
+  "ACCOUNT12_FINAL_ALLOWED": true,
+  "ACCOUNT79_FINAL_ALLOWED": true,
+  "ACCOUNT12_PREFLIGHT_CODE": "READY",
+  "ACCOUNT79_PREFLIGHT_CODE": "READY",
+  "ACCOUNT12_GATES": {
+    "context": "campaign",
+    "layer": "F",
+    "account_id": 12,
+    "delivery_mode": "user_account",
+    "phase": "day",
+    "policy": {
+      "lifecycle_state": "limited",
+      "warmup_day": 3,
+      "sent_today": 0,
+      "daily_cap": 60,
+      "remaining_daily": 60,
+      "sent_this_hour": 0,
+      "hourly_cap": 5,
+      "remaining_hourly": 5,
+      "minimum_interval_seconds": 420,
+      "timezone": "Asia/Tehran",
+      "send_window_phase": "day"
+    }
+  },
+  "ACCOUNT79_GATES": {
+    "context": "campaign",
+    "layer": "F",
+    "account_id": 79,
+    "delivery_mode": "user_account",
+    "phase": "day",
+    "policy": {
+      "lifecycle_state": "limited",
+      "warmup_day": 5,
+      "sent_today": 0,
+      "daily_cap": 60,
+      "remaining_daily": 60,
+      "sent_this_hour": 0,
+      "hourly_cap": 5,
+      "remaining_hourly": 5,
+      "minimum_interval_seconds": 420,
+      "timezone": "Asia/Tehran",
+      "send_window_phase": "day"
+    }
+  },
+  "CAMPAIGN_ALLOWED_TO_START": true,
+  "ACCOUNT12_WORKER_COVERAGE": true,
+  "ACCOUNT79_WORKER_COVERAGE": true,
+  "QUEUE12": 0,
+  "QUEUE79": 0,
+  "finished_at": "2026-08-29T09:14:45.407700+00:00"
+}

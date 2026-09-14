@@ -1,0 +1,118 @@
+Folder PATH listing
+Volume serial number is 0A23-43AF
+F:\SENDERPLATFORMTEST\MULTI-MESSAGING-PLATFORM\WORKERS
+|   account_pool.py
+|   bale_worker.py
+|   base_worker.py
+|   config.py
+|   db.py
+|   db.py.before-campaign-finalization-20260824_163624.bak
+|   db.py.before-paused-finalizer-20260824_165409.bak
+|   delivery.py
+|   dev_enqueue_test_payload.py
+|   dev_run_once.py
+|   distributed_lock.py
+|   errors.py
+|   factory.py
+|   logging_utils.py
+|   multi_account_worker.py
+|   payloads.py
+|   payload_adapter.py
+|   pool_factory.py
+|   pool_health.py
+|   rate_limit.py
+|   redis_flags.py
+|   redis_keys.py
+|   retry.py
+|   rubika_account_pool.py
+|   rubika_account_pool.py.pre-workdays-policy.bak
+|   rubika_ai_response_loop.py
+|   rubika_group_listener.py
+|   rubika_pool_worker.py
+|   rubika_status_bot.py
+|   rubika_worker.py
+|   rubika_worker_discovery.py
+|   run_forever.py
+|   run_pool_forever.py
+|   session_access.py
+|   telegram_worker.py
+|   whatsapp_auto_reconnect.py
+|   whatsapp_health_monitor.py
+|   whatsapp_pool_worker.py
+|   whatsapp_web_link.py
+|   whatsapp_worker.py
+|   worker_runtime.py
+|   __init__.py
+|   
++---connectors
+|   |   bale.py
+|   |   rubika.py
+|   |   rubika_user.py
+|   |   telegram.py
+|   |   whatsapp.py
+|   |   whatsapp_evolution.py
+|   |   whatsapp_web.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           bale.cpython-310.pyc
+|           rubika.cpython-310.pyc
+|           rubika_user.cpython-310.pyc
+|           telegram.cpython-310.pyc
+|           whatsapp.cpython-310.pyc
+|           whatsapp_evolution.cpython-310.pyc
+|           whatsapp_web.cpython-310.pyc
+|           __init__.cpython-310.pyc
+|           
++---whatsapp_web
+|   |   playwright_sender.py
+|   |   __init__.py
+|   |   
+|   \---__pycache__
+|           playwright_sender.cpython-310.pyc
+|           __init__.cpython-310.pyc
+|           
+\---__pycache__
+        account_pool.cpython-310.pyc
+        bale_worker.cpython-310.pyc
+        base_worker.cpython-310.pyc
+        base_worker.cpython-314.pyc
+        config.cpython-310.pyc
+        db.cpython-310.pyc
+        db.cpython-314.pyc
+        delivery.cpython-310.pyc
+        dev_enqueue_test_payload.cpython-310.pyc
+        dev_run_once.cpython-310.pyc
+        distributed_lock.cpython-310.pyc
+        errors.cpython-310.pyc
+        factory.cpython-310.pyc
+        logging_utils.cpython-310.pyc
+        multi_account_worker.cpython-310.pyc
+        payloads.cpython-310.pyc
+        payload_adapter.cpython-310.pyc
+        pool_factory.cpython-310.pyc
+        pool_health.cpython-310.pyc
+        rate_limit.cpython-310.pyc
+        redis_flags.cpython-310.pyc
+        redis_keys.cpython-310.pyc
+        retry.cpython-310.pyc
+        rubika_account_pool.cpython-310.pyc
+        rubika_ai_response_loop.cpython-310.pyc
+        rubika_group_listener.cpython-310.pyc
+        rubika_pool_worker.cpython-310.pyc
+        rubika_status_bot.cpython-310.pyc
+        rubika_worker.cpython-310.pyc
+        rubika_worker_discovery.cpython-310.pyc
+        run_forever.cpython-310.pyc
+        run_pool_forever.cpython-310.pyc
+        session_access.cpython-310.pyc
+        telegram_worker.cpython-310.pyc
+        whatsapp_auto_reconnect.cpython-310.pyc
+        whatsapp_health_monitor.cpython-310.pyc
+        whatsapp_pool_worker.cpython-310.pyc
+        whatsapp_web_link.cpython-310.pyc
+        whatsapp_worker.cpython-310.pyc
+        worker_runtime.cpython-310.pyc
+        __init__.cpython-310.pyc
+        __init__.cpython-314.pyc
+        

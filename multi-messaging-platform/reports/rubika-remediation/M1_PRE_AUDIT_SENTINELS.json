@@ -1,0 +1,120 @@
+{
+  "GLOBAL_ACTIVE_SESSION_COUNT": 4,
+  "ACTIVES": {
+    "13": 729,
+    "23": 725,
+    "27": 772,
+    "74": 724
+  },
+  "EXPECTED_ACTIVES": {
+    "13": 729,
+    "23": 725,
+    "27": 772,
+    "74": 724
+  },
+  "ACTIVES_MATCH_EXPECTED": true,
+  "ACTUAL_WORKER_IDS": [
+    12,
+    13,
+    23,
+    27,
+    74,
+    79
+  ],
+  "EXPECTED_WORKERS": [
+    12,
+    13,
+    23,
+    27,
+    74,
+    79
+  ],
+  "WORKERS_MATCH_EXPECTED": true,
+  "msg": 5,
+  "ch": 3,
+  "sess_rows": 16,
+  "target_sessions": {
+    "2": [
+      {
+        "id": 2,
+        "status": "legacy_unclassified"
+      },
+      {
+        "id": 721,
+        "status": "legacy_unclassified"
+      }
+    ],
+    "12": [
+      {
+        "id": 657,
+        "status": "legacy_unclassified"
+      },
+      {
+        "id": 728,
+        "status": "legacy_unclassified"
+      }
+    ],
+    "19": [
+      {
+        "id": 726,
+        "status": "legacy_unclassified"
+      },
+      {
+        "id": 727,
+        "status": "legacy_unclassified"
+      }
+    ],
+    "81": [
+      {
+        "id": 722,
+        "status": "legacy_unclassified"
+      },
+      {
+        "id": 723,
+        "status": "legacy_unclassified"
+      }
+    ],
+    "92": [
+      {
+        "id": 11,
+        "status": "legacy_unclassified"
+      },
+      {
+        "id": 12,
+        "status": "legacy_unclassified"
+      }
+    ]
+  },
+  "target_login_challenge_counts": {
+    "2": 0,
+    "12": 0,
+    "19": 0,
+    "81": 0,
+    "92": 0
+  },
+  "target_queue_counts": {
+    "note": "queue depth not queried via mutating commands; sentinel is DB/env only",
+    "targets": [
+      2,
+      12,
+      19,
+      81,
+      92
+    ]
+  },
+  "L17_ENV": {
+    "RUBIKA_L3_LOGIN_ROUTING": "auto_evidence",
+    "AUTO_ENROLL_RUBIKA_POOL": "true",
+    "RUBIKA_WORKER_DISCOVERY_SCOPE": null,
+    "RUBIKA_CANONICAL_SESSION_SCOPE": "canonical_active",
+    "RUBIKA_CANONICAL_SESSION_MODE": "enforce",
+    "RUBIKA_CANONICAL_ACCOUNT_ALLOWLIST": null,
+    "RUBIKA_WORKER_DISCOVERY_MODE": null,
+    "RUBIKA_ACCOUNT_IDS": null
+  },
+  "L18_NOTE": "L18 status pipeline code unchanged by this sentinel (read-only)",
+  "M1_PRE_AUDIT_SENTINELS_CAPTURED": true,
+  "DB_READ_ONLY_ENFORCED": true,
+  "MESSAGE_SENT": false,
+  "OTP_REQUESTED": false
+}

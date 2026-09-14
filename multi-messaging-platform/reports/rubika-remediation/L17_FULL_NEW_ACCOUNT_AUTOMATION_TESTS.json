@@ -1,0 +1,19 @@
+{
+  "L17_ISOLATED_TESTS_PASSED": 58,
+  "L17_ISOLATED_TESTS_FAILED": 0,
+  "suites": [
+    "tests/core_engine/test_l17_full_new_account_automation.py",
+    "tests/core_engine/test_l16_login_pilot_gate.py",
+    "tests/core_engine/test_l11_worker_discovery.py",
+    "tests/core_engine/test_rubika_l7_canonical_cohort.py"
+  ],
+  "ACCOUNT28_SYNTHETIC_E2E_PASS": true,
+  "AUTO_L3_NEW_ACCOUNT_ROUTING_IMPLEMENTED": true,
+  "LEGACY_ACCOUNTS_PROTECTED": true,
+  "AUTO_POOL_ENROLLMENT_IMPLEMENTED": true,
+  "PERMANENT_DYNAMIC_DISCOVERY_IMPLEMENTED": true,
+  "AUTO_CANONICAL_ENFORCE_SCOPE_IMPLEMENTED": true,
+  "ENFORCE_FAIL_CLOSED_PRESERVED": true,
+  "NETWORK": "mmp_test_isolation",
+  "PRODUCTION_DB_TOUCHED": false
+}

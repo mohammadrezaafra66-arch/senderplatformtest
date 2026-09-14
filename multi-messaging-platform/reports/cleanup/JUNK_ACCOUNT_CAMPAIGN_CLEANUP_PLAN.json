@@ -1,0 +1,3533 @@
+{
+  "captured_at": "2026-09-02T09:26:36.825146+00:00",
+  "mode": "PLAN_BEFORE_MUTATION",
+  "ACCOUNTS_SCANNED": 40,
+  "ACCOUNTS_PROVEN_JUNK": 39,
+  "ACCOUNTS_KEEP": 1,
+  "ACCOUNTS_UNKNOWN": 0,
+  "CAMPAIGNS_SCANNED": 60,
+  "CAMPAIGNS_PROVEN_JUNK": 56,
+  "CAMPAIGNS_KEEP": 4,
+  "CAMPAIGNS_UNKNOWN": 0,
+  "DELETE_ACCOUNT_IDS": [
+    2223,
+    2224,
+    2225,
+    2226,
+    2227,
+    2228,
+    2229,
+    2230,
+    2231,
+    2232,
+    2243,
+    2244,
+    2245,
+    2246,
+    2247,
+    2248,
+    2249,
+    2250,
+    2251,
+    2252,
+    2263,
+    2264,
+    2265,
+    2266,
+    2267,
+    2268,
+    2270,
+    2271,
+    2272,
+    2273,
+    2274,
+    2275,
+    2276,
+    2277,
+    2278,
+    2308,
+    2309,
+    2310,
+    2311
+  ],
+  "KEEP_ACCOUNT_IDS": [
+    2269
+  ],
+  "UNKNOWN_ACCOUNT_IDS": [],
+  "DELETE_CAMPAIGN_IDS": [
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136,
+    137,
+    148,
+    149,
+    150,
+    151,
+    152,
+    153,
+    154,
+    155,
+    156,
+    157,
+    168,
+    169,
+    170,
+    171,
+    172,
+    173,
+    174,
+    175,
+    176,
+    177,
+    178,
+    179,
+    180,
+    181,
+    182,
+    184,
+    185,
+    186,
+    187,
+    188,
+    189,
+    190,
+    192,
+    193,
+    194,
+    195,
+    196,
+    197,
+    198,
+    225,
+    226,
+    227,
+    228,
+    229,
+    230,
+    231
+  ],
+  "KEEP_CAMPAIGN_IDS": [
+    183,
+    191,
+    199,
+    232
+  ],
+  "UNKNOWN_CAMPAIGN_IDS": [],
+  "ACCOUNT2269_DELETE_ALLOWED": false,
+  "account_classifications": {
+    "2223": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-efb30a90",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-efb30a90",
+      "session_meta": [],
+      "campaign_refs": [
+        128
+      ],
+      "outside_campaigns": []
+    },
+    "2224": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-3dcdef8a",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-3dcdef8a",
+      "session_meta": [],
+      "campaign_refs": [
+        129
+      ],
+      "outside_campaigns": []
+    },
+    "2225": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-e07c1166",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-e07c1166",
+      "session_meta": [],
+      "campaign_refs": [
+        130
+      ],
+      "outside_campaigns": []
+    },
+    "2226": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-bba2d561",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-bba2d561",
+      "session_meta": [],
+      "campaign_refs": [
+        131
+      ],
+      "outside_campaigns": []
+    },
+    "2227": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-2a41912b",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-2a41912b",
+      "session_meta": [],
+      "campaign_refs": [
+        132
+      ],
+      "outside_campaigns": []
+    },
+    "2228": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-b3834b34",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-b3834b34",
+      "session_meta": [],
+      "campaign_refs": [
+        133
+      ],
+      "outside_campaigns": []
+    },
+    "2229": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-b002ea95",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-b002ea95",
+      "session_meta": [],
+      "campaign_refs": [
+        134
+      ],
+      "outside_campaigns": []
+    },
+    "2230": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-5862e988",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-5862e988",
+      "session_meta": [],
+      "campaign_refs": [
+        135
+      ],
+      "outside_campaigns": []
+    },
+    "2231": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-6775b42f",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-6775b42f",
+      "session_meta": [],
+      "campaign_refs": [
+        136
+      ],
+      "outside_campaigns": []
+    },
+    "2232": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-5b62b54b",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-5b62b54b",
+      "session_meta": [],
+      "campaign_refs": [
+        137
+      ],
+      "outside_campaigns": []
+    },
+    "2243": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-442f004f",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-442f004f",
+      "session_meta": [],
+      "campaign_refs": [
+        148
+      ],
+      "outside_campaigns": []
+    },
+    "2244": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-99891bfe",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-99891bfe",
+      "session_meta": [],
+      "campaign_refs": [
+        149
+      ],
+      "outside_campaigns": []
+    },
+    "2245": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-9351be71",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-9351be71",
+      "session_meta": [],
+      "campaign_refs": [
+        150
+      ],
+      "outside_campaigns": []
+    },
+    "2246": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-35226686",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-35226686",
+      "session_meta": [],
+      "campaign_refs": [
+        151
+      ],
+      "outside_campaigns": []
+    },
+    "2247": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-58c774ef",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-58c774ef",
+      "session_meta": [],
+      "campaign_refs": [
+        152
+      ],
+      "outside_campaigns": []
+    },
+    "2248": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-0809cd0c",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-0809cd0c",
+      "session_meta": [],
+      "campaign_refs": [
+        153
+      ],
+      "outside_campaigns": []
+    },
+    "2249": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-1df9ac5a",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-1df9ac5a",
+      "session_meta": [],
+      "campaign_refs": [
+        154
+      ],
+      "outside_campaigns": []
+    },
+    "2250": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-d863abd2",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-d863abd2",
+      "session_meta": [],
+      "campaign_refs": [
+        155
+      ],
+      "outside_campaigns": []
+    },
+    "2251": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-01a6e448",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-01a6e448",
+      "session_meta": [],
+      "campaign_refs": [
+        156
+      ],
+      "outside_campaigns": []
+    },
+    "2252": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: auto-prep-67eb813c",
+        "all account junk criteria satisfied"
+      ],
+      "label": "auto-prep-67eb813c",
+      "session_meta": [],
+      "campaign_refs": [
+        157
+      ],
+      "outside_campaigns": []
+    },
+    "2263": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: pf",
+        "companion label pf/off co-created with api409 fixture (session_ct_lens=[504])",
+        "all account junk criteria satisfied"
+      ],
+      "label": "pf",
+      "session_meta": [
+        {
+          "id": 773,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        168
+      ],
+      "outside_campaigns": []
+    },
+    "2264": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: off",
+        "companion label pf/off co-created with api409 fixture (session_ct_lens=[504])",
+        "all account junk criteria satisfied"
+      ],
+      "label": "off",
+      "session_meta": [
+        {
+          "id": 774,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        169
+      ],
+      "outside_campaigns": []
+    },
+    "2265": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: api409",
+        "all account junk criteria satisfied"
+      ],
+      "label": "api409",
+      "session_meta": [
+        {
+          "id": 775,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        171
+      ],
+      "outside_campaigns": []
+    },
+    "2266": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: api409b",
+        "all account junk criteria satisfied"
+      ],
+      "label": "api409b",
+      "session_meta": [
+        {
+          "id": 776,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        172
+      ],
+      "outside_campaigns": []
+    },
+    "2267": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: pf",
+        "companion label pf/off co-created with api409 fixture (session_ct_lens=[504])",
+        "all account junk criteria satisfied"
+      ],
+      "label": "pf",
+      "session_meta": [
+        {
+          "id": 777,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        176
+      ],
+      "outside_campaigns": []
+    },
+    "2268": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: off",
+        "companion label pf/off co-created with api409 fixture (session_ct_lens=[504])",
+        "all account junk criteria satisfied"
+      ],
+      "label": "off",
+      "session_meta": [
+        {
+          "id": 778,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        177
+      ],
+      "outside_campaigns": []
+    },
+    "2269": {
+      "decision": "KEEP",
+      "classification": "REAL_OPERATIONAL",
+      "reasons": [
+        "label matches pytest fixture: api409",
+        "MANDATORY KEEP: Account 2269 (Campaign 233 sender)"
+      ],
+      "label": "api409",
+      "session_meta": [
+        {
+          "id": 779,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        179,
+        233
+      ],
+      "outside_campaigns": [
+        233
+      ]
+    },
+    "2270": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: api409b",
+        "all account junk criteria satisfied"
+      ],
+      "label": "api409b",
+      "session_meta": [
+        {
+          "id": 780,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        180
+      ],
+      "outside_campaigns": []
+    },
+    "2271": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: pf",
+        "companion label pf/off co-created with api409 fixture (session_ct_lens=[504])",
+        "all account junk criteria satisfied"
+      ],
+      "label": "pf",
+      "session_meta": [
+        {
+          "id": 781,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        184
+      ],
+      "outside_campaigns": []
+    },
+    "2272": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: off",
+        "companion label pf/off co-created with api409 fixture (session_ct_lens=[504])",
+        "all account junk criteria satisfied"
+      ],
+      "label": "off",
+      "session_meta": [
+        {
+          "id": 782,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        185
+      ],
+      "outside_campaigns": []
+    },
+    "2273": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: api409",
+        "all account junk criteria satisfied"
+      ],
+      "label": "api409",
+      "session_meta": [
+        {
+          "id": 783,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        187
+      ],
+      "outside_campaigns": []
+    },
+    "2274": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: api409b",
+        "all account junk criteria satisfied"
+      ],
+      "label": "api409b",
+      "session_meta": [
+        {
+          "id": 784,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        188
+      ],
+      "outside_campaigns": []
+    },
+    "2275": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: pf",
+        "companion label pf/off co-created with api409 fixture (session_ct_lens=[504])",
+        "all account junk criteria satisfied"
+      ],
+      "label": "pf",
+      "session_meta": [
+        {
+          "id": 785,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        192
+      ],
+      "outside_campaigns": []
+    },
+    "2276": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: off",
+        "companion label pf/off co-created with api409 fixture (session_ct_lens=[504])",
+        "all account junk criteria satisfied"
+      ],
+      "label": "off",
+      "session_meta": [
+        {
+          "id": 786,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        193
+      ],
+      "outside_campaigns": []
+    },
+    "2277": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: api409",
+        "all account junk criteria satisfied"
+      ],
+      "label": "api409",
+      "session_meta": [
+        {
+          "id": 787,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        195
+      ],
+      "outside_campaigns": []
+    },
+    "2278": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: api409b",
+        "all account junk criteria satisfied"
+      ],
+      "label": "api409b",
+      "session_meta": [
+        {
+          "id": 788,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        196
+      ],
+      "outside_campaigns": []
+    },
+    "2308": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: pf",
+        "companion label pf/off co-created with api409 fixture (session_ct_lens=[504])",
+        "all account junk criteria satisfied"
+      ],
+      "label": "pf",
+      "session_meta": [
+        {
+          "id": 818,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        225
+      ],
+      "outside_campaigns": []
+    },
+    "2309": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: off",
+        "companion label pf/off co-created with api409 fixture (session_ct_lens=[504])",
+        "all account junk criteria satisfied"
+      ],
+      "label": "off",
+      "session_meta": [
+        {
+          "id": 819,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        226
+      ],
+      "outside_campaigns": []
+    },
+    "2310": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: api409",
+        "all account junk criteria satisfied"
+      ],
+      "label": "api409",
+      "session_meta": [
+        {
+          "id": 820,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        228
+      ],
+      "outside_campaigns": []
+    },
+    "2311": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "label matches pytest fixture: api409b",
+        "all account junk criteria satisfied"
+      ],
+      "label": "api409b",
+      "session_meta": [
+        {
+          "id": 821,
+          "ct_len": 504,
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "campaign_refs": [
+        229
+      ],
+      "outside_campaigns": []
+    }
+  },
+  "campaign_classifications": {
+    "128": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-cfef1fb1",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-cfef1fb1",
+      "status": "prepared",
+      "assigned_accounts": [
+        2223
+      ]
+    },
+    "129": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: draft-no-sender",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "draft-no-sender",
+      "status": "prepared",
+      "assigned_accounts": [
+        2224
+      ]
+    },
+    "130": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-05013d5d",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-05013d5d",
+      "status": "prepared",
+      "assigned_accounts": [
+        2225
+      ]
+    },
+    "131": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-1b53828e",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-1b53828e",
+      "status": "prepared",
+      "assigned_accounts": [
+        2226
+      ]
+    },
+    "132": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-d1f7ae19",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-d1f7ae19",
+      "status": "prepared",
+      "assigned_accounts": [
+        2227
+      ]
+    },
+    "133": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-3c1d4275",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-3c1d4275",
+      "status": "draft",
+      "assigned_accounts": [
+        2228
+      ]
+    },
+    "134": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-4571835a",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-4571835a",
+      "status": "draft",
+      "assigned_accounts": [
+        2229
+      ]
+    },
+    "135": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-bf24860b",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-bf24860b",
+      "status": "draft",
+      "assigned_accounts": [
+        2230
+      ]
+    },
+    "136": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-fc0950ab",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-fc0950ab",
+      "status": "draft",
+      "assigned_accounts": [
+        2231
+      ]
+    },
+    "137": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-c7ddc149",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-c7ddc149",
+      "status": "prepared",
+      "assigned_accounts": [
+        2232
+      ]
+    },
+    "148": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-15816db3",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-15816db3",
+      "status": "prepared",
+      "assigned_accounts": [
+        2243
+      ]
+    },
+    "149": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: draft-no-sender",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "draft-no-sender",
+      "status": "prepared",
+      "assigned_accounts": [
+        2244
+      ]
+    },
+    "150": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-5cd72dc9",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-5cd72dc9",
+      "status": "prepared",
+      "assigned_accounts": [
+        2245
+      ]
+    },
+    "151": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-f5a77952",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-f5a77952",
+      "status": "prepared",
+      "assigned_accounts": [
+        2246
+      ]
+    },
+    "152": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-7985d605",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-7985d605",
+      "status": "prepared",
+      "assigned_accounts": [
+        2247
+      ]
+    },
+    "153": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-82377ae2",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-82377ae2",
+      "status": "draft",
+      "assigned_accounts": [
+        2248
+      ]
+    },
+    "154": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-f2960d06",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-f2960d06",
+      "status": "prepared",
+      "assigned_accounts": [
+        2249
+      ]
+    },
+    "155": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-5ca9b453",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-5ca9b453",
+      "status": "draft",
+      "assigned_accounts": [
+        2250
+      ]
+    },
+    "156": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-8243a1fb",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-8243a1fb",
+      "status": "draft",
+      "assigned_accounts": [
+        2251
+      ]
+    },
+    "157": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: auto-prep-6858916f",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "auto-prep-6858916f",
+      "status": "prepared",
+      "assigned_accounts": [
+        2252
+      ]
+    },
+    "168": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-7cef8904",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-7cef8904",
+      "status": "prepared",
+      "assigned_accounts": [
+        2263
+      ]
+    },
+    "169": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-83bfe0ed",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-83bfe0ed",
+      "status": "prepared",
+      "assigned_accounts": [
+        2264
+      ]
+    },
+    "170": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-block",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-block",
+      "status": "prepared",
+      "assigned_accounts": []
+    },
+    "171": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-a9e9bda6",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-a9e9bda6",
+      "status": "prepared",
+      "assigned_accounts": [
+        2265
+      ]
+    },
+    "172": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-43a02030",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-43a02030",
+      "status": "prepared",
+      "assigned_accounts": [
+        2266
+      ]
+    },
+    "173": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-noprep",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-noprep",
+      "status": "draft",
+      "assigned_accounts": []
+    },
+    "174": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-ok",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-ok",
+      "status": "prepared",
+      "assigned_accounts": []
+    },
+    "175": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: bale-cp",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "bale-cp",
+      "status": "draft",
+      "assigned_accounts": []
+    },
+    "176": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-5fd7487b",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-5fd7487b",
+      "status": "prepared",
+      "assigned_accounts": [
+        2267
+      ]
+    },
+    "177": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-2dcb5d56",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-2dcb5d56",
+      "status": "prepared",
+      "assigned_accounts": [
+        2268
+      ]
+    },
+    "178": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-block",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-block",
+      "status": "prepared",
+      "assigned_accounts": []
+    },
+    "179": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-01b4c2e4",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-01b4c2e4",
+      "status": "prepared",
+      "assigned_accounts": [
+        2269
+      ]
+    },
+    "180": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-3cb41c62",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-3cb41c62",
+      "status": "prepared",
+      "assigned_accounts": [
+        2270
+      ]
+    },
+    "181": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-noprep",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-noprep",
+      "status": "draft",
+      "assigned_accounts": []
+    },
+    "182": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-ok",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-ok",
+      "status": "prepared",
+      "assigned_accounts": []
+    },
+    "183": {
+      "decision": "KEEP",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: bale-cp",
+        "status=running (criterion: no currently running/active execution)"
+      ],
+      "name": "bale-cp",
+      "status": "running",
+      "assigned_accounts": []
+    },
+    "184": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-9c21ba20",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-9c21ba20",
+      "status": "prepared",
+      "assigned_accounts": [
+        2271
+      ]
+    },
+    "185": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-da8497c6",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-da8497c6",
+      "status": "prepared",
+      "assigned_accounts": [
+        2272
+      ]
+    },
+    "186": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-block",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-block",
+      "status": "prepared",
+      "assigned_accounts": []
+    },
+    "187": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-643fe791",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-643fe791",
+      "status": "prepared",
+      "assigned_accounts": [
+        2273
+      ]
+    },
+    "188": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-083bb4cd",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-083bb4cd",
+      "status": "prepared",
+      "assigned_accounts": [
+        2274
+      ]
+    },
+    "189": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-noprep",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-noprep",
+      "status": "draft",
+      "assigned_accounts": []
+    },
+    "190": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-ok",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-ok",
+      "status": "prepared",
+      "assigned_accounts": []
+    },
+    "191": {
+      "decision": "KEEP",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: bale-cp",
+        "status=running (criterion: no currently running/active execution)"
+      ],
+      "name": "bale-cp",
+      "status": "running",
+      "assigned_accounts": []
+    },
+    "192": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-ce00c5f5",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-ce00c5f5",
+      "status": "prepared",
+      "assigned_accounts": [
+        2275
+      ]
+    },
+    "193": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-37d3a969",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-37d3a969",
+      "status": "prepared",
+      "assigned_accounts": [
+        2276
+      ]
+    },
+    "194": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-block",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-block",
+      "status": "prepared",
+      "assigned_accounts": []
+    },
+    "195": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-cd30d5d4",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-cd30d5d4",
+      "status": "prepared",
+      "assigned_accounts": [
+        2277
+      ]
+    },
+    "196": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-ed8b01e1",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-ed8b01e1",
+      "status": "prepared",
+      "assigned_accounts": [
+        2278
+      ]
+    },
+    "197": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-noprep",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-noprep",
+      "status": "draft",
+      "assigned_accounts": []
+    },
+    "198": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-ok",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-ok",
+      "status": "prepared",
+      "assigned_accounts": []
+    },
+    "199": {
+      "decision": "KEEP",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: bale-cp",
+        "status=running (criterion: no currently running/active execution)"
+      ],
+      "name": "bale-cp",
+      "status": "running",
+      "assigned_accounts": []
+    },
+    "225": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-b9db21ee",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-b9db21ee",
+      "status": "prepared",
+      "assigned_accounts": [
+        2308
+      ]
+    },
+    "226": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-7b2de12b",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-7b2de12b",
+      "status": "prepared",
+      "assigned_accounts": [
+        2309
+      ]
+    },
+    "227": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-block",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-block",
+      "status": "prepared",
+      "assigned_accounts": []
+    },
+    "228": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-ce93ba7d",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-ce93ba7d",
+      "status": "prepared",
+      "assigned_accounts": [
+        2310
+      ]
+    },
+    "229": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-gate-03ea61d0",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-gate-03ea61d0",
+      "status": "prepared",
+      "assigned_accounts": [
+        2311
+      ]
+    },
+    "230": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-noprep",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-noprep",
+      "status": "draft",
+      "assigned_accounts": []
+    },
+    "231": {
+      "decision": "DELETE",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: cp-ok",
+        "all campaign junk criteria satisfied"
+      ],
+      "name": "cp-ok",
+      "status": "prepared",
+      "assigned_accounts": []
+    },
+    "232": {
+      "decision": "KEEP",
+      "classification": "SYNTHETIC_TEST",
+      "reasons": [
+        "name matches pytest fixture: bale-cp",
+        "status=running (criterion: no currently running/active execution)"
+      ],
+      "name": "bale-cp",
+      "status": "running",
+      "assigned_accounts": []
+    }
+  },
+  "dependency_counts": {
+    "campaign:128": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:129": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:130": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:131": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:132": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:133": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:134": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:135": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:136": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:137": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:148": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:149": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:150": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:151": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:152": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:153": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:154": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:155": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:156": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:157": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:168": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:169": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:170": {
+      "campaign_accounts": 0,
+      "campaign_recipients": 0,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:171": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:172": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:173": {
+      "campaign_accounts": 0,
+      "campaign_recipients": 0,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:174": {
+      "campaign_accounts": 0,
+      "campaign_recipients": 0,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:175": {
+      "campaign_accounts": 0,
+      "campaign_recipients": 0,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:176": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:177": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:178": {
+      "campaign_accounts": 0,
+      "campaign_recipients": 0,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:179": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:180": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:181": {
+      "campaign_accounts": 0,
+      "campaign_recipients": 0,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:182": {
+      "campaign_accounts": 0,
+      "campaign_recipients": 0,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:184": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:185": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:186": {
+      "campaign_accounts": 0,
+      "campaign_recipients": 0,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:187": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:188": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:189": {
+      "campaign_accounts": 0,
+      "campaign_recipients": 0,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:190": {
+      "campaign_accounts": 0,
+      "campaign_recipients": 0,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:192": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:193": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:194": {
+      "campaign_accounts": 0,
+      "campaign_recipients": 0,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:195": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:196": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:197": {
+      "campaign_accounts": 0,
+      "campaign_recipients": 0,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:198": {
+      "campaign_accounts": 0,
+      "campaign_recipients": 0,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:225": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:226": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:227": {
+      "campaign_accounts": 0,
+      "campaign_recipients": 0,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:228": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:229": {
+      "campaign_accounts": 1,
+      "campaign_recipients": 1,
+      "messages": 1,
+      "rendered_messages": 1,
+      "staged_queue_items": 1,
+      "message_attempts": 0
+    },
+    "campaign:230": {
+      "campaign_accounts": 0,
+      "campaign_recipients": 0,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "campaign:231": {
+      "campaign_accounts": 0,
+      "campaign_recipients": 0,
+      "messages": 0,
+      "rendered_messages": 0,
+      "staged_queue_items": 0,
+      "message_attempts": 0
+    },
+    "account:2223": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2224": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2225": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2226": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2227": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2228": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 0,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2229": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 0,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2230": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 0,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2231": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 0,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2232": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2243": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2244": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2245": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2246": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2247": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2248": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 0,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2249": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2250": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 0,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2251": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 0,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2252": {
+      "channel_sessions": 0,
+      "rubika_account_pool": 0,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2263": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2264": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2265": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2266": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2267": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2268": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2270": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2271": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2272": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2273": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2274": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2275": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2276": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2277": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2278": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2308": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2309": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2310": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    },
+    "account:2311": {
+      "channel_sessions": 1,
+      "rubika_account_pool": 1,
+      "messages": 1,
+      "campaign_accounts": 1,
+      "login_challenges": 0,
+      "rate_policies": 0,
+      "account_send_settings": 0
+    }
+  },
+  "fk_delete_order": [
+    "message_attempts (via messages of delete campaigns)",
+    "staged_queue_items (delete campaigns)",
+    "rendered_messages (delete campaigns)",
+    "messages (delete campaigns / orphan account msgs)",
+    "campaign_recipients (delete campaigns)",
+    "campaign_accounts (delete campaigns; CASCADE also from accounts)",
+    "campaigns (exact DELETE_CAMPAIGN_IDS)",
+    "channel_sessions (delete accounts)",
+    "rubika_account_pool (delete accounts)",
+    "rubika_login_challenges (delete accounts)",
+    "rate_policies (delete accounts)",
+    "account_send_settings (delete accounts)",
+    "accounts (exact DELETE_ACCOUNT_IDS)"
+  ],
+  "safety_gates": {
+    "DELETE_DEPENDENCY_AUDIT_PASS": true,
+    "PREDELETE_MANIFEST_PASS": true,
+    "UNKNOWN_RECORDS_SELECTED_FOR_DELETE": 0,
+    "REAL_OPERATIONAL_RECORDS_SELECTED_FOR_DELETE": 0,
+    "ACCOUNT2269_SELECTED_FOR_DELETE": false,
+    "ACCOUNT2269_DELETE_ALLOWED": false,
+    "LIVE_QUEUE_REFERENCES_SELECTED_FOR_DELETE": 0,
+    "SUCCESSFUL_REAL_SEND_RECORDS_SELECTED_FOR_DELETE": 0,
+    "AUTO_DELETE_AUTHORIZED": false,
+    "CLEANUP_SCRIPT_SOURCE_AUDIT_PASS": true,
+    "DELETE_SET_PROVENANCE_PASS": true,
+    "RUNNING_CAMPAIGNS_SELECTED_FOR_DELETE": 0,
+    "REAL_OPERATIONAL_DEPENDENCIES_SELECTED_FOR_DELETE": 0,
+    "ACTIVE_SESSION_RECORDS_SELECTED_FOR_DELETE": 0,
+    "ORPHAN_RISK_COUNT": 0,
+    "DELETION_READY": true
+  },
+  "provenance": {
+    "source": "pytest debris leaked into live DB via pg_session_factory pointing at production during Controlled Production / auto-prepare test runs on 2026-09-01 and 2026-09-02",
+    "fixtures": [
+      "tests/api/test_campaign_auto_prepare.py (auto-prep-*)",
+      "tests/api/test_controlled_production_gate.py (cp-block/cp-ok/cp-noprep/bale-cp/cp-gate-*/api409/api409b)"
+    ],
+    "note_2269": "Account 2269 is api409 fixture account later used as Campaign 233 sender \u2014 mandatory KEEP"
+  },
+  "final_predelete_dry_run": {
+    "dry_run_at": "2026-09-02T09:30:49.882793+00:00",
+    "mode": "FINAL_PREDELETE_DRY_RUN_NO_MUTATION",
+    "DELETE_ACCOUNT_IDS": [
+      2223,
+      2224,
+      2225,
+      2226,
+      2227,
+      2228,
+      2229,
+      2230,
+      2231,
+      2232,
+      2243,
+      2244,
+      2245,
+      2246,
+      2247,
+      2248,
+      2249,
+      2250,
+      2251,
+      2252,
+      2263,
+      2264,
+      2265,
+      2266,
+      2267,
+      2268,
+      2270,
+      2271,
+      2272,
+      2273,
+      2274,
+      2275,
+      2276,
+      2277,
+      2278,
+      2308,
+      2309,
+      2310,
+      2311
+    ],
+    "KEEP_ACCOUNT_IDS": [
+      2269
+    ],
+    "UNKNOWN_ACCOUNT_IDS": [],
+    "DELETE_CAMPAIGN_IDS": [
+      128,
+      129,
+      130,
+      131,
+      132,
+      133,
+      134,
+      135,
+      136,
+      137,
+      148,
+      149,
+      150,
+      151,
+      152,
+      153,
+      154,
+      155,
+      156,
+      157,
+      168,
+      169,
+      170,
+      171,
+      172,
+      173,
+      174,
+      175,
+      176,
+      177,
+      178,
+      179,
+      180,
+      181,
+      182,
+      184,
+      185,
+      186,
+      187,
+      188,
+      189,
+      190,
+      192,
+      193,
+      194,
+      195,
+      196,
+      197,
+      198,
+      225,
+      226,
+      227,
+      228,
+      229,
+      230,
+      231
+    ],
+    "KEEP_CAMPAIGN_IDS": [
+      183,
+      191,
+      199,
+      232
+    ],
+    "UNKNOWN_CAMPAIGN_IDS": [],
+    "DELETE_ACCOUNT_COUNT": 39,
+    "KEEP_ACCOUNT_COUNT": 1,
+    "UNKNOWN_ACCOUNT_COUNT": 0,
+    "DELETE_CAMPAIGN_COUNT": 56,
+    "KEEP_CAMPAIGN_COUNT": 4,
+    "UNKNOWN_CAMPAIGN_COUNT": 0,
+    "ACCOUNT2269_CLASSIFICATION": "REAL_OPERATIONAL_MANDATORY_KEEP",
+    "ACCOUNT2269_SELECTED_FOR_DELETE": false,
+    "ACCOUNT2269_LIVE": {
+      "id": 2269,
+      "label": "api409",
+      "status": "ACTIVE",
+      "sess": 1,
+      "camps": 2
+    },
+    "RUNNING_CAMPAIGN_IDS": [
+      183,
+      191,
+      199,
+      232
+    ],
+    "RUNNING_CAMPAIGN_DETAILS": [
+      {
+        "id": 183,
+        "name": "bale-cp",
+        "status": "running"
+      },
+      {
+        "id": 191,
+        "name": "bale-cp",
+        "status": "running"
+      },
+      {
+        "id": 199,
+        "name": "bale-cp",
+        "status": "running"
+      },
+      {
+        "id": 232,
+        "name": "bale-cp",
+        "status": "running"
+      }
+    ],
+    "RUNNING_CAMPAIGNS_SELECTED_FOR_DELETE": 0,
+    "OUTSIDE_RANGE_REFS_FROM_DELETE_ACCOUNTS": [],
+    "SUCCESS_ATTEMPTS_IN_DELETE_CAMPAIGNS": 0,
+    "EXTERNAL_SEND_EVIDENCE_IN_DELETE_CAMPAIGNS": 0,
+    "LIVE_QUEUE_IN_DELETE_CAMPAIGNS": 0,
+    "ACTIVE_SESSIONS_IN_DELETE_ACCOUNTS": 0,
+    "SESSIONS_THAT_WOULD_BE_DELETED": 19,
+    "script_audit": {
+      "exact_ids_only_via_ANY_bind": true,
+      "no_BETWEEN_in_sql": true,
+      "no_TRUNCATE": true,
+      "no_FK_disable": true,
+      "refuses_account_2269": true,
+      "assert_2269_not_in_aids": true,
+      "assert_233_not_in_cids": true,
+      "no_docker_volume_touch": true,
+      "BETWEEN_code_lines": []
+    },
+    "safety_gates_final": {
+      "CLEANUP_SCRIPT_SOURCE_AUDIT_PASS": true,
+      "DELETE_DEPENDENCY_AUDIT_PASS": true,
+      "DELETE_SET_PROVENANCE_PASS": true,
+      "UNKNOWN_RECORDS_SELECTED_FOR_DELETE": 0,
+      "ACCOUNT2269_SELECTED_FOR_DELETE": false,
+      "RUNNING_CAMPAIGNS_SELECTED_FOR_DELETE": 0,
+      "REAL_OPERATIONAL_DEPENDENCIES_SELECTED_FOR_DELETE": 0,
+      "SUCCESSFUL_REAL_SEND_RECORDS_SELECTED_FOR_DELETE": 0,
+      "LIVE_QUEUE_REFERENCES_SELECTED_FOR_DELETE": 0,
+      "ACTIVE_SESSION_RECORDS_SELECTED_FOR_DELETE": 0,
+      "ORPHAN_RISK_COUNT": 0
+    },
+    "DELETION_READY": true,
+    "DESTRUCTIVE_OPERATION_REQUIRED": true,
+    "WAITING_FOR_OPERATOR_APPROVAL": true,
+    "EXECUTED": false,
+    "CLEANUP_PLAN_SHA256": "8c491cbb5d7174bff661376a44853453e5c19307767f5f2b939fbb39ef53a7c3",
+    "CLEANUP_SCRIPT_SHA256": "9eed2e098612b35a25d8fbf7387304b963890f9fcd00dd7367373cd4d35638ad",
+    "dependency_counts_accounts": {
+      "2223": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2224": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2225": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2226": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2227": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2228": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 0,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2229": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 0,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2230": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 0,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2231": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 0,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2232": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2243": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2244": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2245": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2246": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2247": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2248": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 0,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2249": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2250": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 0,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2251": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 0,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2252": {
+        "channel_sessions": 0,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 0,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2263": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2264": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2265": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2266": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2267": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2268": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2270": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2271": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2272": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2273": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2274": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2275": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2276": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2277": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2278": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2308": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2309": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2310": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      },
+      "2311": {
+        "channel_sessions": 1,
+        "campaign_accounts": 1,
+        "messages": 1,
+        "message_attempts": 0,
+        "rubika_account_pool": 1,
+        "login_challenges": 0,
+        "rate_policies": 0,
+        "account_send_settings": 0,
+        "allowed_groups": 0
+      }
+    },
+    "dependency_counts_campaigns": {
+      "128": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "129": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "130": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "131": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "132": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "133": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "134": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "135": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "136": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "137": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "148": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "149": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "150": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "151": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "152": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "153": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "154": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "155": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "156": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "157": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "168": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "169": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "170": {
+        "campaign_accounts": 0,
+        "campaign_recipients": 0,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "171": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "172": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "173": {
+        "campaign_accounts": 0,
+        "campaign_recipients": 0,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "174": {
+        "campaign_accounts": 0,
+        "campaign_recipients": 0,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "175": {
+        "campaign_accounts": 0,
+        "campaign_recipients": 0,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "176": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "177": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "178": {
+        "campaign_accounts": 0,
+        "campaign_recipients": 0,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "179": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "180": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "181": {
+        "campaign_accounts": 0,
+        "campaign_recipients": 0,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "182": {
+        "campaign_accounts": 0,
+        "campaign_recipients": 0,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "184": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "185": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "186": {
+        "campaign_accounts": 0,
+        "campaign_recipients": 0,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "187": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "188": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "189": {
+        "campaign_accounts": 0,
+        "campaign_recipients": 0,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "190": {
+        "campaign_accounts": 0,
+        "campaign_recipients": 0,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "192": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "193": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "194": {
+        "campaign_accounts": 0,
+        "campaign_recipients": 0,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "195": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "196": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "197": {
+        "campaign_accounts": 0,
+        "campaign_recipients": 0,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "198": {
+        "campaign_accounts": 0,
+        "campaign_recipients": 0,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "225": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "226": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "227": {
+        "campaign_accounts": 0,
+        "campaign_recipients": 0,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "228": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "229": {
+        "campaign_accounts": 1,
+        "campaign_recipients": 1,
+        "messages": 1,
+        "rendered_messages": 1,
+        "staged_queue_items": 1,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "230": {
+        "campaign_accounts": 0,
+        "campaign_recipients": 0,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      },
+      "231": {
+        "campaign_accounts": 0,
+        "campaign_recipients": 0,
+        "messages": 0,
+        "rendered_messages": 0,
+        "staged_queue_items": 0,
+        "message_attempts": 0,
+        "sent_registry_refs": 0
+      }
+    }
+  }
+}

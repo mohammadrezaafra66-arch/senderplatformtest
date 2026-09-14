@@ -1,0 +1,52 @@
+{
+  "MESSAGE_SENT": false,
+  "OTP_REQUESTED": false,
+  "restored": false,
+  "snapshot_path": "/tmp/r10_send_prep/R10_CAMPAIGN_101_PRE_CONTENT_FIX_SNAPSHOT.json",
+  "snapshot_persisted": true,
+  "prepare": {
+    "ready_count": 2,
+    "already_staged_count": 2,
+    "redis_queue_pushed": false,
+    "staged_count": 2
+  },
+  "R10_CAMPAIGN_ID": 101,
+  "R10_RECIPIENT_COUNT": 2,
+  "R10_MESSAGE_COUNT": 2,
+  "template_text": "سلام {{first_name}} — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+  "message_ids": [
+    337,
+    338
+  ],
+  "NEW_MESSAGE_ROWS_CREATED": 0,
+  "NEW_CAMPAIGN_ROWS_CREATED": 0,
+  "NEW_ACCOUNT_ROWS_CREATED": 0,
+  "NEW_CONTACT_ROWS_CREATED": 0,
+  "evidence": [
+    {
+      "message_id": 337,
+      "account_id": 12,
+      "contact_id": 2,
+      "final_text": "سلام Pilot — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+      "unresolved": []
+    },
+    {
+      "message_id": 338,
+      "account_id": 79,
+      "contact_id": 92,
+      "final_text": "سلام c2136-2 — پیام کنترل‌شده R10 (ارسال واقعی فقط پس از تایید اپراتور).",
+      "unresolved": []
+    }
+  ],
+  "UNRESOLVED_PLACEHOLDER_COUNT": 0,
+  "campaign_code": "CAMPAIGN_READY",
+  "ACCOUNT12_FINAL_ALLOWED": true,
+  "ACCOUNT79_FINAL_ALLOWED": true,
+  "ACCOUNT12_CODE": "READY",
+  "ACCOUNT79_CODE": "READY",
+  "QUEUE12": 0,
+  "QUEUE79": 0,
+  "COV12": true,
+  "COV79": true,
+  "R10_CONTENT_RENDER_PASS": true
+}

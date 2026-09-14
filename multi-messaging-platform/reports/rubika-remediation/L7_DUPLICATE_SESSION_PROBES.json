@@ -1,0 +1,460 @@
+{
+  "phase": "L7_CANONICAL_COHORT_AND_DUPLICATE_PROBES",
+  "generated_at_utc": "2026-08-31T07:51:00.183293+00:00",
+  "mutation": false,
+  "otp_requested": false,
+  "message_sent": false,
+  "production_session_promotions": 0,
+  "global_canonical_enforce_enabled": false,
+  "probe_timeout_seconds": 25.0,
+  "duplicate_accounts": {
+    "2": {
+      "account_id": 2,
+      "legacy_selected_session_id": 721,
+      "session_count": 2,
+      "sessions": [
+        {
+          "account_id": 2,
+          "session_id": 2,
+          "created_at": "2026-07-29T08:47:28.673487",
+          "current_legacy_selected": false,
+          "real_send_evidence": {
+            "success_attempt_ids": [],
+            "success_attempt_count": 0,
+            "success_attempt_created_at": []
+          },
+          "decrypt_status": "SESSION_DECRYPT_FAILED",
+          "structure_status": "N/A",
+          "reconnect_status": "SKIPPED",
+          "identity_match": null,
+          "identity_guid": null,
+          "error_code": "SESSION_DECRYPT_FAILED",
+          "sanitized_message": "SessionDecryptionError",
+          "duration_ms": null,
+          "probe_by": "session_id",
+          "session_status": "legacy_unclassified"
+        },
+        {
+          "account_id": 2,
+          "session_id": 721,
+          "created_at": "2026-08-27T11:05:48.394614",
+          "current_legacy_selected": true,
+          "real_send_evidence": {
+            "success_attempt_ids": [],
+            "success_attempt_count": 0,
+            "success_attempt_created_at": []
+          },
+          "decrypt_status": "OK",
+          "structure_status": "OK",
+          "reconnect_status": "AUTH_RECONNECT_PASS",
+          "identity_match": true,
+          "identity_guid": "u0KVzQ9036bfba6f799ce05c6cc7d343",
+          "error_code": null,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "duration_ms": 570,
+          "probe_by": "session_id",
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "classification": "ONE_PROVEN_ONE_INVALID"
+    },
+    "12": {
+      "account_id": 12,
+      "legacy_selected_session_id": 728,
+      "session_count": 2,
+      "sessions": [
+        {
+          "account_id": 12,
+          "session_id": 657,
+          "created_at": "2026-08-25T12:22:46.440358",
+          "current_legacy_selected": false,
+          "real_send_evidence": {
+            "success_attempt_ids": [
+              2,
+              15
+            ],
+            "success_attempt_count": 2,
+            "success_attempt_created_at": [
+              "2026-08-26T10:32:33.859705",
+              "2026-08-29T09:30:22.080771"
+            ]
+          },
+          "decrypt_status": "OK",
+          "structure_status": "OK",
+          "reconnect_status": "AUTH_RECONNECT_PASS",
+          "identity_match": true,
+          "identity_guid": "u0JufUj08b53d32f0f3d037252fdf673",
+          "error_code": null,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "duration_ms": 168,
+          "probe_by": "session_id",
+          "session_status": "legacy_unclassified"
+        },
+        {
+          "account_id": 12,
+          "session_id": 728,
+          "created_at": "2026-08-27T11:34:51.864667",
+          "current_legacy_selected": true,
+          "real_send_evidence": {
+            "success_attempt_ids": [
+              2,
+              15
+            ],
+            "success_attempt_count": 2,
+            "success_attempt_created_at": [
+              "2026-08-26T10:32:33.859705",
+              "2026-08-29T09:30:22.080771"
+            ]
+          },
+          "decrypt_status": "OK",
+          "structure_status": "OK",
+          "reconnect_status": "AUTH_RECONNECT_PASS",
+          "identity_match": true,
+          "identity_guid": "u0JufUj08b53d32f0f3d037252fdf673",
+          "error_code": null,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "duration_ms": 98,
+          "probe_by": "session_id",
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "classification": "BOTH_VALID_CURRENT_IDENTITY"
+    },
+    "19": {
+      "account_id": 19,
+      "legacy_selected_session_id": 727,
+      "session_count": 2,
+      "sessions": [
+        {
+          "account_id": 19,
+          "session_id": 726,
+          "created_at": "2026-08-27T11:31:11.615343",
+          "current_legacy_selected": false,
+          "real_send_evidence": {
+            "success_attempt_ids": [],
+            "success_attempt_count": 0,
+            "success_attempt_created_at": []
+          },
+          "decrypt_status": "OK",
+          "structure_status": "OK",
+          "reconnect_status": "AUTH_RECONNECT_PASS",
+          "identity_match": true,
+          "identity_guid": "u0Jvu5L017e587013be09e2f077818bc",
+          "error_code": null,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "duration_ms": 143,
+          "probe_by": "session_id",
+          "session_status": "legacy_unclassified"
+        },
+        {
+          "account_id": 19,
+          "session_id": 727,
+          "created_at": "2026-08-27T11:31:49.088057",
+          "current_legacy_selected": true,
+          "real_send_evidence": {
+            "success_attempt_ids": [],
+            "success_attempt_count": 0,
+            "success_attempt_created_at": []
+          },
+          "decrypt_status": "OK",
+          "structure_status": "OK",
+          "reconnect_status": "AUTH_RECONNECT_PASS",
+          "identity_match": true,
+          "identity_guid": "u0Jvu5L017e587013be09e2f077818bc",
+          "error_code": null,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "duration_ms": 156,
+          "probe_by": "session_id",
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "classification": "BOTH_VALID_SAME_IDENTITY"
+    },
+    "81": {
+      "account_id": 81,
+      "legacy_selected_session_id": 723,
+      "session_count": 2,
+      "sessions": [
+        {
+          "account_id": 81,
+          "session_id": 722,
+          "created_at": "2026-08-27T11:20:36.613456",
+          "current_legacy_selected": false,
+          "real_send_evidence": {
+            "success_attempt_ids": [],
+            "success_attempt_count": 0,
+            "success_attempt_created_at": []
+          },
+          "decrypt_status": "OK",
+          "structure_status": "OK",
+          "reconnect_status": "AUTH_RECONNECT_PASS",
+          "identity_match": true,
+          "identity_guid": "u0K14Zu08be3bee5ab3ee8ced665fe97",
+          "error_code": null,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "duration_ms": 276,
+          "probe_by": "session_id",
+          "session_status": "legacy_unclassified"
+        },
+        {
+          "account_id": 81,
+          "session_id": 723,
+          "created_at": "2026-08-27T11:21:47.584794",
+          "current_legacy_selected": true,
+          "real_send_evidence": {
+            "success_attempt_ids": [],
+            "success_attempt_count": 0,
+            "success_attempt_created_at": []
+          },
+          "decrypt_status": "OK",
+          "structure_status": "OK",
+          "reconnect_status": "AUTH_RECONNECT_PASS",
+          "identity_match": true,
+          "identity_guid": "u0K14Zu08be3bee5ab3ee8ced665fe97",
+          "error_code": null,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "duration_ms": 113,
+          "probe_by": "session_id",
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "classification": "BOTH_VALID_SAME_IDENTITY"
+    },
+    "92": {
+      "account_id": 92,
+      "legacy_selected_session_id": 12,
+      "session_count": 2,
+      "sessions": [
+        {
+          "account_id": 92,
+          "session_id": 11,
+          "created_at": "2026-08-17T12:23:55.043458",
+          "current_legacy_selected": false,
+          "real_send_evidence": {
+            "success_attempt_ids": [],
+            "success_attempt_count": 0,
+            "success_attempt_created_at": []
+          },
+          "decrypt_status": "SESSION_DECRYPT_FAILED",
+          "structure_status": "N/A",
+          "reconnect_status": "SKIPPED",
+          "identity_match": null,
+          "identity_guid": null,
+          "error_code": "SESSION_DECRYPT_FAILED",
+          "sanitized_message": "SessionDecryptionError",
+          "duration_ms": null,
+          "probe_by": "session_id",
+          "session_status": "legacy_unclassified"
+        },
+        {
+          "account_id": 92,
+          "session_id": 12,
+          "created_at": "2026-08-19T08:04:02.643770",
+          "current_legacy_selected": true,
+          "real_send_evidence": {
+            "success_attempt_ids": [],
+            "success_attempt_count": 0,
+            "success_attempt_created_at": []
+          },
+          "decrypt_status": "SESSION_DECRYPT_FAILED",
+          "structure_status": "N/A",
+          "reconnect_status": "SKIPPED",
+          "identity_match": null,
+          "identity_guid": null,
+          "error_code": "SESSION_DECRYPT_FAILED",
+          "sanitized_message": "SessionDecryptionError",
+          "duration_ms": null,
+          "probe_by": "session_id",
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "classification": "DECRYPT_REPAIR_OR_RELOGIN_REQUIRED"
+    }
+  },
+  "batch_a_verification": [
+    {
+      "account_id": 13,
+      "candidate_session_id": 729,
+      "verified": true,
+      "session_count": 1,
+      "reasons": []
+    },
+    {
+      "account_id": 23,
+      "candidate_session_id": 725,
+      "verified": true,
+      "session_count": 1,
+      "reasons": []
+    },
+    {
+      "account_id": 74,
+      "candidate_session_id": 724,
+      "verified": true,
+      "session_count": 1,
+      "reasons": []
+    }
+  ],
+  "batch_a_probes": [
+    {
+      "account_id": 13,
+      "legacy_selected_session_id": 729,
+      "session_count": 1,
+      "sessions": [
+        {
+          "account_id": 13,
+          "session_id": 729,
+          "created_at": "2026-08-27T11:36:31.636013",
+          "current_legacy_selected": true,
+          "real_send_evidence": {
+            "success_attempt_ids": [],
+            "success_attempt_count": 0,
+            "success_attempt_created_at": []
+          },
+          "decrypt_status": "OK",
+          "structure_status": "OK",
+          "reconnect_status": "AUTH_RECONNECT_PASS",
+          "identity_match": true,
+          "identity_guid": "u0JufJ300a42949dcca0d9ccddcb8afd",
+          "error_code": null,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "duration_ms": 144,
+          "probe_by": "session_id",
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "classification": "ONE_PROVEN_ONE_UNVERIFIED"
+    },
+    {
+      "account_id": 23,
+      "legacy_selected_session_id": 725,
+      "session_count": 1,
+      "sessions": [
+        {
+          "account_id": 23,
+          "session_id": 725,
+          "created_at": "2026-08-27T11:26:34.342783",
+          "current_legacy_selected": true,
+          "real_send_evidence": {
+            "success_attempt_ids": [],
+            "success_attempt_count": 0,
+            "success_attempt_created_at": []
+          },
+          "decrypt_status": "OK",
+          "structure_status": "OK",
+          "reconnect_status": "AUTH_RECONNECT_PASS",
+          "identity_match": true,
+          "identity_guid": "u0JxXDR00bef2308287685630a63d422",
+          "error_code": null,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "duration_ms": 94,
+          "probe_by": "session_id",
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "classification": "ONE_PROVEN_ONE_UNVERIFIED"
+    },
+    {
+      "account_id": 74,
+      "legacy_selected_session_id": 724,
+      "session_count": 1,
+      "sessions": [
+        {
+          "account_id": 74,
+          "session_id": 724,
+          "created_at": "2026-08-27T11:23:02.379952",
+          "current_legacy_selected": true,
+          "real_send_evidence": {
+            "success_attempt_ids": [],
+            "success_attempt_count": 0,
+            "success_attempt_created_at": []
+          },
+          "decrypt_status": "OK",
+          "structure_status": "OK",
+          "reconnect_status": "AUTH_RECONNECT_PASS",
+          "identity_match": true,
+          "identity_guid": "u0K14ZI04f62b5e3f20ea07e221fee1b",
+          "error_code": null,
+          "sanitized_message": "authenticated reconnect and identity verified",
+          "duration_ms": 160,
+          "probe_by": "session_id",
+          "session_status": "legacy_unclassified"
+        }
+      ],
+      "classification": "ONE_PROVEN_ONE_UNVERIFIED"
+    }
+  ],
+  "account79": {
+    "account_id": 79,
+    "candidate_session_id": 600,
+    "verified": true,
+    "session_count": 1,
+    "reasons": [],
+    "protected": true
+  },
+  "account79_probe": {
+    "account_id": 79,
+    "legacy_selected_session_id": 600,
+    "session_count": 1,
+    "sessions": [
+      {
+        "account_id": 79,
+        "session_id": 600,
+        "created_at": "2026-08-24T10:06:44.281893",
+        "current_legacy_selected": true,
+        "real_send_evidence": {
+          "success_attempt_ids": [
+            17
+          ],
+          "success_attempt_count": 1,
+          "success_attempt_created_at": [
+            "2026-08-29T09:56:12.477756"
+          ]
+        },
+        "decrypt_status": "OK",
+        "structure_status": "OK",
+        "reconnect_status": "AUTH_RECONNECT_PASS",
+        "identity_match": true,
+        "identity_guid": "u0K1RA702a8a3ffcbb740c261a7b987e",
+        "error_code": null,
+        "sanitized_message": "authenticated reconnect and identity verified",
+        "duration_ms": 163,
+        "probe_by": "session_id",
+        "session_status": "legacy_unclassified"
+      }
+    ],
+    "classification": "ONE_PROVEN_ONE_UNVERIFIED"
+  },
+  "ACCOUNT2_CLASSIFICATION": "ONE_PROVEN_ONE_INVALID",
+  "ACCOUNT12_CLASSIFICATION": "BOTH_VALID_CURRENT_IDENTITY",
+  "ACCOUNT19_CLASSIFICATION": "BOTH_VALID_SAME_IDENTITY",
+  "ACCOUNT81_CLASSIFICATION": "BOTH_VALID_SAME_IDENTITY",
+  "ACCOUNT92_CLASSIFICATION": "DECRYPT_REPAIR_OR_RELOGIN_REQUIRED",
+  "ACCOUNT12_RECOMMENDED_CANDIDATE": 728,
+  "ACCOUNT12_SAFE_TO_PROMOTE": false,
+  "BATCH_A_FINAL": [
+    13,
+    23,
+    74
+  ],
+  "BATCH_B_FINAL": [
+    2
+  ],
+  "MANUAL_REVIEW_FINAL": [
+    1,
+    12,
+    19,
+    81,
+    92
+  ],
+  "ACCOUNT13_CANDIDATE_SESSION": 729,
+  "ACCOUNT23_CANDIDATE_SESSION": 725,
+  "ACCOUNT74_CANDIDATE_SESSION": 724,
+  "ACCOUNT79_CANDIDATE_SESSION": 600,
+  "canonical_runtime_modes": {
+    "RUBIKA_CANONICAL_SESSION_MODE": "off|shadow|enforce",
+    "RUBIKA_CANONICAL_SESSION_ACCOUNT_IDS": "cohort allowlist",
+    "default_mode": "off",
+    "shadow_non_mutating": true,
+    "enforce_fails_closed": true
+  }
+}

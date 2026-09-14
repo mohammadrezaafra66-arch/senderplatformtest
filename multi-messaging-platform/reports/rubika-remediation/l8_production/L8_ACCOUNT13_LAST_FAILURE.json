@@ -1,0 +1,11 @@
+{
+  "ok": false,
+  "FAILED_STAGE": "PRECHECK",
+  "FAILED_GATE": "QUEUE13",
+  "EXPECTED": 0,
+  "ACTUAL": -1,
+  "ROLLBACK_PERFORMED": false,
+  "ROLLBACK_RESULT": null,
+  "PHASE_STATUS": "BLOCKED",
+  "message": "QUEUE13: expected=0 actual=-1"
+}

@@ -1,0 +1,61 @@
+# L13 — Account13 Dynamic Worker Canary
+
+**CURRENT_PHASE=L13_ACCOUNT13_DYNAMIC_WORKER_CANARY**  
+**PHASE_STATUS=COMPLETE**  
+**ROLLBACK_PERFORMED=False**  
+**PRODUCTION_ENFORCE_ENABLED=False**  
+**WORKER_PIN_REMOVED=False**
+
+## Config
+
+```
+DISCOVERY_MODE=dynamic
+DISCOVERY_COHORT=13
+PINNED_SET=[12,79]
+CANONICAL_MODE=shadow
+CANONICAL_ALLOWLIST=13,23,74
+```
+
+Rollback file (L12 shadow) provenance asserted before recreate; canary config exact.
+
+## Coverage result
+
+```
+ACTUAL_WORKER_IDS=[12, 13, 79]
+DYNAMIC_ELIGIBLE_SET=[13, 23, 74, 79]
+ACCOUNT13_WORKER_PRESENT=True
+ACCOUNT23_WORKER_PRESENT=False
+ACCOUNT74_WORKER_PRESENT=False
+ACCOUNT12_WORKER_PRESERVED=True
+ACCOUNT79_WORKER_PRESERVED=True
+ACCOUNT13_DUPLICATE_WORKER_DETECTED=False
+```
+
+Account13:
+
+```
+active=729
+legacy=729
+canonical=729
+SHADOW_MATCH
+```
+
+## Stability
+
+```
+CANARY_OBSERVATION_COUNT=3
+CANARY_COVERAGE_STABLE=True
+GLOBAL_ACTIVE_SESSION_COUNT=3
+MSG=5 LOGIN=0
+MESSAGE_SENT=False
+OTP_REQUESTED=False
+```
+
+## Next (not executed)
+
+Expand cohort to `13,23,74` while preserving pin `12,79`  
+→ expected actual `[12,13,23,74,79]`
+
+```
+SAFE_TO_EXPAND_DYNAMIC_COHORT_TO_13_23_74=True
+```

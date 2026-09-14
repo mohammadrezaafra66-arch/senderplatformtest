@@ -1,0 +1,50 @@
+{
+  "generated_at": "2026-09-02T11:18:00+03:30",
+  "live_modal_proof_method": "EXACT_TESTED_ARTIFACT_EQUIVALENCE",
+  "live_cancel_verification_method": "TESTED_ARTIFACT_EQUIVALENCE",
+  "production_start_click_intentionally_not_performed": true,
+  "live_confirm_modal_pass": true,
+  "live_cancel_pass": true,
+  "live_controlled_preflight_state_pass": true,
+  "new_controlled_backend_live": true,
+  "new_controlled_frontend_bundle_live": true,
+  "exact_tested_frontend_artifact_live": true,
+  "campaigns": {
+    "125": {
+      "url": "http://localhost:3010/campaigns/125",
+      "status_label": "آماده",
+      "ui_preparation": "آماده‌سازی کمپین: آماده ارسال (1)",
+      "ui_controlled": "حالت ارسال کنترل‌شده فعال است — تأیید نهایی برای هر شروع لازم است.",
+      "ui_execution": "آمادگی ارسال: آماده (READY)",
+      "start_button_rendered": true,
+      "start_clicked": false,
+      "ui_pass": true
+    },
+    "126": {
+      "url": "http://localhost:3010/campaigns/126",
+      "status_label": "آماده",
+      "ui_preparation": "آماده‌سازی کمپین: آماده ارسال (1)",
+      "ui_controlled": "حالت ارسال کنترل‌شده فعال است — تأیید نهایی برای هر شروع لازم است.",
+      "ui_execution": "آمادگی ارسال: آماده (READY)",
+      "start_button_rendered": true,
+      "start_clicked": false,
+      "ui_pass": true
+    },
+    "127": {
+      "url": "http://localhost:3010/campaigns/127",
+      "status_label": "آماده",
+      "ui_preparation": "آماده‌سازی کمپین: آماده ارسال (1)",
+      "ui_controlled": "حالت ارسال کنترل‌شده فعال است — تأیید نهایی برای هر شروع لازم است.",
+      "ui_execution": "آمادگی ارسال: آماده (READY)",
+      "start_button_rendered": true,
+      "start_clicked": false,
+      "ui_pass": true
+    }
+  },
+  "raw_controlled_error_visible_to_user": false,
+  "production_start_button_click_count": 0,
+  "production_confirm_button_click_count": 0,
+  "production_start_post_count": 0,
+  "external_send_attempts": 0,
+  "message_sent": false
+}

@@ -1,0 +1,52 @@
+{
+  "PILOT_ACCOUNT_ID": 27,
+  "PILOT_AUTHORITATIVE_SESSION": 772,
+  "PILOT_CANONICAL_ENFORCE_PASS": true,
+  "enforce_applies": true,
+  "canonical_loader_session_id": 772,
+  "runtime_session_id": 772,
+  "runtime_source": "canonical_enforce",
+  "legacy_selected_session": 772,
+  "PILOT_SHADOW_RESULT": "SHADOW_MATCH",
+  "shadow": {
+    "account_id": 27,
+    "legacy_selected_session_id": 772,
+    "canonical_selected_session_id": 772,
+    "canonical_error": null,
+    "match": true,
+    "metric": "SHADOW_MATCH"
+  },
+  "PILOT_RECONNECT_PASS": true,
+  "reconnect": {
+    "ok": true,
+    "code": "PROOF_PASS",
+    "identity_match": true,
+    "sanitized_message": "authenticated reconnect and identity verified"
+  },
+  "dispatch_readiness": true,
+  "session_count": 1,
+  "active_count": 1,
+  "active_id": 772,
+  "GLOBAL_ACTIVE_SESSION_COUNT": 4,
+  "MessageAttempt_count": 5,
+  "challenge_count": 2,
+  "batch_a_actives": {
+    "13": 729,
+    "23": 725,
+    "74": 724
+  },
+  "a12": "657:legacy_unclassified,728:legacy_unclassified",
+  "a79": "600:legacy_unclassified",
+  "queue27": 0,
+  "coverage27": true,
+  "canonical_mode": "enforce",
+  "canonical_allowlist": "13,23,27,74",
+  "process_workers": [],
+  "process_discovery": {
+    "mode": "pinned",
+    "cohort": [],
+    "pin": []
+  },
+  "MESSAGE_SENT": false,
+  "ok": true
+}
