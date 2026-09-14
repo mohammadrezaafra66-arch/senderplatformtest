@@ -55,7 +55,7 @@ RUNTIME_STATUS_LABEL_FA: dict[str, str] = {
     RuntimeStatus.LOGIN_REQUIRED.value: "نیاز به ورود",
     RuntimeStatus.OTP_WAITING.value: "در انتظار کد",
     RuntimeStatus.AUTHENTICATING.value: "در حال احراز",
-    RuntimeStatus.AUTHENTICATED_NO_WORKER.value: "متصل",
+    RuntimeStatus.AUTHENTICATED_NO_WORKER.value: "احراز شده، Worker آماده نیست",
     RuntimeStatus.READY.value: "آماده ارسال",
     RuntimeStatus.MANUAL_REVIEW.value: "نیازمند بررسی",
     RuntimeStatus.SESSION_ERROR.value: "خطای سشن",
@@ -270,6 +270,7 @@ def _make(
     dispatch_blocker: str | None = None,
     operator_action_code: str = "NONE",
     details: dict[str, Any] | None = None,
+    runtime_label: str | None = None,
 ) -> AccountRuntimeStatus:
     enabled = account.status == AccountStatus.ACTIVE
     return AccountRuntimeStatus(
@@ -277,7 +278,7 @@ def _make(
         platform=account.platform.value if hasattr(account.platform, "value") else str(account.platform),
         enabled=enabled,
         runtime_status=status.value,
-        runtime_status_label=runtime_status_label(status.value),
+        runtime_status_label=runtime_label or runtime_status_label(status.value),
         auth_state=auth_state,
         auth_reason=auth_reason,
         credential_type=credential_type,
@@ -335,6 +336,7 @@ def compute_rubika_runtime_status(
             worker_state="excluded",
             worker_covered=False,
             operator_action_code="ENABLE_ACCOUNT",
+            runtime_label="مسدود",
         )
     if account.status == AccountStatus.RESTING:
         return _make(
@@ -348,6 +350,7 @@ def compute_rubika_runtime_status(
             worker_state="excluded",
             worker_covered=False,
             operator_action_code="ENABLE_ACCOUNT",
+            runtime_label="متوقف",
         )
 
     ch, kind = _active_otp_or_auth_challenge(db, account.id)
@@ -396,6 +399,28 @@ def compute_rubika_runtime_status(
             worker_heartbeat_fresh=bool(worker_covered),
             operator_action_code="WAIT_AUTH",
             details={"challenge_id": ch.id if ch else None},
+        )
+
+    if account.status == AccountStatus.REQUIRES_LOGIN:
+        rows = _rubika_session_rows(db, account.id)
+        had_invalid = any(r.session_status == RubikaSessionStatus.INVALID for r in rows)
+        return _make(
+            account,
+            status=RuntimeStatus.LOGIN_REQUIRED,
+            reason_code="SESSION_INVALIDATED" if had_invalid else "ACCOUNT_REQUIRES_LOGIN",
+            auth_state="unauthenticated",
+            auth_reason="session_invalid" if had_invalid else None,
+            credential_type="rubika_session",
+            credential_state="invalid" if had_invalid else "requires_login",
+            identity_state="unbound",
+            worker_state="covered" if worker_covered else "missing",
+            worker_covered=bool(worker_covered),
+            worker_heartbeat_fresh=bool(worker_covered),
+            dispatch_ready=False,
+            dispatch_blocker="LOGIN_REQUIRED",
+            operator_action_code="RELOGIN" if had_invalid else "LOGIN",
+            details={"expired_otp": kind == "expired_otp", "session_invalidated": had_invalid},
+            runtime_label="نیاز به ورود مجدد" if had_invalid else None,
         )
 
     rows = _rubika_session_rows(db, account.id)

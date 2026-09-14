@@ -160,7 +160,15 @@ class RubikaAccountPoolManager:
         if permanent:
             account.status = AccountStatus.BANNED
         elif requires_relogin:
-            account.status = AccountStatus.REQUIRES_LOGIN
+            from core_engine.services.rubika_account_lifecycle import (
+                apply_rubika_session_invalidation,
+            )
+
+            apply_rubika_session_invalidation(
+                self.db,
+                account,
+                reason=error_message[:64] or "SessionInvalidError",
+            )
         else:
             account.status = AccountStatus.RESTING
 

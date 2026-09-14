@@ -26,7 +26,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from core_engine.models import Account, AccountStatus, SessionType
+from core_engine.models import Account, SessionType
 from core_engine.services.redis_client import get_redis_client
 from core_engine.services.session_storage import store_channel_session
 
@@ -323,8 +323,11 @@ async def verify_rubika_user_login(
         session_type=SessionType.RUBIKA_SESSION,
         plaintext=envelope,
     )
-    if account.status == AccountStatus.REQUIRES_LOGIN:
-        account.status = AccountStatus.ACTIVE
+    from core_engine.services.rubika_account_lifecycle import (
+        activate_rubika_account_after_validated_session,
+    )
+
+    activate_rubika_account_after_validated_session(account)
     db.flush()
 
     await _redis_delete(redis, _redis_key(registration_token))

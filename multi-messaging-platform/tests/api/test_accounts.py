@@ -65,6 +65,7 @@ def test_create_account(client, admin_auth, pg_session_factory):
         assert account is not None
         assert account.phone_number == "09121112233"
         assert account.platform == PlatformType.BALE
+        assert account.status == AccountStatus.ACTIVE
 
         audit = (
             session.query(AuditLog)
@@ -184,3 +185,36 @@ def test_get_account_not_found_on_update(client, admin_auth):
         json={"status": "active"},
     )
     assert response.status_code == 404
+
+
+def test_create_rubika_account_is_requires_login_even_if_active_requested(
+    client, admin_auth, pg_session_factory
+):
+    response = client.post(
+        "/accounts",
+        headers=AUTH_HEADERS,
+        json={
+            "platform": "rubika",
+            "account_identifier": "09129990001",
+            "label": "New Rubika",
+            "status": "active",
+        },
+    )
+    assert response.status_code == 201
+    account_id = response.json()["account_id"]
+    session = pg_session_factory()
+    try:
+        account = session.get(Account, account_id)
+        assert account is not None
+        assert account.status == AccountStatus.REQUIRES_LOGIN
+        listed = client.get("/accounts?platform=rubika", headers=AUTH_HEADERS)
+        assert listed.status_code == 200
+        row = next(item for item in listed.json()["items"] if item["id"] == account_id)
+        assert row["status"] == "requires_login"
+        assert row["campaign_eligible"] is False
+        assert row["runtime_status"] != "READY"
+    finally:
+        session.query(AuditLog).filter(AuditLog.resource_id == str(account_id)).delete()
+        session.query(Account).filter(Account.id == account_id).delete()
+        session.commit()
+        session.close()

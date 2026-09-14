@@ -173,7 +173,7 @@ export default function AccountsPage() {
         account_identifier: createForm.account_identifier.trim(),
         label: createForm.label.trim() || null,
         proxy_url: createForm.proxy_url.trim() || null,
-        status: createForm.status,
+        status: createForm.platform === "rubika" ? "requires_login" : createForm.status,
       });
       setNotice(result.message);
       setShowCreate(false);
@@ -403,12 +403,14 @@ export default function AccountsPage() {
                     <span>{t("platform")}</span>
                     <select
                       value={createForm.platform}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const platform = e.target.value as PlatformOption;
                         setCreateForm((f) => ({
                           ...f,
-                          platform: e.target.value as PlatformOption,
-                        }))
-                      }
+                          platform,
+                          status: platform === "rubika" ? "requires_login" : f.status,
+                        }));
+                      }}
                       style={inputStyle}
                     >
                       {PLATFORM_OPTIONS.map((p) => (
@@ -448,7 +450,8 @@ export default function AccountsPage() {
                   <label style={{ display: "grid", gap: 4, fontSize: 14 }}>
                     <span>{t("status")}</span>
                     <select
-                      value={createForm.status}
+                      value={createForm.platform === "rubika" ? "requires_login" : createForm.status}
+                      disabled={createForm.platform === "rubika"}
                       onChange={(e) =>
                         setCreateForm((f) => ({
                           ...f,
@@ -463,6 +466,9 @@ export default function AccountsPage() {
                         </option>
                       ))}
                     </select>
+                    {createForm.platform === "rubika" ? (
+                      <span style={{ fontSize: 12, opacity: 0.75 }}>{t("rubikaUserLoginCreateHint")}</span>
+                    ) : null}
                   </label>
                   <div style={{ display: "flex", alignItems: "end" }}>
                     <button
@@ -793,6 +799,10 @@ export default function AccountsPage() {
                                 <RubikaUserAccountLoginPanel
                                   accountId={account.id}
                                   accountPhone={account.account_identifier}
+                                  runtimeStatus={account.runtime_status ?? account.runtime?.runtime_status}
+                                  runtimeLabel={
+                                    account.runtime_status_label ?? account.runtime?.runtime_status_label
+                                  }
                                   onRegistered={() => void loadAccounts()}
                                 />
                               </td>

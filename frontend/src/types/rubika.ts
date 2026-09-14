@@ -132,6 +132,10 @@ export type RubikaUserLoginStartResult = {
   stage: "code_required" | "pass_key_required";
   message: string;
   hint_pass_key?: string | null;
+  state?: string | null;
+  code?: string | null;
+  retry_after_seconds?: number | null;
+  resend_available_at?: string | null;
 };
 
 export type RubikaUserLoginVerifyResult = {
@@ -140,6 +144,9 @@ export type RubikaUserLoginVerifyResult = {
   guid: string;
   phone_number: string;
   message: string;
+  lifecycle_status?: string | null;
+  runtime_status?: string | null;
+  runtime_status_label?: string | null;
 };
 
 // ─── Phase 5 — Protection Center ───

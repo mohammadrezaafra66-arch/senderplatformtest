@@ -132,6 +132,13 @@ def promote_validated_session(
         db.rollback()
         return PromotionResult(ok=False, code=PROMOTION_RACE)
 
+    from core_engine.services.rubika_account_lifecycle import (
+        activate_rubika_account_after_validated_session,
+    )
+
+    activate_rubika_account_after_validated_session(account)
+    db.flush()
+
     return PromotionResult(
         ok=True,
         code=PROMOTION_OK,

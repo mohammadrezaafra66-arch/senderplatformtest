@@ -691,6 +691,10 @@ class RubikaUserLoginStartResponse(BaseModel):
     stage: str  # "code_required" | "pass_key_required"
     message: str
     hint_pass_key: str | None = None
+    state: str | None = None
+    code: str | None = None
+    retry_after_seconds: int | None = None
+    resend_available_at: str | None = None
 
 
 class RubikaUserLoginVerifyRequest(BaseModel):
@@ -704,6 +708,9 @@ class RubikaUserLoginVerifyResponse(BaseModel):
     guid: str
     phone_number: str
     message: str
+    lifecycle_status: str | None = None
+    runtime_status: str | None = None
+    runtime_status_label: str | None = None
 
 
 # ─── فاز ۴ — Pool ───

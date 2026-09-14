@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ApiError } from "@/lib/api";
 import { startRubikaUserLogin, verifyRubikaUserLogin } from "@/lib/rubika-api";
+import { formatResendCountdown, rubikaLoginErrorMessage } from "@/utils/rubika-login-errors";
 
 const panelInnerStyle: React.CSSProperties = {
   marginTop: 8,
@@ -38,12 +39,16 @@ type Stage = "phone" | "pass_key" | "code" | "done";
 type RubikaUserAccountLoginPanelProps = {
   accountId: number;
   accountPhone?: string | null;
+  runtimeStatus?: string | null;
+  runtimeLabel?: string | null;
   onRegistered?: () => void;
 };
 
 export function RubikaUserAccountLoginPanel({
   accountId,
   accountPhone,
+  runtimeStatus,
+  runtimeLabel,
   onRegistered,
 }: RubikaUserAccountLoginPanelProps) {
   const { t } = useTranslation();
@@ -57,6 +62,32 @@ export function RubikaUserAccountLoginPanel({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [resultGuid, setResultGuid] = useState<string | null>(null);
+  const [verifyLabel, setVerifyLabel] = useState<string | null>(null);
+  const [resendIn, setResendIn] = useState(0);
+
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const id = window.setInterval(() => {
+      setResendIn((current) => (current > 0 ? current - 1 : 0));
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [resendIn > 0]);
+
+  function beginCooldown(seconds: number | null | undefined) {
+    const next = typeof seconds === "number" && seconds > 0 ? Math.ceil(seconds) : 60;
+    setResendIn(next);
+  }
+
+  function showLoginError(err: unknown) {
+    if (err instanceof ApiError) {
+      if (err.retryAfterSeconds && err.retryAfterSeconds > 0) {
+        setResendIn(Math.ceil(err.retryAfterSeconds));
+      }
+      setError(rubikaLoginErrorMessage(err.code, err.message));
+      return;
+    }
+    setError(t("actionFailed"));
+  }
 
   async function handleStart(e: React.FormEvent) {
     e.preventDefault();
@@ -77,8 +108,9 @@ export function RubikaUserAccountLoginPanel({
         setStage("code");
       }
       setNotice(result.message);
+      beginCooldown(result.retry_after_seconds);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("actionFailed"));
+      showLoginError(err);
     } finally {
       setSubmitting(false);
     }
@@ -105,8 +137,9 @@ export function RubikaUserAccountLoginPanel({
         setStage("code");
       }
       setNotice(result.message);
+      beginCooldown(result.retry_after_seconds);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("actionFailed"));
+      showLoginError(err);
     } finally {
       setSubmitting(false);
     }
@@ -126,12 +159,13 @@ export function RubikaUserAccountLoginPanel({
         registration_token: registrationToken,
         phone_code: code.trim(),
       });
-      setResultGuid(result.guid);
+      setResultGuid(result.guid || null);
+      setVerifyLabel(result.runtime_status_label || runtimeLabel || null);
       setNotice(result.message);
       setStage("done");
       onRegistered?.();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t("actionFailed"));
+      showLoginError(err);
     } finally {
       setSubmitting(false);
     }
@@ -144,6 +178,8 @@ export function RubikaUserAccountLoginPanel({
     setPassKeyHint(null);
     setRegistrationToken("");
     setResultGuid(null);
+    setVerifyLabel(null);
+    setResendIn(0);
     setError(null);
     setNotice(null);
   }
@@ -152,8 +188,12 @@ export function RubikaUserAccountLoginPanel({
     <div style={panelInnerStyle}>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <strong>{t("rubikaUserLoginTitle")}</strong>
-        <span style={badgeStyle(stage === "done" ? "#166534" : "#b45309")}>
-          {stage === "done" ? t("rubikaUserLoginDone") : t("rubikaUserLoginPending")}
+        <span style={badgeStyle(stage === "done" && runtimeStatus === "READY" ? "#166534" : "#b45309")}>
+          {stage === "done"
+            ? verifyLabel || runtimeLabel || t("rubikaUserLoginSessionActive")
+            : stage === "code"
+              ? t("runtime_status_OTP_WAITING", { defaultValue: "در انتظار کد" })
+              : t("rubikaUserLoginPending")}
         </span>
       </div>
 
@@ -215,9 +255,21 @@ export function RubikaUserAccountLoginPanel({
               style={inputStyle}
             />
           </label>
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <button type="submit" disabled={submitting} style={{ padding: "8px 12px", borderRadius: 8 }}>
               {submitting ? t("loading") : t("rubikaUserLoginVerify")}
+            </button>
+            <button
+              type="button"
+              disabled={submitting || resendIn > 0}
+              onClick={() => {
+                void handleStart({ preventDefault() {} } as React.FormEvent);
+              }}
+              style={{ padding: "8px 12px", borderRadius: 8 }}
+            >
+              {resendIn > 0
+                ? t("rubikaUserLoginResendIn", { time: formatResendCountdown(resendIn) })
+                : t("rubikaUserLoginResend")}
             </button>
             <button type="button" onClick={resetFlow} style={{ padding: "8px 12px", borderRadius: 8 }}>
               {t("rubikaUserLoginRestart")}
@@ -228,9 +280,12 @@ export function RubikaUserAccountLoginPanel({
 
       {stage === "done" ? (
         <div style={{ display: "grid", gap: 8 }}>
-          <div style={{ fontSize: 13 }}>
-            {t("rubikaUserLoginGuid")}: <code>{resultGuid}</code>
-          </div>
+          <div style={{ fontSize: 13 }}>{verifyLabel || runtimeLabel || t("rubikaUserLoginSessionActive")}</div>
+          {resultGuid ? (
+            <div style={{ fontSize: 13 }}>
+              {t("rubikaUserLoginGuid")}: <code>{resultGuid}</code>
+            </div>
+          ) : null}
           <div>
             <button type="button" onClick={resetFlow} style={{ padding: "8px 12px", borderRadius: 8 }}>
               {t("rubikaUserLoginReconnect")}

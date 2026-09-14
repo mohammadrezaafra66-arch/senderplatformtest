@@ -7,11 +7,18 @@ export const API_BASE_URL =
 export class ApiError extends Error {
   status: number;
   code: string | null;
+  retryAfterSeconds: number | null;
 
-  constructor(status: number, message: string, code: string | null = null) {
+  constructor(
+    status: number,
+    message: string,
+    code: string | null = null,
+    retryAfterSeconds: number | null = null,
+  ) {
     super(message);
     this.status = status;
     this.code = code;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -44,7 +51,7 @@ export async function requestToken(username: string, password: string): Promise<
 
   if (!response.ok) {
     const detail = await readErrorDetail(response);
-    throw new ApiError(response.status, detail.message, detail.code);
+    throw new ApiError(response.status, detail.message, detail.code, detail.retryAfterSeconds);
   }
 
   return response.json() as Promise<TokenResponse>;
@@ -55,25 +62,37 @@ export async function fetchMe(token?: string): Promise<MeResponse> {
   return response.json() as Promise<MeResponse>;
 }
 
-async function readErrorDetail(response: Response): Promise<{ message: string; code: string | null }> {
+async function readErrorDetail(response: Response): Promise<{
+  message: string;
+  code: string | null;
+  retryAfterSeconds: number | null;
+}> {
   try {
     const data = (await response.json()) as {
       detail?: string | { msg?: string }[] | Record<string, unknown>;
     };
-    if (typeof data.detail === "string") return { message: data.detail, code: null };
+    if (typeof data.detail === "string") {
+      return { message: data.detail, code: data.detail, retryAfterSeconds: null };
+    }
     if (Array.isArray(data.detail) && data.detail[0]?.msg) {
-      return { message: data.detail[0].msg, code: null };
+      return { message: data.detail[0].msg, code: null, retryAfterSeconds: null };
     }
     if (data.detail && typeof data.detail === "object" && !Array.isArray(data.detail)) {
       const record = data.detail as Record<string, unknown>;
       const code = typeof record.code === "string" ? record.code : null;
-      if (typeof record.message === "string") return { message: record.message, code };
-      if (typeof record.error === "string") return { message: record.error, code };
+      const retryRaw = record.retry_after_seconds;
+      const retryAfterSeconds = typeof retryRaw === "number" ? retryRaw : null;
+      if (typeof record.message === "string") {
+        return { message: record.message, code, retryAfterSeconds };
+      }
+      if (typeof record.error === "string") {
+        return { message: record.error, code, retryAfterSeconds };
+      }
     }
   } catch {
     // ignore
   }
-  return { message: response.statusText || "Request failed", code: null };
+  return { message: response.statusText || "Request failed", code: null, retryAfterSeconds: null };
 }
 
 type ApiFetchOptions = RequestInit & {
@@ -105,7 +124,7 @@ export async function apiFetch(path: string, options: ApiFetchOptions = {}): Pro
 
   if (!response.ok) {
     const detail = await readErrorDetail(response);
-    throw new ApiError(response.status, detail.message, detail.code);
+    throw new ApiError(response.status, detail.message, detail.code, detail.retryAfterSeconds);
   }
 
   return response;

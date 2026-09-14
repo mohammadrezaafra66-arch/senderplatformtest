@@ -29,7 +29,7 @@ CAMPAIGN_SENDER_STATUS_LABEL_FA: dict[str, str] = {
     "MANUAL_REVIEW": "نیازمند بررسی",
     "SESSION_ERROR": "خطای سشن",
     "CONNECTION_ERROR": "خطای اتصال",
-    "AUTHENTICATED_NO_WORKER": "متصل، Worker آماده نیست",
+    "AUTHENTICATED_NO_WORKER": "احراز شده، Worker آماده نیست",
     "DISABLED": "غیرفعال",
     "CAPACITY_EXHAUSTED": "ظرفیت تکمیل شده",
     "CIRCUIT_BLOCKED": "موقتاً مسدود",
@@ -37,6 +37,9 @@ CAMPAIGN_SENDER_STATUS_LABEL_FA: dict[str, str] = {
     "NOT_APPLICABLE": "نامرتبط",
     "PLATFORM_MISMATCH": "پلتفرم ناسازگار",
     "ACCOUNT_ARCHIVED": "آرشیو شده",
+    "QUARANTINED": "قرنطینه",
+    "BANNED": "مسدود",
+    "RESTING": "متوقف",
 }
 
 _RUNTIME_BLOCKERS: dict[str, str] = {
@@ -114,6 +117,36 @@ def resolve_display_identity(
     return f"اکانت #{int(account_id)}"
 
 
+def _lifecycle_value(account: Account) -> str:
+    status = account.status
+    return status.value if hasattr(status, "value") else str(status)
+
+
+def _rubika_quarantined(account_id: int) -> bool:
+    """Best-effort Redis quarantine read. Fail open on connection errors.
+
+    Send preflight still blocks quarantine if this lookup is unavailable.
+    """
+    try:
+        import redis
+
+        from core_engine.config import get_settings
+        from workers.redis_keys import rubika_quarantine_key
+
+        client = redis.from_url(
+            get_settings().REDIS_URL,
+            decode_responses=True,
+            socket_connect_timeout=0.2,
+            socket_timeout=0.2,
+        )
+        try:
+            return bool(client.exists(rubika_quarantine_key(int(account_id))))
+        finally:
+            client.close()
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _looks_like_non_identity(value: str) -> bool:
     v = value.strip()
     if not v:
@@ -131,6 +164,8 @@ def _looks_like_non_identity(value: str) -> bool:
 
 
 def campaign_status_label(status: str, backend_label: str | None = None) -> str:
+    if backend_label and backend_label.strip() == "نیاز به ورود مجدد":
+        return backend_label
     if status == RuntimeStatus.AUTHENTICATED_NO_WORKER.value:
         return CAMPAIGN_SENDER_STATUS_LABEL_FA[status]
     if status in CAMPAIGN_SENDER_STATUS_LABEL_FA:
@@ -191,6 +226,18 @@ def evaluate_campaign_sender_eligibility(
         label = "کمپین آرشیو شده"
     elif campaign is not None and account.platform != campaign.platform:
         blocker_code = "PLATFORM_MISMATCH"
+    elif _lifecycle_value(account) == "banned":
+        blocker_code = "BANNED"
+        runtime_status = "DISABLED"
+        label = CAMPAIGN_SENDER_STATUS_LABEL_FA["BANNED"]
+    elif _lifecycle_value(account) == "resting":
+        blocker_code = "RESTING"
+        runtime_status = "DISABLED"
+        label = CAMPAIGN_SENDER_STATUS_LABEL_FA["RESTING"]
+    elif _lifecycle_value(account) == "requires_login" or l18_status == RuntimeStatus.LOGIN_REQUIRED.value:
+        blocker_code = "LOGIN_REQUIRED"
+        if label != "نیاز به ورود مجدد":
+            label = CAMPAIGN_SENDER_STATUS_LABEL_FA["LOGIN_REQUIRED"]
     elif not enabled or l18_status == RuntimeStatus.DISABLED.value:
         blocker_code = "DISABLED"
     elif l18_status in _RUNTIME_BLOCKERS and l18_status != RuntimeStatus.READY.value:
@@ -210,11 +257,30 @@ def evaluate_campaign_sender_eligibility(
             runtime_status = "CAPACITY_EXHAUSTED"
             label = CAMPAIGN_SENDER_STATUS_LABEL_FA["CAPACITY_EXHAUSTED"]
         else:
-            campaign_eligible = True
+            lifecycle = _lifecycle_value(account)
+            fully_ready = (
+                lifecycle == "active"
+                and l18_status == RuntimeStatus.READY.value
+                and worker_ready
+                and dispatch_ready
+            )
+            quarantined = (
+                db is not None
+                and platform == "rubika"
+                and _rubika_quarantined(int(account.id))
+            )
+            if quarantined:
+                blocker_code = "QUARANTINED"
+                runtime_status = "QUARANTINED"
+                label = CAMPAIGN_SENDER_STATUS_LABEL_FA["QUARANTINED"]
+            elif fully_ready:
+                campaign_eligible = True
+            else:
+                blocker_code = "NOT_FULLY_READY"
 
     if blocker_code and not campaign_eligible:
         blocker_label = CAMPAIGN_SENDER_STATUS_LABEL_FA.get(blocker_code, label or blocker_code)
-        if blocker_code in CAMPAIGN_SENDER_STATUS_LABEL_FA:
+        if blocker_code in CAMPAIGN_SENDER_STATUS_LABEL_FA and label != "نیاز به ورود مجدد":
             label = CAMPAIGN_SENDER_STATUS_LABEL_FA[blocker_code]
 
     execution_blocker_code: str | None = None
@@ -313,6 +379,8 @@ def start_blocker_for_assigned_senders(
     if not elig_rows:
         return ("NO_READY_SENDERS", "No campaign-eligible senders are available.")
     codes = {r.blocker_code for r in elig_rows if r.blocker_code}
+    if codes == {"QUARANTINED"}:
+        return ("ASSIGNED_SENDER_QUARANTINED", "Assigned sender is quarantined.")
     if codes == {"LOGIN_REQUIRED"}:
         return ("ASSIGNED_SENDER_LOGIN_REQUIRED", "Assigned sender requires login.")
     if codes == {"MANUAL_REVIEW"}:

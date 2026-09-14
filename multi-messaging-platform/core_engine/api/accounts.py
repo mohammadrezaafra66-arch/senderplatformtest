@@ -83,6 +83,23 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
 
+def _rubika_active_allowed(db: Session, account: Account) -> bool:
+    from core_engine.services.rubika_account_lifecycle import rubika_active_transition_allowed
+
+    return rubika_active_transition_allowed(db, account)
+
+
+def _login_http_error(code: str, *, retry_after_seconds: int | None = None, state: str | None = None) -> HTTPException:
+    from core_engine.services.rubika_account_lifecycle import operator_message
+
+    detail: dict[str, object] = {"code": code, "message": operator_message(code)}
+    if retry_after_seconds is not None:
+        detail["retry_after_seconds"] = int(retry_after_seconds)
+    if state:
+        detail["state"] = state
+    return HTTPException(status_code=400, detail=detail)
+
+
 def _create_evolution_instance(instance_name: str) -> None:
     settings = get_settings()
     evolution_url = settings.EVOLUTION_API_URL.rstrip("/")
@@ -130,13 +147,13 @@ def _runtime_to_block(runtime) -> AccountRuntimeBlock:
     )
 
 
-def _account_to_response(account: Account, runtime=None) -> AccountResponse:
+def _account_to_response(account: Account, runtime=None, db: Session | None = None) -> AccountResponse:
     block = _runtime_to_block(runtime) if runtime is not None else None
     # Base campaign eligibility without campaign/capacity context (picker parity).
     elig = None
     if runtime is not None:
         elig = evaluate_campaign_sender_eligibility(
-            None,
+            db,
             account,
             runtime=runtime,
         )
@@ -218,7 +235,7 @@ def list_accounts(
     runtimes = compute_all_account_runtime_statuses(db, accounts)
     by_id = {r.account_id: r for r in runtimes}
     return AccountsListResponse(
-        items=[_account_to_response(account, by_id.get(int(account.id))) for account in accounts],
+        items=[_account_to_response(account, by_id.get(int(account.id)), db) for account in accounts],
         total_count=len(accounts),
     )
 
@@ -241,12 +258,15 @@ def create_account(
         )
 
     try:
+        from core_engine.services.rubika_account_lifecycle import resolve_create_status
+
+        create_status = resolve_create_status(payload.platform, payload.status)
         account = Account(
             platform=payload.platform,
             phone_number=account_identifier,
             label=payload.label,
             proxy_url=payload.proxy_url,
-            status=payload.status,
+            status=create_status,
         )
         db.add(account)
         db.flush()
@@ -260,7 +280,7 @@ def create_account(
             {
                 "platform": payload.platform.value,
                 "account_identifier": account_identifier,
-                "status": payload.status.value,
+                "status": create_status.value,
             },
         )
         db.commit()
@@ -419,7 +439,20 @@ def update_account(
     if "proxy_url" in updates:
         account.proxy_url = updates["proxy_url"]
     if "status" in updates:
-        account.status = updates["status"]
+        next_status = updates["status"]
+        if (
+            account.platform == PlatformType.RUBIKA
+            and next_status == AccountStatus.ACTIVE
+            and not _rubika_active_allowed(db, account)
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "LOGIN_REQUIRED",
+                    "message": "اکانت روبیکا تا تأیید ورود موفق نمی‌تواند فعال شود.",
+                },
+            )
+        account.status = next_status
 
     try:
         record_audit(
@@ -433,7 +466,7 @@ def update_account(
         db.commit()
         db.refresh(account)
         runtimes = compute_all_account_runtime_statuses(db, [account])
-        return _account_to_response(account, runtimes[0] if runtimes else None)
+        return _account_to_response(account, runtimes[0] if runtimes else None, db)
     except HTTPException:
         db.rollback()
         raise
@@ -732,7 +765,11 @@ async def register_rubika_user_session(
             provider=LiveRubikaLoginProvider(),
         )
         if not result.ok:
-            raise HTTPException(status_code=400, detail=result.code)
+            raise _login_http_error(
+                result.code,
+                retry_after_seconds=result.retry_after_seconds,
+                state=result.state,
+            )
         record_audit(
             db,
             current_user["username"],
@@ -746,6 +783,9 @@ async def register_rubika_user_session(
             registration_token=result.challenge_id or "",
             stage="code_required",
             message=result.message or result.code,
+            state=result.state,
+            code=result.code,
+            retry_after_seconds=result.retry_after_seconds,
         )
 
     try:
@@ -819,7 +859,7 @@ async def verify_rubika_user_session(
         )
         if not result.ok:
             db.rollback()
-            raise HTTPException(status_code=400, detail=result.code)
+            raise _login_http_error(result.code, state=result.state)
         record_audit(
             db,
             current_user["username"],
@@ -831,15 +871,23 @@ async def verify_rubika_user_session(
                 "state": result.state,
                 "auth_ready": result.auth_ready,
                 "dispatch_ready": result.dispatch_ready,
+                "lifecycle_status": result.lifecycle_status,
             },
         )
         db.commit()
+        db.refresh(account)
+        from core_engine.services.account_runtime_status import compute_account_runtime_status
+
+        runtime = compute_account_runtime_status(db, account)
         return RubikaUserLoginVerifyResponse(
             success=True,
             account_id=account_id,
             guid="",  # never echo secrets; GUID is bound on Account
             phone_number="",
             message=result.message or result.code,
+            lifecycle_status=result.lifecycle_status,
+            runtime_status=runtime.runtime_status,
+            runtime_status_label=runtime.runtime_status_label,
         )
 
     try:

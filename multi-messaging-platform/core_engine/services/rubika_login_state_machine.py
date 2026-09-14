@@ -141,6 +141,7 @@ class LoginRequestResult:
     state: str | None = None
     expires_at: str | None = None
     message: str = ""
+    retry_after_seconds: int | None = None
 
 
 @dataclass(frozen=True)
@@ -155,6 +156,7 @@ class LoginSubmitResult:
     dispatch_block: str | None = None
     active_session_id: int | None = None
     message: str = ""
+    lifecycle_status: str | None = None
 
 
 def _now(clock: datetime | None) -> datetime:
@@ -242,15 +244,33 @@ async def request_rubika_login(
             active.state = RubikaLoginChallengeState.LOGIN_EXPIRED
             active.failure_code = OTP_EXPIRED
             db.flush()
+            active = None
         else:
-            return LoginRequestResult(
-                ok=False,
-                code=OTP_ALREADY_PENDING,
-                challenge_id=active.id,
-                state=active.state.value,
-                expires_at=active.expires_at.isoformat() if active.expires_at else None,
-                message="An active login challenge already exists for this account.",
-            )
+            requested_at = active.requested_at
+            elapsed = (now - requested_at).total_seconds() if requested_at is not None else 0
+            remaining = max(1, int(cooldown - elapsed)) if elapsed < cooldown else 0
+            replaceable = active.state in {
+                RubikaLoginChallengeState.OTP_REQUESTED,
+                RubikaLoginChallengeState.OTP_WAITING_FOR_OPERATOR,
+            }
+            if elapsed < cooldown or not replaceable:
+                return LoginRequestResult(
+                    ok=False,
+                    code=OTP_ALREADY_PENDING,
+                    challenge_id=active.id,
+                    state=active.state.value,
+                    expires_at=active.expires_at.isoformat() if active.expires_at else None,
+                    message="An active login challenge already exists for this account.",
+                    retry_after_seconds=remaining or None,
+                )
+            # Cooldown elapsed: retire the waiting challenge and issue a replacement.
+            # Do not touch existing sessions or audit history.
+            old_id = active.id
+            active.state = RubikaLoginChallengeState.LOGIN_EXPIRED
+            active.failure_code = OTP_EXPIRED
+            db.flush()
+            store_for_retire = secret_store if secret_store is not None else _DEFAULT_SECRET_STORE
+            store_for_retire.pop(old_id, None)
 
     # Resend cooldown from last request timestamp (any prior challenge).
     last = (
@@ -262,7 +282,12 @@ async def request_rubika_login(
     if last and last.requested_at is not None:
         elapsed = (now - last.requested_at).total_seconds()
         if elapsed < cooldown:
-            return LoginRequestResult(ok=False, code=OTP_RATE_LIMITED)
+            remaining = max(1, int(cooldown - elapsed))
+            return LoginRequestResult(
+                ok=False,
+                code=OTP_RATE_LIMITED,
+                retry_after_seconds=remaining,
+            )
 
     phone = _normalize_phone(phone_number or account.phone_number or "")
     if not phone:
@@ -314,6 +339,7 @@ async def request_rubika_login(
         state=ch.state.value,
         expires_at=ch.expires_at.isoformat() if ch.expires_at else None,
         message="OTP challenge pending operator code.",
+        retry_after_seconds=cooldown,
     )
 
 
@@ -544,6 +570,11 @@ async def submit_rubika_login_code(
     ch.state = RubikaLoginChallengeState.READY
     ch.completed_session_id = promo.active_session_id
     ch.failure_code = None
+    from core_engine.services.rubika_account_lifecycle import (
+        activate_rubika_account_after_validated_session,
+    )
+
+    activate_rubika_account_after_validated_session(account)
     db.flush()
 
     # Clear ephemeral secrets
@@ -575,6 +606,13 @@ async def submit_rubika_login_code(
     elif pool_block:
         dispatch_ready = False
 
+    from core_engine.services.account_runtime_status import compute_account_runtime_status
+
+    compute_account_runtime_status(db, account)
+    lifecycle = (
+        account.status.value if hasattr(account.status, "value") else str(account.status)
+    )
+
     return LoginSubmitResult(
         ok=True,
         code=LOGIN_READY,
@@ -586,6 +624,7 @@ async def submit_rubika_login_code(
         dispatch_block=dispatch_block,
         active_session_id=promo.active_session_id,
         message="Login READY (auth). Dispatch readiness evaluated separately.",
+        lifecycle_status=lifecycle,
     )
 
 

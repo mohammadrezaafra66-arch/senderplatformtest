@@ -46,7 +46,7 @@ const RUNTIME_FALLBACK_FA: Record<string, string> = {
   LOGIN_REQUIRED: "نیاز به ورود",
   OTP_WAITING: "در انتظار کد",
   AUTHENTICATING: "در حال احراز",
-  AUTHENTICATED_NO_WORKER: "متصل، Worker آماده نیست",
+  AUTHENTICATED_NO_WORKER: "احراز شده، Worker آماده نیست",
   READY: "آماده ارسال",
   MANUAL_REVIEW: "نیازمند بررسی",
   SESSION_ERROR: "خطای سشن",

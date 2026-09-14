@@ -45,7 +45,12 @@ export function resolveCampaignSenderBlockerLabel(
 
 /** Accounts visible in the campaign sender picker for a platform (lifecycle-active). */
 export function compatiblePlatformAccounts(accounts: AccountItem[], platform: PlatformOption) {
-  return accounts.filter((account) => account.platform === platform && account.status === "active");
+  return accounts.filter((account) => {
+    if (account.platform !== platform) return false;
+    // Rubika lifecycle states must stay visible; only READY may be newly selected.
+    if (platform === "rubika") return true;
+    return account.status === "active";
+  });
 }
 
 /** @deprecated use compatiblePlatformAccounts — name kept for older imports */
@@ -55,10 +60,14 @@ export function compatibleActiveAccounts(accounts: AccountItem[], platform: Plat
 
 /** Base eligibility predicate — must match backend evaluate_campaign_sender_eligibility. */
 export function isCampaignEligible(account: AccountItem): boolean {
+  if (account.status === "banned" || account.status === "resting" || account.status === "requires_login") {
+    return false;
+  }
+  if (account.runtime_status && account.runtime_status !== "READY") return false;
   if (account.campaign_eligible === true) return true;
   if (account.campaign_eligible === false) return false;
   // Fallback when older API payloads lack campaign_eligible: L18 READY only.
-  return account.runtime_status === "READY" && account.account_enabled !== false;
+  return account.runtime_status === "READY" && account.account_enabled !== false && account.status === "active";
 }
 
 export function toggleOrderedAccount(ids: number[], id: number, checked: boolean) {
