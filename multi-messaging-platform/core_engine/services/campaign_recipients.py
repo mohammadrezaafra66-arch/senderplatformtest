@@ -265,6 +265,17 @@ def fetch_recipient_detail(
             if latest_attempt is not None
             else recipient.failure_reason
         ),
+        "platform_message_id": (
+            latest_attempt.platform_message_id if latest_attempt is not None else None
+        ),
+        "delivery_state": (
+            "delivered"
+            if _status_value(recipient.send_status) == "delivered"
+            else "unknown"
+        ),
+        "read_state": (
+            "read" if _status_value(recipient.send_status) == "read" else "unknown"
+        ),
         "rendered_at": rendered_at,
         "sent_at": sent_at,
         "created_at": recipient.updated_at,

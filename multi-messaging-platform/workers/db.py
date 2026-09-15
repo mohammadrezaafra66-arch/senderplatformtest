@@ -28,6 +28,8 @@ _RESULT_TO_SEND_STATUS: dict[str, SendStatus] = {
     "dry_run": SendStatus.DRY_RUN,
     "shadow_sent": SendStatus.SHADOW_SENT,
     "delivered": SendStatus.DELIVERED,
+    "accepted_by_platform": SendStatus.ACCEPTED_BY_PLATFORM,
+    "unknown_external_result": SendStatus.UNKNOWN_EXTERNAL_RESULT,
     "read": SendStatus.READ,
     "failed_retryable": SendStatus.FAILED_RETRYABLE,
     "failed_permanent": SendStatus.FAILED_PERMANENT,
@@ -128,6 +130,8 @@ _RESULT_TO_ATTEMPT_STATUS: dict[str, MessageAttemptStatus] = {
     "dry_run": MessageAttemptStatus.DRY_RUN,
     "shadow_sent": MessageAttemptStatus.SHADOW_SENT,
     "delivered": MessageAttemptStatus.SUCCESS,
+    "accepted_by_platform": MessageAttemptStatus.SUCCESS,
+    "unknown_external_result": MessageAttemptStatus.UNKNOWN_EXTERNAL,
     "read": MessageAttemptStatus.SUCCESS,
     "failed_retryable": MessageAttemptStatus.FAILED_RETRYABLE,
     "failed_permanent": MessageAttemptStatus.FAILED_PERMANENT,
@@ -380,6 +384,7 @@ def update_message_attempt_result(
     account_id: int | str | None = None,
     failure_reason: str | None = None,
     success: bool | None = None,
+    message_text: str | None = None,
     db: Session | None = None,
 ) -> None:
     """Persist worker send outcome to campaign_recipients and message_attempts."""
@@ -447,6 +452,8 @@ def update_message_attempt_result(
                             existing_message = new_message
                     if existing_message is not None:
                         recipient.final_message_id = existing_message.id
+                        if message_text:
+                            existing_message.rendered_text = message_text
 
         attempt_status = _RESULT_TO_ATTEMPT_STATUS.get(status)
         if attempt_status is None and success is True:

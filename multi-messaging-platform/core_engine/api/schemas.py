@@ -520,6 +520,9 @@ class CampaignRecipientDetailResponse(CampaignRecipientItemResponse):
     gpt: dict | None = None
     products: dict | None = None
     error_code: str | None = None
+    platform_message_id: str | None = None
+    delivery_state: str = "unknown"
+    read_state: str = "unknown"
     rendered_at: datetime | None = None
     sent_at: datetime | None = None
     created_at: datetime | None = None

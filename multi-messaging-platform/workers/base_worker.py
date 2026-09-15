@@ -278,6 +278,7 @@ class BaseWorker(ABC):
             contact_id=payload.contact_id,
             account_id=self.account_id,
             success=result.success,
+            message_text=payload.message_text,
         )
 
     async def handle_error(

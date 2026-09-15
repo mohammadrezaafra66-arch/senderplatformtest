@@ -27,6 +27,7 @@ import { campaignAccountError } from "@/lib/campaign-account-errors";
 import { campaignPreparationError } from "@/lib/campaign-preparation-errors";
 import { campaignStartError } from "@/lib/campaign-start-errors";
 import { getFailureReasonFa } from "@/lib/failure-reason";
+import { deliveryNote, readNote, sendStatusLabel } from "@/utils/message-status";
 import {
   archiveCampaign,
   fetchCampaignDetail,
@@ -796,7 +797,7 @@ export default function CampaignMonitorPage() {
                     <option value="">{t("allStatuses")}</option>
                     {SEND_STATUS_OPTIONS.map((s) => (
                       <option key={s} value={s}>
-                        {s}
+                        {sendStatusLabel(s)}
                       </option>
                     ))}
                   </select>
@@ -838,7 +839,9 @@ export default function CampaignMonitorPage() {
                             </td>
                             <td>{r.render_status}</td>
                             <td>
-                              {r.send_status}
+                              {sendStatusLabel(r.send_status)}
+                              <div className="mmp-muted">{deliveryNote(r.send_status)}</div>
+                              <div className="mmp-muted">{readNote(r.send_status)}</div>
                               {getFailureReasonFa(r.send_status, r.failure_reason) && (
                                 <div
                                   style={{

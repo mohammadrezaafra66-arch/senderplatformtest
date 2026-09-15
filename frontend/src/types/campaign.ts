@@ -131,6 +131,9 @@ export type MessageLogDetail = CampaignRecipientItem & {
   gpt?: MessageGptTrace | null;
   products?: MessageProductTrace | null;
   error_code?: string | null;
+  platform_message_id?: string | null;
+  delivery_state?: string | null;
+  read_state?: string | null;
   rendered_at?: string | null;
   sent_at?: string | null;
   created_at?: string | null;

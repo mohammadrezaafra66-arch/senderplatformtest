@@ -8,6 +8,8 @@ export const SEND_STATUS_OPTIONS = [
   "pending",
   "queued",
   "processing",
+  "accepted_by_platform",
+  "unknown_external_result",
   "delivered",
   "failed_permanent",
   "failed_retryable",

@@ -138,6 +138,11 @@ async def deliver_platform_message(
         return await deliver_whatsapp_cloud_live(payload, settings)
 
     if platform == "rubika":
+        from core_engine.services.message_observability import (
+            apply_submission_boundary,
+            classify_rubika_connector_result,
+        )
+
         mode = settings.RUBIKA_DELIVERY_MODE.strip().lower()
         if mode == "user_account":
             if not settings.RUBIKA_USER_ACCOUNT_ENABLED:
@@ -153,8 +158,14 @@ async def deliver_platform_message(
                 )
             from workers.connectors.rubika_user import deliver_rubika_user_live
 
-            return await deliver_rubika_user_live(payload, settings)
-        return await deliver_rubika_live(payload, settings)  # bot_api — دست نزن
+            result = await deliver_rubika_user_live(payload, settings)
+        else:
+            result = await deliver_rubika_live(payload, settings)
+        submitted = bool((payload.metadata or {}).get("external_send_submitted"))
+        return apply_submission_boundary(
+            classify_rubika_connector_result(result),
+            submitted=submitted,
+        )
 
     return WorkerResult(
         success=False,

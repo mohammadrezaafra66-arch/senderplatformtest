@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui";
 import type { MessageLogDetail } from "@/types/campaign";
 import { toJalaliDateTime } from "@/utils/jalali";
+import { sendStatusLabel } from "@/utils/message-status";
 
 type MessageDetailModalProps = {
   open: boolean;
@@ -80,7 +81,10 @@ export function MessageDetailModal({
               <MetaRow label={t("phone")} value={detail.phone ?? "—"} />
               <MetaRow label={t("sender")} value={sender} />
               <MetaRow label="render" value={detail.render_status} />
-              <MetaRow label="send" value={detail.send_status} />
+              <MetaRow label="send" value={sendStatusLabel(detail.send_status)} />
+              <MetaRow label="platform_message_id" value={detail.platform_message_id || "—"} />
+              <MetaRow label="delivery" value={detail.delivery_state === "delivered" ? "تحویل‌شده" : "تحویل نامشخص"} />
+              <MetaRow label="read" value={detail.read_state === "read" ? "خوانده‌شده" : "خوانده‌شدن نامشخص"} />
               <MetaRow
                 label={t("renderVersion")}
                 value={detail.render_version ?? "—"}

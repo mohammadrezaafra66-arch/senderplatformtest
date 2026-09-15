@@ -23,6 +23,7 @@ import {
 import { useAuth } from "@/state/auth";
 import type { CampaignListItem, CampaignRecipientItem, MessageLogDetail } from "@/types/campaign";
 import { SEND_STATUS_OPTIONS } from "@/utils/campaign-status";
+import { sendStatusLabel } from "@/utils/message-status";
 import { toJalaliDateTime } from "@/utils/jalali";
 import { canViewCampaigns, canViewMessageLogs } from "@/utils/permissions";
 
@@ -40,8 +41,9 @@ const inputStyle: React.CSSProperties = {
 };
 
 function sendStatusColor(status: string): string {
-  if (status === "delivered") return "#166534";
-  if (status === "failed_permanent" || status === "failed_retryable") return "#991b1b";
+  if (status === "delivered" || status === "read") return "#166534";
+  if (status === "accepted_by_platform") return "#1d4ed8";
+  if (status === "failed_permanent" || status === "failed_retryable" || status === "unknown_external_result") return "#991b1b";
   if (status === "queued" || status === "processing") return "#1d4ed8";
   return "inherit";
 }
@@ -290,7 +292,7 @@ export default function MessageLogsPage() {
                   <option value="">{t("allStatuses")}</option>
                   {SEND_STATUS_OPTIONS.map((s) => (
                     <option key={s} value={s}>
-                      {s}
+                      {sendStatusLabel(s)}
                     </option>
                   ))}
                 </select>
@@ -336,7 +338,7 @@ export default function MessageLogsPage() {
                         </td>
                         <td style={{ padding: 8 }}>{r.render_status}</td>
                         <td style={{ padding: 8, color: sendStatusColor(r.send_status) }}>
-                          {r.send_status}
+                          {sendStatusLabel(r.send_status)}
                         </td>
                         <td style={{ padding: 8 }}><MessageSenderCell item={r} /></td>
                         <td style={{ padding: 8 }}>{toJalaliDateTime(r.updated_at)}</td>

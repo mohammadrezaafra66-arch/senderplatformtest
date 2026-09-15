@@ -300,6 +300,8 @@ def message_has_terminal_success(db: Session, message_id: int) -> bool:
     if recip is not None and recip.send_status in {
         SendStatus.DELIVERED,
         SendStatus.READ,
+        SendStatus.ACCEPTED_BY_PLATFORM,
+        SendStatus.UNKNOWN_EXTERNAL_RESULT,
     }:
         return True
     att = (

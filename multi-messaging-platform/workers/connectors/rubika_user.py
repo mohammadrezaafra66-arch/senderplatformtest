@@ -643,8 +643,8 @@ async def deliver_rubika_user_live(
 
         return WorkerResult(
             success=True,
-            status="delivered",
-            platform_message_id=f"rubika-user-{message_id}" if message_id else "rubika-user-sent",
+            status="accepted_by_platform",
+            platform_message_id=f"rubika-user-{message_id}" if message_id else None,
             retryable=False,
         )
 

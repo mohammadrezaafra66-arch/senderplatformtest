@@ -232,6 +232,7 @@ class MultiAccountWorker(ABC):
             account_id=payload.account_id,
             failure_reason=result.error_message,
             success=result.success,
+            message_text=payload.message_text,
         )
 
         if str(self.platform).strip().lower() == "rubika":

@@ -136,7 +136,7 @@ def _result_from_rubika_response(data: dict[str, Any]) -> WorkerResult:
     if message_id and status_text in {"", "OK", "DONE", "SUCCESS"}:
         return WorkerResult(
             success=True,
-            status="delivered",
+            status="accepted_by_platform",
             platform_message_id=f"rubika-{message_id}",
             retryable=False,
         )
@@ -144,7 +144,7 @@ def _result_from_rubika_response(data: dict[str, Any]) -> WorkerResult:
     if message_id and status_text not in {"ERROR", "FAILED"}:
         return WorkerResult(
             success=True,
-            status="delivered",
+            status="accepted_by_platform",
             platform_message_id=f"rubika-{message_id}",
             retryable=False,
         )
@@ -189,8 +189,8 @@ def _result_from_rubika_response(data: dict[str, Any]) -> WorkerResult:
     if status_text in {"OK", "DONE", "SUCCESS"}:
         return WorkerResult(
             success=True,
-            status="delivered",
-            platform_message_id="rubika-sent",
+            status="accepted_by_platform",
+            platform_message_id=None,
             retryable=False,
         )
 

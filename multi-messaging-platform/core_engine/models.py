@@ -81,6 +81,7 @@ class SendStatus(str, enum.Enum):
     READ = "read"
     FAILED_RETRYABLE = "failed_retryable"
     FAILED_PERMANENT = "failed_permanent"
+    UNKNOWN_EXTERNAL_RESULT = "unknown_external_result"
     DRY_RUN = "dry_run"
     SHADOW_SENT = "shadow_sent"
     OPTED_OUT = "opted_out"
@@ -92,6 +93,7 @@ class MessageAttemptStatus(str, enum.Enum):
     SUCCESS = "success"
     FAILED_RETRYABLE = "failed_retryable"
     FAILED_PERMANENT = "failed_permanent"
+    UNKNOWN_EXTERNAL = "unknown_external"
     DRY_RUN = "dry_run"
     SHADOW_SENT = "shadow_sent"
 
