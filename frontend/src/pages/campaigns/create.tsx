@@ -448,7 +448,6 @@ export default function CampaignCreatePage() {
                         );
                       })}
                     </div>
-                    </div>
                   </FormField>
                   <p className="mmp-muted" style={{ margin: 0 }}>
                     {t("tagImportAdditiveHint")}

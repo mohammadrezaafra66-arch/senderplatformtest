@@ -188,9 +188,13 @@ class CampaignPreflightResult:
     limitations: list[str] = field(default_factory=list)
     evaluated_at: str = ""
     redis_ok: bool = True
+    redis_available: bool = True
+    capacity_known: bool = True
     ready_accounts: int = 0
     execution_usable_accounts: int = 0
     campaign_eligible_accounts: int = 0
+    authenticated_accounts: int = 0
+    worker_ready_accounts: int = 0
     assignment_materialized: bool = False
     capacity_applicable: bool = False
     # Post-R10 production observability
@@ -369,17 +373,27 @@ def _unknown_result(
     message: str,
     evaluated_iso: str,
     redis_ok: bool = False,
+    total_messages: int = 0,
+    assigned_accounts: int = 0,
+    progress: dict[str, int] | None = None,
+    blockers: list[dict[str, Any]] | None = None,
 ) -> CampaignPreflightResult:
+    """Fail-closed placeholder for DB/config failures only.
+
+    Redis unavailability after Postgres facts are loaded must not use this
+    helper: it would zero real CampaignAccount / recipient counts.
+    """
+    issues = blockers if blockers is not None else [_issue(code, message)]
     return CampaignPreflightResult(
         allowed_to_start=False,
         code=code,
         message=message,
         campaign_id=int(campaign_id),
         execution_safety_state=EXEC_BLOCKED,
-        total_messages=0,
+        total_messages=int(total_messages),
         ready_messages=0,
         blocked_messages=0,
-        assigned_accounts=0,
+        assigned_accounts=int(assigned_accounts),
         usable_accounts=0,
         blocked_accounts=0,
         temporary_accounts=0,
@@ -388,11 +402,48 @@ def _unknown_result(
         estimated_completion_at=None,
         estimated_duration_seconds=None,
         timezone="Asia/Tehran",
-        blockers=[_issue(code, message)],
+        blockers=issues,
+        progress=progress or {},
         evaluated_at=evaluated_iso,
         redis_ok=redis_ok,
+        redis_available=redis_ok,
+        capacity_known=False,
         capacity_confidence="unknown",
         limitations=["fail_closed"],
+    )
+
+
+def _pg_only_capacity_input(
+    *,
+    account_id: int,
+    assigned_n: int,
+    label: str | None,
+    readiness_code: str | None,
+    session_ready: bool,
+    delivery_mode: str | None,
+    window_open: bool,
+    applies_quota: bool,
+) -> AccountCapacityInput:
+    """Build a capacity row from Postgres only. Never invent Redis quota."""
+    if not session_ready:
+        block_code = readiness_code or "SESSION_INVALID"
+    else:
+        block_code = "NO_WORKER_CONSUMER"
+    return AccountCapacityInput(
+        account_id=account_id,
+        assigned_remaining=assigned_n,
+        label=label,
+        health=None,
+        readiness=readiness_code,
+        lifecycle=None,
+        remaining_daily=None,
+        remaining_hourly=None,
+        daily_cap=None,
+        hourly_cap=None,
+        window_open=window_open,
+        applies_quota=applies_quota,
+        block_code=block_code,
+        delivery_mode=delivery_mode,
     )
 
 
@@ -621,72 +672,65 @@ async def evaluate_campaign_send_preflight(
     from workers.config import get_worker_settings
 
     settings = get_worker_settings()
+    redis_ok = True
+    redis_client = None
     try:
         client = redis if redis is not None else get_redis_client()
         await client.ping()
         redis_client = client
-    except Exception as exc:  # noqa: BLE001 — fail closed
+    except Exception as exc:  # noqa: BLE001 — fail closed on start, keep DB facts
         logger.warning(
             "event=campaign_preflight_redis_failure campaign_id=%s error=%s",
             campaign.id,
             type(exc).__name__,
         )
-        if redis is not None:
+        if redis is None:
+            try:
+                reset_redis_client()
+                redis_client = get_redis_client()
+                await redis_client.ping()
+            except Exception as exc2:  # noqa: BLE001
+                log_campaign_safety_event(
+                    "campaign_preflight_blocked",
+                    campaign_id=campaign.id,
+                    code=CAMPAIGN_CAPACITY_UNKNOWN,
+                    extra={"error": type(exc2).__name__},
+                )
+                redis_ok = False
+                redis_client = None
+        else:
             log_campaign_safety_event(
                 "campaign_preflight_blocked",
                 campaign_id=campaign.id,
                 code=CAMPAIGN_CAPACITY_UNKNOWN,
                 extra={"error": type(exc).__name__},
             )
-            return _unknown_result(
-                campaign.id,
-                code=CAMPAIGN_CAPACITY_UNKNOWN,
-                message=_PERSIAN[CAMPAIGN_CAPACITY_UNKNOWN],
-                evaluated_iso=evaluated_iso,
-                redis_ok=False,
-            )
+            redis_ok = False
+            redis_client = None
+
+    circuit_state = None
+    safety_pause = None
+    if redis_ok and redis_client is not None:
         try:
-            reset_redis_client()
-            redis_client = get_redis_client()
-            await redis_client.ping()
-        except Exception as exc2:  # noqa: BLE001
+            circuit = await get_circuit_snapshot(
+                redis_client,
+                probe_budget=int(settings.RUBIKA_CIRCUIT_PROBE_BUDGET),
+                window_seconds=int(settings.RUBIKA_CIRCUIT_WINDOW_SECONDS),
+                clock=evaluated,
+            )
+            circuit_state = circuit.state
+            safety_pause = await get_campaign_safety_pause(redis_client, campaign.id)
+        except Exception as exc:  # noqa: BLE001
             log_campaign_safety_event(
                 "campaign_preflight_blocked",
                 campaign_id=campaign.id,
                 code=CAMPAIGN_CAPACITY_UNKNOWN,
-                extra={"error": type(exc2).__name__},
+                extra={"error": type(exc).__name__},
             )
-            return _unknown_result(
-                campaign.id,
-                code=CAMPAIGN_CAPACITY_UNKNOWN,
-                message=_PERSIAN[CAMPAIGN_CAPACITY_UNKNOWN],
-                evaluated_iso=evaluated_iso,
-                redis_ok=False,
-            )
-
-    try:
-        circuit = await get_circuit_snapshot(
-            redis_client,
-            probe_budget=int(settings.RUBIKA_CIRCUIT_PROBE_BUDGET),
-            window_seconds=int(settings.RUBIKA_CIRCUIT_WINDOW_SECONDS),
-            clock=evaluated,
-        )
-        circuit_state = circuit.state
-        safety_pause = await get_campaign_safety_pause(redis_client, campaign.id)
-    except Exception as exc:  # noqa: BLE001
-        log_campaign_safety_event(
-            "campaign_preflight_blocked",
-            campaign_id=campaign.id,
-            code=CAMPAIGN_CAPACITY_UNKNOWN,
-            extra={"error": type(exc).__name__},
-        )
-        return _unknown_result(
-            campaign.id,
-            code=CAMPAIGN_CAPACITY_UNKNOWN,
-            message=_PERSIAN[CAMPAIGN_CAPACITY_UNKNOWN],
-            evaluated_iso=evaluated_iso,
-            redis_ok=False,
-        )
+            redis_ok = False
+            redis_client = None
+            circuit_state = None
+            safety_pause = None
 
     circuit_open = circuit_state == "open"
     phase = current_window_phase(windows, evaluated) if applies_quota else "n/a"
@@ -748,32 +792,50 @@ async def evaluate_campaign_send_preflight(
             )
             continue
 
-        # Authoritative account sendability — same engine as transport connectors.
-        try:
-            pf = await evaluate_rubika_send_preflight(
-                db,
-                account=account,
-                campaign_id=campaign.id,
-                delivery_mode=delivery_mode,
-                context="campaign_preflight",
-                redis=redis_client,
-                clock=evaluated,
-                consume_circuit_probe=False,
+        readiness = evaluate_account_session_readiness(
+            db, account, rubika_delivery_mode=delivery_mode
+        )
+        readiness_code = readiness.code
+
+        pf = None
+        snap = None
+        use_pg_only = not redis_ok or redis_client is None
+        if not use_pg_only:
+            try:
+                pf = await evaluate_rubika_send_preflight(
+                    db,
+                    account=account,
+                    campaign_id=campaign.id,
+                    delivery_mode=delivery_mode,
+                    context="campaign_preflight",
+                    redis=redis_client,
+                    clock=evaluated,
+                    consume_circuit_probe=False,
+                )
+            except Exception as exc:  # noqa: BLE001 — keep Postgres facts
+                log_campaign_safety_event(
+                    "campaign_preflight_blocked",
+                    campaign_id=campaign.id,
+                    code=CAMPAIGN_CAPACITY_UNKNOWN,
+                    extra={"error": type(exc).__name__, "account_id": account_id},
+                )
+                redis_ok = False
+                use_pg_only = True
+
+        if use_pg_only:
+            inputs.append(
+                _pg_only_capacity_input(
+                    account_id=account_id,
+                    assigned_n=assigned_n,
+                    label=label,
+                    readiness_code=readiness_code,
+                    session_ready=bool(readiness.ready),
+                    delivery_mode=delivery_mode,
+                    window_open=account_window_open,
+                    applies_quota=applies_quota,
+                )
             )
-        except Exception as exc:  # noqa: BLE001 — fail closed
-            log_campaign_safety_event(
-                "campaign_preflight_blocked",
-                campaign_id=campaign.id,
-                code=CAMPAIGN_CAPACITY_UNKNOWN,
-                extra={"error": type(exc).__name__, "account_id": account_id},
-            )
-            return _unknown_result(
-                campaign.id,
-                code=CAMPAIGN_CAPACITY_UNKNOWN,
-                message=_PERSIAN[CAMPAIGN_CAPACITY_UNKNOWN],
-                evaluated_iso=evaluated_iso,
-                redis_ok=False,
-            )
+            continue
 
         if pf.code != PF_READY:
             block_code = pf.code
@@ -794,11 +856,6 @@ async def evaluate_campaign_send_preflight(
         if block_code == PF_OUTSIDE_SEND_WINDOW:
             account_window_open = False
 
-        readiness = evaluate_account_session_readiness(
-            db, account, rubika_delivery_mode=delivery_mode
-        )
-        readiness_code = readiness.code
-
         try:
             health = await build_health_snapshot(
                 redis_client,
@@ -815,13 +872,20 @@ async def evaluate_campaign_send_preflight(
                 code=CAMPAIGN_CAPACITY_UNKNOWN,
                 extra={"error": type(exc).__name__, "account_id": account_id},
             )
-            return _unknown_result(
-                campaign.id,
-                code=CAMPAIGN_CAPACITY_UNKNOWN,
-                message=_PERSIAN[CAMPAIGN_CAPACITY_UNKNOWN],
-                evaluated_iso=evaluated_iso,
-                redis_ok=False,
+            redis_ok = False
+            inputs.append(
+                _pg_only_capacity_input(
+                    account_id=account_id,
+                    assigned_n=assigned_n,
+                    label=label,
+                    readiness_code=readiness_code,
+                    session_ready=bool(readiness.ready),
+                    delivery_mode=delivery_mode,
+                    window_open=account_window_open,
+                    applies_quota=applies_quota,
+                )
             )
+            continue
 
         if pf.details.get("until"):
             cooldown_until = _parse_dt(str(pf.details.get("until")))
@@ -887,9 +951,12 @@ async def evaluate_campaign_send_preflight(
         inputs, now=evaluated, windows=windows
     )
 
-    waiting_window = applies_quota and not window_open and aggregate.usable_now == 0
+    waiting_window = (
+        redis_ok and applies_quota and not window_open and aggregate.usable_now == 0
+    )
     waiting_capacity = (
-        aggregate.usable_now == 0
+        redis_ok
+        and aggregate.usable_now == 0
         and aggregate.temporary > 0
         and aggregate.blocked == 0
         and not circuit_open
@@ -897,17 +964,24 @@ async def evaluate_campaign_send_preflight(
     all_quarantined = bool(planning_ids) and quarantined_count == len(planning_ids)
     all_hard_blocked = bool(planning_ids) and aggregate.blocked == len(planning_ids)
 
-    if remaining <= 0 and prepared <= 0 and ready_staged <= 0:
+    if not planning_ids:
+        allowed = False
+        if not any(b.get("code") == CAMPAIGN_NO_SENDERS for b in blockers):
+            blockers.append(_issue(CAMPAIGN_NO_SENDERS))
+        code = CAMPAIGN_NO_SENDERS
+        if remaining <= 0 and prepared <= 0 and ready_staged <= 0:
+            if not any(b.get("code") == CAMPAIGN_NO_MESSAGES for b in blockers):
+                blockers.append(_issue(CAMPAIGN_NO_MESSAGES))
+        elif campaign.status == CampaignStatus.DRAFT.value and prepared <= 0 and ready_staged <= 0:
+            if not any(b.get("code") == CAMPAIGN_NOT_PREPARED for b in blockers):
+                blockers.append(_issue(CAMPAIGN_NOT_PREPARED))
+    elif remaining <= 0 and prepared <= 0 and ready_staged <= 0:
         allowed = False
         code = CAMPAIGN_NO_MESSAGES
         blockers.append(_issue(code))
     elif campaign.status == CampaignStatus.DRAFT.value and prepared <= 0 and ready_staged <= 0:
         allowed = False
         code = CAMPAIGN_NOT_PREPARED
-        blockers.append(_issue(code))
-    elif not planning_ids:
-        allowed = False
-        code = CAMPAIGN_NO_SENDERS
         blockers.append(_issue(code))
     elif circuit_open:
         allowed = False
@@ -966,7 +1040,7 @@ async def evaluate_campaign_send_preflight(
         for plan in aggregate.accounts
         if plan.block_code == "NO_WORKER_CONSUMER"
     ]
-    if coverage_missing:
+    if coverage_missing and redis_ok:
         allowed = False
         if code not in _HARD_SYSTEM_CODES:
             code = NO_WORKER_CONSUMER
@@ -983,6 +1057,19 @@ async def evaluate_campaign_send_preflight(
             code=NO_WORKER_CONSUMER,
             extra={"account_ids": coverage_missing},
         )
+
+    if not redis_ok:
+        allowed = False
+        if not any(b.get("code") == CAMPAIGN_CAPACITY_UNKNOWN for b in blockers):
+            blockers.append(_issue(CAMPAIGN_CAPACITY_UNKNOWN))
+        if code not in {
+            CAMPAIGN_NO_SENDERS,
+            CAMPAIGN_NO_MESSAGES,
+            CAMPAIGN_NOT_PREPARED,
+            CAMPAIGN_CONFIGURATION_INVALID,
+            CAMPAIGN_DEPENDENCY_ERROR,
+        }:
+            code = CAMPAIGN_CAPACITY_UNKNOWN
 
     # --- Post-R10 production safety gates (fail closed; do not mutate) ---
     from core_engine.services.campaign_production_guards import (
@@ -1045,6 +1132,12 @@ async def evaluate_campaign_send_preflight(
             code=CAMPAIGN_SEND_LIMIT_REACHED,
             extra=limit_issue.details,
         )
+
+    if not planning_ids:
+        allowed = False
+        if not any(b.get("code") == CAMPAIGN_NO_SENDERS for b in blockers):
+            blockers.append(_issue(CAMPAIGN_NO_SENDERS))
+        code = CAMPAIGN_NO_SENDERS
 
     if campaign.status == CampaignStatus.RUNNING.value and allowed:
         warnings.append(_issue(CAMPAIGN_ALREADY_RUNNING))
@@ -1133,17 +1226,18 @@ async def evaluate_campaign_send_preflight(
         campaign.status == CampaignStatus.DRAFT.value and prepared <= 0 and ready_staged <= 0
     )
 
+    authenticated_accounts = 0
+    worker_ready_accounts = 0
     for plan in aggregate.accounts:
-        worker_coverage = plan.block_code != "NO_WORKER_CONSUMER"
-        if plan.block_code is None or plan.block_code == "READY":
-            worker_coverage = True
-        # When block is NO_WORKER_CONSUMER, coverage is false; other blocks leave
-        # coverage unknown/false only for that code.
-        if plan.block_code == "NO_WORKER_CONSUMER":
-            worker_coverage = False
-        elif plan.account_ready_now and plan.block_code not in {None, "READY"}:
-            # Account ready but blocked by temporary/hard code other than coverage.
+        worker_coverage = False
+        if redis_ok:
             worker_coverage = plan.block_code != "NO_WORKER_CONSUMER"
+            if plan.block_code is None or plan.block_code == "READY":
+                worker_coverage = True
+            if plan.block_code == "NO_WORKER_CONSUMER":
+                worker_coverage = False
+            elif plan.account_ready_now and plan.block_code not in {None, "READY"}:
+                worker_coverage = plan.block_code != "NO_WORKER_CONSUMER"
         account = accounts_by_id.get(plan.account_id)
         elig = None
         display_identity = plan.label
@@ -1181,8 +1275,12 @@ async def evaluate_campaign_send_preflight(
         execution_ready = plan.eligible_now if plan.assigned_remaining > 0 else (
             elig.execution_ready if elig is not None else False
         )
-        if not campaign_prepared:
+        if not campaign_prepared or not redis_ok:
             execution_ready = False
+        if elig is not None and elig.auth_ready:
+            authenticated_accounts += 1
+        if elig is not None and elig.worker_ready and worker_coverage:
+            worker_ready_accounts += 1
         account_rows.append(
             {
                 "account_id": plan.account_id,
@@ -1218,7 +1316,7 @@ async def evaluate_campaign_send_preflight(
                 "next_allowed_at": plan.next_allowed_at.isoformat() if plan.next_allowed_at else None,
                 "window_state": "open" if plan.window_open else "closed",
                 "cooldown_until": plan.cooldown_until.isoformat() if plan.cooldown_until else None,
-                "eligible_now": plan.eligible_now,
+                "eligible_now": bool(plan.eligible_now and redis_ok),
                 "block_code": plan.block_code,
                 "reason_code": exec_block_code or ("READY" if plan.eligible_now else None),
                 "bottleneck": plan.is_bottleneck,
@@ -1302,26 +1400,38 @@ async def evaluate_campaign_send_preflight(
         total_messages=total_recipients,
         ready_messages=ready_staged,
         blocked_messages=progress.blocked_sender,
-        assigned_accounts=aggregate.assigned_accounts,
+        assigned_accounts=max(len(planning_ids), aggregate.assigned_accounts),
         # ``usable_accounts`` is the public/UI-facing readiness count.  It must
         # not collapse to zero before Message.account_id assignments exist.
-        usable_accounts=aggregate.ready_now,
+        usable_accounts=aggregate.ready_now if redis_ok else 0,
         blocked_accounts=aggregate.blocked,
         temporary_accounts=aggregate.temporary,
-        immediate_capacity=(aggregate.immediate_capacity if capacity_applicable else None),
+        immediate_capacity=(
+            None if not redis_ok else (aggregate.immediate_capacity if capacity_applicable else None)
+        ),
         estimated_today_capacity=(
-            aggregate.estimated_today_capacity if capacity_applicable else None
+            None
+            if not redis_ok
+            else (aggregate.estimated_today_capacity if capacity_applicable else None)
         ),
         estimated_hourly_capacity=(
-            aggregate.estimated_hourly_capacity if capacity_applicable else None
+            None
+            if not redis_ok
+            else (aggregate.estimated_hourly_capacity if capacity_applicable else None)
         ),
         estimated_completion_at=(
-            completion.estimated_completion_at.isoformat()
-            if capacity_applicable and completion.estimated_completion_at is not None
-            else None
+            None
+            if not redis_ok
+            else (
+                completion.estimated_completion_at.isoformat()
+                if capacity_applicable and completion.estimated_completion_at is not None
+                else None
+            )
         ),
         estimated_duration_seconds=(
-            completion.estimated_duration_seconds if capacity_applicable else None
+            None
+            if not redis_ok
+            else (completion.estimated_duration_seconds if capacity_applicable else None)
         ),
         timezone="Asia/Tehran",
         warnings=warnings,
@@ -1334,19 +1444,30 @@ async def evaluate_campaign_send_preflight(
         next_window_start=next_window.isoformat() if next_window else None,
         resume_policy="operator",
         ready_to_resume=ready_to_resume,
-        capacity_confidence=(aggregate.today_confidence if capacity_applicable else "not_applicable"),
+        capacity_confidence=(
+            "unknown"
+            if not redis_ok
+            else (aggregate.today_confidence if capacity_applicable else "not_applicable")
+        ),
         limitations=(
-            list(completion.limitations)
-            if capacity_applicable
-            else ["assignment_not_materialized", "capacity_not_applicable_before_assignment"]
+            (["redis_unavailable", "capacity_unknown"] if not redis_ok else [])
+            + (
+                list(completion.limitations)
+                if capacity_applicable
+                else ["assignment_not_materialized", "capacity_not_applicable_before_assignment"]
+            )
         ),
         evaluated_at=evaluated_iso,
-        redis_ok=True,
-        ready_accounts=aggregate.ready_now,
-        execution_usable_accounts=aggregate.usable_now,
+        redis_ok=redis_ok,
+        redis_available=redis_ok,
+        capacity_known=bool(redis_ok),
+        ready_accounts=aggregate.ready_now if redis_ok else 0,
+        execution_usable_accounts=aggregate.usable_now if redis_ok else 0,
         campaign_eligible_accounts=sum(
             1 for row in account_rows if row.get("campaign_eligible") is True
         ),
+        authenticated_accounts=authenticated_accounts,
+        worker_ready_accounts=worker_ready_accounts,
         assignment_materialized=assignment_materialized,
         capacity_applicable=capacity_applicable,
         total_recipients=total_recipients,

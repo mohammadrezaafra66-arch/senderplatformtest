@@ -31,6 +31,7 @@ export const RUNTIME_STATUS_VALUES = [
   "OTP_WAITING",
   "AUTHENTICATING",
   "AUTHENTICATED_NO_WORKER",
+  "ACTIVATION_PENDING",
   "READY",
   "MANUAL_REVIEW",
   "SESSION_ERROR",
@@ -47,6 +48,7 @@ const RUNTIME_FALLBACK_FA: Record<string, string> = {
   OTP_WAITING: "در انتظار کد",
   AUTHENTICATING: "در حال احراز",
   AUTHENTICATED_NO_WORKER: "احراز شده، Worker آماده نیست",
+  ACTIVATION_PENDING: "ورود موفق؛ در انتظار تایید مدیر",
   READY: "آماده ارسال",
   MANUAL_REVIEW: "نیازمند بررسی",
   SESSION_ERROR: "خطای سشن",
@@ -60,6 +62,7 @@ const REASON_LABEL_FA: Record<string, string> = {
   ACCOUNT_REQUIRES_LOGIN: "نیاز به ورود",
   SESSION_INVALIDATED: "نیاز به ورود مجدد",
   NO_WORKER_COVERAGE: "احراز شده، Worker آماده نیست",
+  ACTIVATION_PENDING: "ورود موفق؛ در انتظار تایید مدیر",
   LEGACY_NO_WORKER: "احراز شده، Worker آماده نیست",
   WORKER_COVERED_NOT_DISPATCH: "Worker آماده",
   READY: "آماده ارسال",
@@ -92,6 +95,8 @@ export function runtimeStatusIcon(status: string | null | undefined): string {
       return "🟢";
     case "AUTHENTICATED_NO_WORKER":
       return "🟢";
+    case "ACTIVATION_PENDING":
+      return "🟡";
     case "LOGIN_REQUIRED":
     case "OTP_WAITING":
     case "AUTHENTICATING":
@@ -116,6 +121,8 @@ export function runtimeStatusColor(status: string | null | undefined): string {
       return "#166534";
     case "AUTHENTICATED_NO_WORKER":
       return "#15803d";
+    case "ACTIVATION_PENDING":
+      return "#a16207";
     case "LOGIN_REQUIRED":
     case "OTP_WAITING":
     case "AUTHENTICATING":

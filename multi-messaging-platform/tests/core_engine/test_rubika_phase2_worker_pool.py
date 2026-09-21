@@ -80,6 +80,7 @@ def _secrets(monkeypatch):
     monkeypatch.setenv("REAL_QUEUE_PUSH_ENABLED", "false")
     monkeypatch.setenv("REAL_MESSAGE_SENDING_ENABLED", "false")
     monkeypatch.setenv("WORKER_EXECUTION_ENABLED", "false")
+    monkeypatch.setenv("RUBIKA_MANAGER_ACTIVATION_REQUIRED", "false")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

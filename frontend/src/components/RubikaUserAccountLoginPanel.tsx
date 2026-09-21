@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ApiError } from "@/lib/api";
-import { startRubikaUserLogin, verifyRubikaUserLogin } from "@/lib/rubika-api";
+import { startRubikaUserLogin, verifyRubikaUserLogin, confirmRubikaActivation } from "@/lib/rubika-api";
 import { formatResendCountdown, rubikaLoginErrorMessage } from "@/utils/rubika-login-errors";
 
 const panelInnerStyle: React.CSSProperties = {
@@ -63,6 +63,7 @@ export function RubikaUserAccountLoginPanel({
   const [notice, setNotice] = useState<string | null>(null);
   const [resultGuid, setResultGuid] = useState<string | null>(null);
   const [verifyLabel, setVerifyLabel] = useState<string | null>(null);
+  const [activationState, setActivationState] = useState<string | null>(null);
   const [resendIn, setResendIn] = useState(0);
 
   useEffect(() => {
@@ -161,8 +162,29 @@ export function RubikaUserAccountLoginPanel({
       });
       setResultGuid(result.guid || null);
       setVerifyLabel(result.runtime_status_label || runtimeLabel || null);
-      setNotice(result.message);
+      setActivationState(result.send_activation_state || null);
+      setNotice(
+        result.send_activation_state === "ACTIVATION_PENDING"
+          ? t("rubikaActivationPending")
+          : result.message,
+      );
       setStage("done");
+      onRegistered?.();
+    } catch (err) {
+      showLoginError(err);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleConfirmActivation() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await confirmRubikaActivation(accountId);
+      setActivationState(result.send_activation_state);
+      setVerifyLabel(result.runtime_status_label || verifyLabel);
+      setNotice(t("rubikaActivationConfirmed"));
       onRegistered?.();
     } catch (err) {
       showLoginError(err);
@@ -179,6 +201,7 @@ export function RubikaUserAccountLoginPanel({
     setRegistrationToken("");
     setResultGuid(null);
     setVerifyLabel(null);
+    setActivationState(null);
     setResendIn(0);
     setError(null);
     setNotice(null);
@@ -285,6 +308,16 @@ export function RubikaUserAccountLoginPanel({
             <div style={{ fontSize: 13 }}>
               {t("rubikaUserLoginGuid")}: <code>{resultGuid}</code>
             </div>
+          ) : null}
+          {activationState === "ACTIVATION_PENDING" ? (
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => void handleConfirmActivation()}
+              style={{ padding: "8px 12px", borderRadius: 8 }}
+            >
+              {submitting ? t("loading") : t("rubikaActivationConfirm")}
+            </button>
           ) : null}
           <div>
             <button type="button" onClick={resetFlow} style={{ padding: "8px 12px", borderRadius: 8 }}>

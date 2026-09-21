@@ -109,8 +109,8 @@ class Settings(BaseSettings):
     # روبیکا — حالت ارسال (قرارداد مشترک با workers/config.py و rubika_mode).
     RUBIKA_DELIVERY_MODE: str = "bot_api"
     RUBIKA_USER_ACCOUNT_ENABLED: bool = False
-    # L2+/L3: login state-machine / prover fencing (not the sole runtime cohort switch).
-    RUBIKA_CANONICAL_SESSION_V1: bool = False
+    # L2+/L3: login state-machine / prover fencing. Default on — L3 is the only login path.
+    RUBIKA_CANONICAL_SESSION_V1: bool = True
     # L16: comma-separated account IDs that use L3 login while global V1 remains off.
     # L17: remains as emergency/operator override when RUBIKA_L3_LOGIN_ROUTING=auto_evidence.
     RUBIKA_CANONICAL_LOGIN_PILOT_ACCOUNT_IDS: str = ""
@@ -125,6 +125,10 @@ class Settings(BaseSettings):
     # Deprecated. Post-login pool enrollment is canonical and does not consult this flag.
     # Kept so existing env files do not fail to parse. It no longer creates a second path.
     AUTO_ENROLL_RUBIKA_POOL: bool = False
+    # After OTP login, require manager confirm before campaign send / send-pool.
+    # When true, a missing activation row is NOT trusted and cannot send.
+    RUBIKA_MANAGER_ACTIVATION_REQUIRED: bool = True
+    RUBIKA_ACTIVATION_MANAGER_PHONE: str = ""
     DEFAULT_RUBIKA_POOL: str = "day"
     # L3 OTP challenge controls
     RUBIKA_OTP_CHALLENGE_TTL_SECONDS: int = 600

@@ -249,6 +249,12 @@ export async function updateCampaignAccounts(
   return response.json() as Promise<CampaignAccountsResult>;
 }
 
+export function campaignSenderSaveNoticeKey(
+  _result?: Pick<CampaignAccountsResult, "auto_prepare"> | null,
+): "senderAccountsSaved" {
+  return "senderAccountsSaved";
+}
+
 export type ProductFeedStatus = {
   ok: boolean;
   code: string;

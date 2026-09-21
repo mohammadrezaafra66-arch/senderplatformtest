@@ -282,12 +282,16 @@ export type CampaignPreflight = {
   ready_to_resume: boolean;
   capacity_confidence: string | null;
   limitations: string[];
-  evaluated_at: string;
-  redis_ok: boolean;
-  ready_accounts?: number;
-  execution_usable_accounts?: number;
-  campaign_eligible_accounts?: number;
-  assignment_materialized?: boolean;
+    evaluated_at: string;
+    redis_ok: boolean;
+    redis_available?: boolean;
+    capacity_known?: boolean;
+    ready_accounts?: number;
+    execution_usable_accounts?: number;
+    campaign_eligible_accounts?: number;
+    authenticated_accounts?: number;
+    worker_ready_accounts?: number;
+    assignment_materialized?: boolean;
   capacity_applicable?: boolean;
   campaign_prepared?: boolean;
   prepared_messages?: number;
@@ -343,8 +347,22 @@ export type AudiencePreviewResult = {
   contact_ids: number[];
 };
 
+export type CampaignAutoPrepareSummary = {
+  attempted: boolean;
+  prepared: boolean;
+  skipped: boolean;
+  skip_reason?: string | null;
+  blockers?: Array<Record<string, unknown>>;
+  error_code?: string | null;
+  error_message?: string | null;
+  ready_count?: number | null;
+  staged_count?: number | null;
+};
+
 export type CampaignAccountsResult = {
   campaign_id: number;
   account_ids: number[];
   sender_accounts: CampaignSenderAccount[];
+  assignment_warnings?: Array<Record<string, string | number | null>>;
+  auto_prepare?: CampaignAutoPrepareSummary | null;
 };

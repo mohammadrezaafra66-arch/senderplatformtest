@@ -61,6 +61,8 @@ ACCOUNT_QUARANTINED = "ACCOUNT_QUARANTINED"
 RUBIKA_CIRCUIT_OPEN = "RUBIKA_CIRCUIT_OPEN"
 REDIS_UNAVAILABLE = "REDIS_UNAVAILABLE"
 UNKNOWN_PREFLIGHT_ERROR = "UNKNOWN_PREFLIGHT_ERROR"
+ACTIVATION_PENDING = "ACTIVATION_PENDING"
+RUBIKA_ACTIVATION_PENDING = "rubika_activation_pending"
 
 # Codes that are safe to retry later without operator login/config change.
 _RETRYABLE_CODES = frozenset({
@@ -102,6 +104,8 @@ _PERSIAN_MESSAGES: dict[str, str] = {
     RUBIKA_CIRCUIT_OPEN: "مدارشکن سراسری روبیکا باز است؛ ارسال متوقف شد.",
     REDIS_UNAVAILABLE: "سرویس Redis در دسترس نیست؛ ارسال متوقف شد.",
     UNKNOWN_PREFLIGHT_ERROR: "خطای ناشناخته در پیش‌پرواز ارسال روبیکا.",
+    ACTIVATION_PENDING: "ورود موفق است؛ ارسال تا تایید مدیر مجاز نیست.",
+    RUBIKA_ACTIVATION_PENDING: "ورود موفق است؛ ارسال کمپین و send-test زنده تا تایید مدیر مجاز نیست.",
 }
 
 
@@ -318,7 +322,7 @@ async def evaluate_rubika_send_preflight(
     details["delivery_mode"] = mode
 
     # Defaults by mode / context
-    side = context in {"side_channel", "status", "listener", "ai"}
+    side = context in {"side_channel", "status", "listener", "ai", "activation"}
     if check_runtime_limits is None:
         check_runtime_limits = mode == RUBIKA_MODE_USER_ACCOUNT and not side
     if check_pool_membership is None:
@@ -500,6 +504,24 @@ async def evaluate_rubika_send_preflight(
             session_type=session_type,
             details={**details, "status": account.status.value},
         )
+
+    if not side:
+        from core_engine.services.rubika_account_activation import (
+            RUBIKA_ACTIVATION_PENDING as ACT_DENY,
+            assert_send_activation_allowed,
+        )
+
+        activation_block = assert_send_activation_allowed(
+            db, account_id, context=context
+        )
+        if activation_block:
+            return _deny(
+                code=ACT_DENY,
+                account_id=account_id,
+                delivery_mode=mode,
+                session_type=session_type,
+                details={**details, "layer": "B_activation"},
+            )
 
     # --- Layer D: Session readiness (Phase 1 engine) ---
     details["layer"] = "D"

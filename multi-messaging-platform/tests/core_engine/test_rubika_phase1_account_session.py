@@ -399,11 +399,11 @@ def test_readiness_config_invalid_override(monkeypatch, pg_session_factory):
 
 
 @pytest.mark.asyncio
-async def test_otp_expired_token(monkeypatch, pg_session_factory):
+async def test_otp_legacy_verify_blocked(monkeypatch, pg_session_factory):
     _pin_mode(monkeypatch, "user_account", user_enabled=True)
     session = pg_session_factory()
     account = _make_rubika_account(session, status=AccountStatus.REQUIRES_LOGIN, label="otp-exp")
-    with pytest.raises(RubikaLoginError, match="منقضی"):
+    with pytest.raises(RubikaLoginError, match="LEGACY_LOGIN"):
         await verify_rubika_user_login(
             session, registration_token="missing-token-xyz", phone_code="12345"
         )
@@ -414,151 +414,20 @@ async def test_otp_expired_token(monkeypatch, pg_session_factory):
 
 
 @pytest.mark.asyncio
-async def test_otp_wrong_code_does_not_corrupt(monkeypatch, pg_session_factory):
+async def test_otp_legacy_start_blocked_for_new_login(monkeypatch, pg_session_factory):
     _pin_mode(monkeypatch, "user_account", user_enabled=True)
     session = pg_session_factory()
-    account = _make_rubika_account(session, status=AccountStatus.REQUIRES_LOGIN, label="otp-wrong")
-
-    from rubpy.types import Update
-
-    async def fake_connect(self):
-        return None
-
-    async def fake_disconnect(self):
-        return None
-
-    async def mock_send_code(self, **kwargs):
-        return Update({"status": "OK", "phone_code_hash": "hash123"})
-
-    monkeypatch.setattr("rubpy.Client.connect", fake_connect)
-    monkeypatch.setattr("rubpy.Client.disconnect", fake_disconnect)
-    monkeypatch.setattr("rubpy.Client.send_code", mock_send_code)
-
-    start = await start_rubika_user_login(account_id=account.id, phone_number="09121112233")
-    token = start["registration_token"]
-
-    async def fake_sign_in(self, **kwargs):
-        return Update({"status": "ERROR", "auth": "", "user": {}})
-
-    monkeypatch.setattr("rubpy.Client.sign_in", fake_sign_in)
-
-    with pytest.raises(RubikaLoginError, match="ناموفق"):
-        await verify_rubika_user_login(session, registration_token=token, phone_code="00000")
-
-    session.refresh(account)
-    assert account.status == AccountStatus.REQUIRES_LOGIN
+    account = _make_rubika_account(session, status=AccountStatus.REQUIRES_LOGIN, label="otp-l3")
+    with pytest.raises(RubikaLoginError, match="LEGACY_LOGIN"):
+        await start_rubika_user_login(account_id=account.id, phone_number="09121112233")
     assert (
         session.query(ChannelSession)
         .filter(ChannelSession.account_id == account.id)
         .count()
         == 0
     )
-
-    # Token still usable (not consumed on failure).
-    from core_engine.services.redis_client import get_redis_client
-
-    redis = get_redis_client()
-    assert await redis.get(f"rubika:user_login:{token}") is not None
-
     _cleanup_account(session, account.id)
     session.close()
-
-
-@pytest.mark.asyncio
-async def test_otp_duplicate_verify_rejected(monkeypatch, pg_session_factory):
-    _pin_mode(monkeypatch, "user_account", user_enabled=True)
-    session = pg_session_factory()
-    account = _make_rubika_account(session, status=AccountStatus.REQUIRES_LOGIN, label="otp-dup")
-
-    import base64
-
-    from Crypto.Cipher import PKCS1_OAEP
-    from Crypto.PublicKey import RSA
-    from rubpy.types import Update
-
-    async def fake_connect(self):
-        return None
-
-    async def fake_disconnect(self):
-        return None
-
-    async def mock_send_code(self, **kwargs):
-        return Update({"status": "OK", "phone_code_hash": "hashDUP"})
-
-    monkeypatch.setattr("rubpy.Client.connect", fake_connect)
-    monkeypatch.setattr("rubpy.Client.disconnect", fake_disconnect)
-    monkeypatch.setattr("rubpy.Client.send_code", mock_send_code)
-
-    start = await start_rubika_user_login(account_id=account.id, phone_number="09123334455")
-    token = start["registration_token"]
-
-    from core_engine.services.redis_client import get_redis_client
-    from rubpy.crypto import Crypto as RubikaCrypto
-
-    redis = get_redis_client()
-    state = json.loads(await redis.get(f"rubika:user_login:{token}"))
-    public_key = state["public_key"]
-    raw_pub_b64 = RubikaCrypto.decode_auth(public_key)
-    pub_key_obj = RSA.import_key(base64.b64decode(raw_pub_b64))
-    encrypted_auth = base64.b64encode(
-        PKCS1_OAEP.new(pub_key_obj).encrypt(b"d" * 32)
-    ).decode()
-
-    async def fake_sign_in(self, **kwargs):
-        return Update(
-            {
-                "status": "OK",
-                "auth": encrypted_auth,
-                "user": {"user_guid": "uDUP", "phone": "989123334455"},
-            }
-        )
-
-    async def fake_register_device(self, **kwargs):
-        return None
-
-    monkeypatch.setattr("rubpy.Client.sign_in", fake_sign_in)
-    monkeypatch.setattr("rubpy.Client.register_device", fake_register_device)
-
-    first = await verify_rubika_user_login(session, registration_token=token, phone_code="11111")
-    assert first["success"] is True
-    session.commit()
-
-    with pytest.raises(RubikaLoginError, match="منقضی"):
-        await verify_rubika_user_login(session, registration_token=token, phone_code="11111")
-
-    count = (
-        session.query(ChannelSession)
-        .filter(
-            ChannelSession.account_id == account.id,
-            ChannelSession.session_type == SessionType.RUBIKA_SESSION,
-        )
-        .count()
-    )
-    assert count == 1
-    _cleanup_account(session, account.id)
-    session.close()
-
-
-@pytest.mark.asyncio
-async def test_otp_redis_failure_clear_error(monkeypatch, pg_session_factory):
-    _pin_mode(monkeypatch, "user_account", user_enabled=True)
-
-    class BoomRedis:
-        async def get(self, *_a, **_k):
-            raise ConnectionError("redis down")
-
-        async def set(self, *_a, **_k):
-            raise ConnectionError("redis down")
-
-        async def delete(self, *_a, **_k):
-            raise ConnectionError("redis down")
-
-    monkeypatch.setattr(
-        "core_engine.services.rubika_user_session.get_redis_client",
-        lambda: BoomRedis(),
-    )
-    with pytest.raises(RubikaLoginError, match="Redis"):
-        await start_rubika_user_login(account_id=1, phone_number="09120000000")
 
 
 # --------------------------------------------------------------------------

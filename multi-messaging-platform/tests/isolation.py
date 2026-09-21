@@ -11,7 +11,23 @@ from urllib.parse import urlparse
 # Canonical live application database name (Compose POSTGRES_DB).
 PRODUCTION_DB_NAME = "mmp_db"
 
-# Allowed ephemeral / hermetic database name prefixes.
+# Names pytest must never use for schema/row writes.
+FORBIDDEN_WRITE_DATABASES = frozenset(
+    {
+        "mmp_isolated_readiness",
+        "mmp_db",
+        "postgres",
+    }
+)
+PYTEST_DATABASE_PREFIX = "mmp_pytest_"
+DEFAULT_PYTEST_DATABASE = "mmp_pytest_campaign_accounts"
+REFUSING_NON_TEST_DATABASE = "REFUSING_NON_TEST_DATABASE"
+PYTEST_TRUNCATE_LOCK_TIMEOUT = "PYTEST_TRUNCATE_LOCK_TIMEOUT"
+_TRUNCATE_LOCK_TIMEOUT = "5s"
+_PG_LOCK_NOT_AVAILABLE = "55P03"
+
+# Historical prefixes kept only for fingerprint helpers / legacy docs.
+# Postgres-backed pytest writes now require PYTEST_DATABASE_PREFIX.
 _TEST_DB_PREFIXES = (
     "mmp_isolated_",
     "mmp_prod_guards_",
@@ -36,8 +52,147 @@ def is_production_database_url(url: str | None) -> bool:
     return name.lower() == PRODUCTION_DB_NAME.lower()
 
 
+def is_postgres_url(url: str | None) -> bool:
+    return bool(url) and url.startswith("postgresql")
+
+
+def rewrite_database_url(url: str, name: str) -> str:
+    from urllib.parse import urlunparse
+
+    parsed = urlparse(url)
+    return urlunparse(parsed._replace(path=f"/{name}"))
+
+
+def assert_pytest_database_name(name: str | None) -> str:
+    """Refuse any Postgres database that is not an mmp_pytest_* test database."""
+    normalized = str(name or "").strip()
+    if (
+        not normalized
+        or normalized.lower() in {item.lower() for item in FORBIDDEN_WRITE_DATABASES}
+        or not normalized.startswith(PYTEST_DATABASE_PREFIX)
+    ):
+        raise RuntimeError(REFUSING_NON_TEST_DATABASE)
+    return normalized
+
+
+def assert_pytest_database_url(url: str | None) -> str:
+    if not url:
+        raise RuntimeError(REFUSING_NON_TEST_DATABASE)
+    return assert_pytest_database_name(database_name_from_url(url))
+
+
+def assert_connected_pytest_database(connection) -> str:
+    """SELECT current_database() and refuse before any schema/row write."""
+    from sqlalchemy import text
+
+    current = connection.execute(text("SELECT current_database()")).scalar()
+    return assert_pytest_database_name(str(current or "").strip())
+
+
+def _is_postgres_lock_timeout(exc: BaseException) -> bool:
+    current: BaseException | None = exc
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        pgcode = getattr(current, "pgcode", None) or getattr(current, "sqlstate", None)
+        if str(pgcode) == _PG_LOCK_NOT_AVAILABLE:
+            return True
+        orig = getattr(current, "orig", None)
+        if orig is not None and orig is not current:
+            current = orig
+            continue
+        message = str(current).lower()
+        if "lock timeout" in message or "lock_not_available" in message:
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
+def truncate_pytest_database(engine) -> None:
+    """Remove leftover pytest rows. Guarded: never truncates forbidden databases."""
+    from sqlalchemy import inspect, text
+
+    with engine.connect() as conn:
+        current = assert_connected_pytest_database(conn)
+        names = inspect(conn).get_table_names()
+        if conn.in_transaction():
+            conn.commit()
+        if not names:
+            return
+        quoted = ", ".join('"' + name.replace('"', '""') + '"' for name in names)
+        try:
+            with conn.begin():
+                conn.exec_driver_sql(f"SET LOCAL lock_timeout = '{_TRUNCATE_LOCK_TIMEOUT}'")
+                conn.execute(text(f"TRUNCATE {quoted} RESTART IDENTITY CASCADE"))
+        except Exception as exc:
+            if _is_postgres_lock_timeout(exc):
+                raise RuntimeError(
+                    f"{PYTEST_TRUNCATE_LOCK_TIMEOUT}: TRUNCATE on '{current}' waited more than "
+                    f"{_TRUNCATE_LOCK_TIMEOUT}; an open session or connection still holds a lock"
+                ) from exc
+            raise
+
+
+def ensure_default_pytest_database(source_url: str) -> str:
+    """Create mmp_pytest_campaign_accounts if needed. Never create_all here."""
+    from sqlalchemy import create_engine, text
+
+    target_url = rewrite_database_url(source_url, DEFAULT_PYTEST_DATABASE)
+    last_error: Exception | None = None
+    admin_names = ["postgres"]
+    source_name = database_name_from_url(source_url)
+    if source_name and source_name not in admin_names:
+        admin_names.append(source_name)
+    for admin_name in admin_names:
+        admin = create_engine(
+            rewrite_database_url(source_url, admin_name),
+            isolation_level="AUTOCOMMIT",
+        )
+        try:
+            with admin.connect() as conn:
+                exists = conn.execute(
+                    text("SELECT 1 FROM pg_database WHERE datname = :name"),
+                    {"name": DEFAULT_PYTEST_DATABASE},
+                ).scalar()
+                if not exists:
+                    conn.execute(text(f'CREATE DATABASE "{DEFAULT_PYTEST_DATABASE}"'))
+            return target_url
+        except Exception as exc:
+            last_error = exc
+        finally:
+            admin.dispose()
+    raise RuntimeError(
+        f"{REFUSING_NON_TEST_DATABASE}: could not ensure {DEFAULT_PYTEST_DATABASE}"
+        + (f" ({type(last_error).__name__})" if last_error else "")
+    )
+
+
+def configure_pytest_database_url() -> str | None:
+    """Rewrite process DATABASE_URL to mmp_pytest_* before app/engine import."""
+    url = os.environ.get("DATABASE_URL") or ""
+    if not is_postgres_url(url):
+        return None
+    name = database_name_from_url(url)
+    if name.startswith(PYTEST_DATABASE_PREFIX):
+        assert_pytest_database_name(name)
+        return url
+    target = ensure_default_pytest_database(url)
+    os.environ["DATABASE_URL"] = target
+    assert_pytest_database_url(target)
+    return target
+
+
+def rebind_sessionlocal(engine) -> None:
+    """Point SessionLocal/engine at the guarded pytest engine."""
+    import core_engine.database as database
+    from sqlalchemy.orm import sessionmaker
+
+    database.engine = engine
+    database.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
 def assert_test_database_url(url: str | None) -> str:
-    """Raise if DATABASE_URL is missing or points at the live application DB."""
+    """Raise if DATABASE_URL is missing or is not an mmp_pytest_* database."""
     if not url:
         raise RuntimeError("DATABASE_URL is required for DB-backed tests.")
     name = database_name_from_url(url)
@@ -46,15 +201,18 @@ def assert_test_database_url(url: str | None) -> str:
     if name.lower() == PRODUCTION_DB_NAME.lower():
         raise RuntimeError(
             f"REFUSE: DATABASE_URL targets production database '{PRODUCTION_DB_NAME}'. "
-            "Use a dedicated ephemeral test database."
+            "Use a dedicated ephemeral test database. "
+            f"{REFUSING_NON_TEST_DATABASE}"
         )
-    if not any(name.lower().startswith(p.lower()) for p in _TEST_DB_PREFIXES):
-        # Still refuse unknown names that look like production aliases.
-        if "prod" in name.lower() and "test" not in name.lower() and "isolated" not in name.lower():
-            raise RuntimeError(f"REFUSE: suspicious DATABASE_URL database name '{name}'.")
-        if name.lower() in {"postgres", "template0", "template1", "evolution_db"}:
-            raise RuntimeError(f"REFUSE: DATABASE_URL database '{name}' is not a test DB.")
-    return name
+    try:
+        return assert_pytest_database_name(name)
+    except RuntimeError as exc:
+        if str(exc) == REFUSING_NON_TEST_DATABASE:
+            raise RuntimeError(
+                f"{REFUSING_NON_TEST_DATABASE}: database '{name}' is not an "
+                f"{PYTEST_DATABASE_PREFIX}* pytest database."
+            ) from exc
+        raise
 
 
 def redis_host_port_db(url: str | None) -> tuple[str, int, int]:

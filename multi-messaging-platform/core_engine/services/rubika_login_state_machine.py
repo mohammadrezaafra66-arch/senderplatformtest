@@ -190,8 +190,12 @@ def evaluate_dispatch_ready_readonly(db: Session, account_id: int) -> tuple[bool
     result is always False until a later L18 evaluation sees a fresh worker.
     """
     from core_engine.models import RubikaAccountPool
+    from core_engine.services.rubika_account_activation import assert_send_activation_allowed
     from workers.rubika_account_pool import resolve_current_phase
 
+    blocked = assert_send_activation_allowed(db, account_id, context="worker")
+    if blocked:
+        return False, blocked
     phase = resolve_current_phase(db)
     if phase is None:
         return False, "NO_SCHEDULE"
@@ -356,6 +360,7 @@ async def submit_rubika_login_code(
     prover: CandidateSessionProver,
     clock: datetime | None = None,
     secret_store: dict[str, dict[str, Any]] | None = None,
+    activation_sender: Any | None = None,
 ) -> LoginSubmitResult:
     """Authoritative OTP submit → prove → promote. READY only after auth gates."""
     now = _now(clock)
@@ -579,23 +584,38 @@ async def submit_rubika_login_code(
     # Clear ephemeral secrets
     store.pop(ch.id, None)
 
-    # Canonical post-login enrollment. Does not create worker coverage or READY.
+    # Trust gate: login ≠ send-ready. Pool enroll waits for manager confirm.
     pool_block: str | None = None
+    from core_engine.services.rubika_account_activation import (
+        ACTIVATION_PENDING,
+        run_activation_after_validated_session,
+    )
     from core_engine.services.rubika_l17_automation import (
         POOL_ENROLLMENT_FAILED,
         ensure_rubika_pool_membership,
     )
 
-    enroll = ensure_rubika_pool_membership(db, int(account_id))
-    if enroll.code == POOL_ENROLLMENT_FAILED:
-        pool_block = POOL_ENROLLMENT_FAILED
-        logger.warning(
-            "event=pool_enrollment_failed_after_promote account_id=%s detail=%s "
-            "active_session_id=%s",
-            account_id,
-            enroll.message,
-            promo.active_session_id,
-        )
+    activation = await run_activation_after_validated_session(
+        db,
+        int(account_id),
+        challenge_id=ch.id,
+        session_id=promo.active_session_id,
+        clock=now,
+        sender=activation_sender,
+    )
+    if activation.pool_enroll_now:
+        enroll = ensure_rubika_pool_membership(db, int(account_id))
+        if enroll.code == POOL_ENROLLMENT_FAILED:
+            pool_block = POOL_ENROLLMENT_FAILED
+            logger.warning(
+                "event=pool_enrollment_failed_after_promote account_id=%s detail=%s "
+                "active_session_id=%s",
+                account_id,
+                enroll.message,
+                promo.active_session_id,
+            )
+    elif activation.required:
+        pool_block = ACTIVATION_PENDING
 
     auth_ready = evaluate_auth_ready(db, account_id)
     dispatch_ready, dispatch_block = evaluate_dispatch_ready_readonly(db, account_id)
@@ -645,17 +665,9 @@ def account_uses_l3_login(account_id: int, db: Session | None = None) -> bool:
 
 
 def assert_legacy_login_allowed(account_id: int | None = None, db: Session | None = None) -> None:
-    """Fence legacy start/verify when global V1 or evidence/pilot L3 applies."""
-    settings = get_settings()
-    if bool(settings.RUBIKA_CANONICAL_SESSION_V1):
-        blocked = True
-    elif account_id is not None and account_uses_l3_login(int(account_id), db):
-        blocked = True
-    else:
-        blocked = False
-    if blocked:
-        from core_engine.services.rubika_user_session import RubikaLoginError
+    """Legacy start/verify is closed. L3 request/submit is the only login path."""
+    from core_engine.services.rubika_user_session import RubikaLoginError
 
-        raise RubikaLoginError(
-            f"{LEGACY_LOGIN_DISABLED}: use request_rubika_login / submit_rubika_login_code"
-        )
+    raise RubikaLoginError(
+        f"{LEGACY_LOGIN_DISABLED}: use request_rubika_login / submit_rubika_login_code"
+    )

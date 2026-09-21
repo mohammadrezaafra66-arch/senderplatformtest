@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   controlledProductionStatusLabel,
   formatPreflightBlockers,
+  formatReadinessRatio,
+  formatUnknownOrCount,
   isRawBackendEnum,
   isStartActionable,
   preparationStatusLabel,
@@ -10,6 +12,7 @@ import {
   resolvePreparationUiState,
   resolvePreflightAccountHealthLabel,
   resolvePreflightExecutionLabel,
+  resolvePreflightOperationalAlerts,
 } from "./campaign-preflight-display";
 
 const t = (key: string, options?: { defaultValue?: string }) => {
@@ -133,5 +136,59 @@ describe("campaign preflight display semantics", () => {
     expect(requiresControlledProductionConfirmation(preflight)).toBe(true);
     expect(formatPreflightBlockers(preflight, t)).toEqual([]);
     expect(controlledProductionStatusLabel(preflight, t)).toBe("تأیید نهایی لازم است");
+  });
+
+  it("does not render 0/0 for unknown capacity or missing senders", () => {
+    expect(formatReadinessRatio(0, 0, "نامشخص")).toBe("نامشخص");
+    expect(formatReadinessRatio(0, 2, "نامشخص", { unknown: true })).toBe("نامشخص");
+    expect(formatReadinessRatio(0, 2, "نامشخص")).toBe("0/2");
+    expect(formatUnknownOrCount(0, true, "نامشخص")).toBe("نامشخص");
+    expect(formatUnknownOrCount(0, false, "نامشخص")).toBe("0");
+  });
+
+  it("splits redis / worker / no-sender alerts", () => {
+    expect(
+      resolvePreflightOperationalAlerts({
+        redis_ok: false,
+        assigned_accounts: 0,
+        code: "CAMPAIGN_NO_SENDERS",
+        blockers: [
+          { code: "CAMPAIGN_NO_SENDERS", message: "no" },
+          { code: "CAMPAIGN_CAPACITY_UNKNOWN", message: "redis" },
+        ],
+        accounts: [],
+      } as never),
+    ).toEqual({ redisUnavailable: true, workerNotRunning: false, noSenders: true });
+
+    expect(
+      resolvePreflightOperationalAlerts({
+        redis_ok: true,
+        assigned_accounts: 2,
+        authenticated_accounts: 2,
+        worker_ready_accounts: 0,
+        campaign_eligible_accounts: 0,
+        code: "NO_WORKER_CONSUMER",
+        blockers: [{ code: "NO_WORKER_CONSUMER", message: "worker" }],
+        accounts: [{ runtime_status: "AUTHENTICATED_NO_WORKER", worker_coverage: false }],
+      } as never),
+    ).toEqual({ redisUnavailable: false, workerNotRunning: true, noSenders: false });
+  });
+
+  it("blocks start when redis capacity is unknown or worker is off", () => {
+    expect(
+      isStartActionable({
+        allowed_to_start: true,
+        redis_ok: false,
+        capacity_known: false,
+      } as never),
+    ).toBe(false);
+    expect(
+      isStartActionable({
+        allowed_to_start: false,
+        redis_ok: true,
+        capacity_known: true,
+        allowed_to_start_after_confirmation: false,
+      } as never),
+    ).toBe(false);
   });
 });

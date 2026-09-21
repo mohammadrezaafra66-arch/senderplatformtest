@@ -20,6 +20,9 @@ EXECUTION_BLOCKER_LABELS_FA: dict[str, str] = {
     "DISPATCH_NOT_READY": "ارسال فوری برای این اکانت ممکن نیست.",
     "ACCOUNT_READY": "اکانت سالم است — ارسال فوری هنوز ممکن نیست.",
     "READY": "آماده ارسال",
+    "ACTIVATION_PENDING": "ورود موفق است؛ ارسال تا تایید مدیر مجاز نیست.",
+    "RUBIKA_ACTIVATION_PENDING": "ورود موفق است؛ ارسال تا تایید مدیر مجاز نیست.",
+    "rubika_activation_pending": "ورود موفق است؛ ارسال تا تایید مدیر مجاز نیست.",
 }
 
 

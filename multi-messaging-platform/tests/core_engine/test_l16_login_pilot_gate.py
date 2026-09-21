@@ -21,13 +21,14 @@ def test_pilot_account_uses_l3_while_global_v1_off(monkeypatch):
     assert account_uses_l3_login(79) is False
 
 
-def test_legacy_blocked_for_pilot_only(monkeypatch):
+def test_legacy_blocked_for_all_accounts(monkeypatch):
     monkeypatch.setenv("RUBIKA_CANONICAL_SESSION_V1", "false")
     monkeypatch.setenv("RUBIKA_CANONICAL_LOGIN_PILOT_ACCOUNT_IDS", "14")
     get_settings.cache_clear()
     with pytest.raises(RubikaLoginError):
         assert_legacy_login_allowed(14)
-    assert_legacy_login_allowed(79)  # non-pilot unchanged
+    with pytest.raises(RubikaLoginError):
+        assert_legacy_login_allowed(79)
 
 
 def test_global_v1_still_blocks_all_legacy(monkeypatch):

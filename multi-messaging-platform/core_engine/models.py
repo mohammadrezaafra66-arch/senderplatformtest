@@ -38,6 +38,20 @@ class AccountStatus(str, enum.Enum):
     REQUIRES_LOGIN = "requires_login"
 
 
+class RubikaAccountActivationState(str, enum.Enum):
+    """Manager trust gate after login. Orthogonal to AccountStatus."""
+
+    PENDING = "pending"
+    CHALLENGE_SENT = "challenge_sent"
+    CONFIRMED = "confirmed"
+    READY_TO_SEND = "ready_to_send"
+    FAILED = "failed"
+
+
+# Historical import name — same enum.
+RubikaAccountActivationStatus = RubikaAccountActivationState
+
+
 class ConsentStatus(str, enum.Enum):
     UNKNOWN = "unknown"
     ALLOWED = "allowed"
@@ -249,6 +263,11 @@ class Account(Base):
         back_populates="account",
         cascade="all, delete-orphan",
         passive_deletes=True,
+    )
+    rubika_activation: Mapped["RubikaAccountActivation | None"] = relationship(
+        "RubikaAccountActivation",
+        back_populates="account",
+        uselist=False,
     )
 
 
@@ -1295,4 +1314,74 @@ class RubikaContentSchedule(Base):
     error_message: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=datetime.utcnow
+    )
+
+
+class RubikaAccountActivation(Base):
+    """Human confirm after Rubika OTP login. Login ≠ send-ready.
+
+    One row per account (uq_rubika_account_activations_account_id).
+    """
+
+    __tablename__ = "rubika_account_activations"
+    __table_args__ = (
+        UniqueConstraint("account_id", name="uq_rubika_account_activations_account_id"),
+        Index("ix_rubika_account_activations_account_id", "account_id", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"), nullable=False)
+    state: Mapped[RubikaAccountActivationState] = mapped_column(
+        Enum(
+            RubikaAccountActivationState,
+            values_callable=lambda x: [e.value for e in x],
+            name="rubikaaccountactivationstate",
+        ),
+        nullable=False,
+        default=RubikaAccountActivationState.PENDING,
+        index=True,
+    )
+    manager_phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    challenge_message_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+    token_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    confirm_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    login_challenge_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    session_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    confirmed_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(String(256), nullable=True)
+
+    account: Mapped["Account"] = relationship(
+        "Account",
+        back_populates="rubika_activation",
+    )
+
+
+class RubikaCanonicalSessionCheck(Base):
+    """Read-only snapshot: ACTIVE Rubika accounts vs canonical session.
+
+    Does not rewrite sessions or login state. needs_relogin means the
+    account cannot load a sole ACTIVE identity-bound session.
+    """
+
+    __tablename__ = "rubika_canonical_session_checks"
+    __table_args__ = (
+        UniqueConstraint("account_id", name="uq_rubika_canonical_session_checks_account_id"),
+        Index("ix_rubika_canonical_session_checks_needs_relogin", "needs_relogin"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id"), nullable=False)
+    has_canonical_session: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    needs_relogin: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    reason: Mapped[str] = mapped_column(String(64), nullable=False)
+    session_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=datetime.utcnow
     )

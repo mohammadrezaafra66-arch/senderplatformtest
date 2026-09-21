@@ -13,6 +13,7 @@ from core_engine.api.schemas import (
     ArchiveActionResponse,
     CampaignAccountsResponse,
     CampaignAccountsUpdateRequest,
+    CampaignAutoPrepareSummary,
     AudiencePreviewRequest,
     AudiencePreviewResponse,
     CampaignFromTagsRequest,
@@ -38,7 +39,12 @@ from core_engine.api.schemas import (
     SenderAccountResponse,
 )
 from core_engine.database import get_db
-from core_engine.services.contact_tags import read_contact_tags, resolve_tag_audience
+from core_engine.services.contact_import import resolve_contacts_for_import_batch
+from core_engine.services.contact_tags import (
+    filter_eligible,
+    read_contact_tags,
+    resolve_tag_audience,
+)
 from core_engine.models import (
     Account,
     AccountStatus,
@@ -56,6 +62,9 @@ from core_engine.models import (
     SendStatus,
 )
 from core_engine.services.audit_service import record_audit
+from core_engine.services.campaign_sender_assignment import (
+    ensure_automatic_campaign_sender_assignments,
+)
 from core_engine.services.contact_delete import is_contact_deleted
 from core_engine.services.campaign_control import start_campaign, stop_campaign
 from core_engine.services.campaign_recipients import (
@@ -108,17 +117,19 @@ def _create_campaign_draft_from_eligible_contacts(
     skipped_contacts_count: int,
     audit_source: str,
     audit_extra_details: dict[str, object] | None = None,
-) -> tuple[Campaign, int, list[SenderAccountResponse], Any]:
+) -> tuple[Campaign, int, list[SenderAccountResponse], Any, Any]:
     """Shared helper for:
     - Campaign construction (DRAFT)
     - Manual sender account validation/sync
+    - Automatic stable CampaignAccount assignment for Rubika when account_ids is empty
     - CampaignRecipient creation from eligible Contact rows
     - Audit logging
     """
 
+    manual_account_ids = list(account_ids or [])
     validated_accounts = None
-    if account_ids is not None:
-        validated_accounts = _validate_accounts(db, account_ids, platform)
+    if manual_account_ids:
+        validated_accounts = _validate_accounts(db, manual_account_ids, platform)
 
     campaign = Campaign(
         name=title,
@@ -133,11 +144,11 @@ def _create_campaign_draft_from_eligible_contacts(
     db.add(campaign)
     db.flush()
 
-    if account_ids is not None:
+    if manual_account_ids:
         _sync_campaign_accounts(
             db,
             campaign,
-            account_ids,
+            manual_account_ids,
             validated_accounts=validated_accounts,
         )
 
@@ -165,6 +176,26 @@ def _create_campaign_draft_from_eligible_contacts(
         )
         contacts_attached_count += 1
 
+    sender_assignment = None
+    if not manual_account_ids and platform == PlatformType.RUBIKA:
+        assigned = ensure_automatic_campaign_sender_assignments(db, campaign)
+        sender_assignment = assigned.to_dict()
+        record_audit(
+            db,
+            current_user["username"],
+            "assign_campaign_senders",
+            "campaign",
+            str(campaign.id),
+            {
+                "source": audit_source,
+                "mode": "automatic",
+                "eligible_accounts": assigned.eligible_accounts,
+                "created_assignments": assigned.created_assignments,
+                "existing_assignments": assigned.existing_assignments,
+                "reason": assigned.reason,
+            },
+        )
+
     record_audit(
         db,
         current_user["username"],
@@ -190,8 +221,23 @@ def _create_campaign_draft_from_eligible_contacts(
         .one()
     )
     senders = _sender_accounts(campaign, db)
-    auto_prepare = _auto_prepare_summary(db, campaign.id, trigger="create")
-    return campaign, contacts_attached_count, senders, auto_prepare
+    automatic_without_execution_ready = bool(
+        sender_assignment
+        and platform == PlatformType.RUBIKA
+        and not any(sender.campaign_eligible for sender in senders)
+    )
+    if automatic_without_execution_ready:
+        from core_engine.api.schemas import CampaignAutoPrepareSummary
+
+        auto_prepare = CampaignAutoPrepareSummary(
+            attempted=False,
+            prepared=False,
+            skipped=True,
+            skip_reason="assignment_without_execution_ready_senders",
+        )
+    else:
+        auto_prepare = _auto_prepare_summary(db, campaign.id, trigger="create")
+    return campaign, contacts_attached_count, senders, auto_prepare, sender_assignment
 
 
 def _sender_accounts(campaign: Campaign, db: Session | None = None) -> list[SenderAccountResponse]:
@@ -571,7 +617,10 @@ def update_campaign_accounts(
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found.")
     try:
-        _sync_campaign_accounts(db, campaign, payload.account_ids)
+        if not payload.account_ids and campaign.platform == PlatformType.RUBIKA:
+            ensure_automatic_campaign_sender_assignments(db, campaign)
+        else:
+            _sync_campaign_accounts(db, campaign, payload.account_ids)
         db.commit()
         campaign = (
             db.query(Campaign)
@@ -595,7 +644,12 @@ def update_campaign_accounts(
             assigned_ids={int(a.id) for a in accounts},
         )
         warnings = assignment_eligibility_warnings(list(elig.values()))
-        auto_prepare = _auto_prepare_summary(db, campaign.id, trigger="update_accounts")
+        auto_prepare = CampaignAutoPrepareSummary(
+            attempted=False,
+            prepared=False,
+            skipped=True,
+            skip_reason="accounts_update_does_not_prepare",
+        )
         return CampaignAccountsResponse(
             campaign_id=campaign.id,
             account_ids=[sender.account_id for sender in senders],
@@ -988,19 +1042,10 @@ def create_campaign_from_import(
             detail="Import batch is not in committed status.",
         )
 
-    all_import_contacts = (
-        db.query(Contact)
-        .filter(Contact.source_import_id == payload.import_batch_id)
-        .all()
+    all_import_contacts = resolve_contacts_for_import_batch(
+        db, payload.import_batch_id
     )
-
-    eligible_contacts = [
-        contact
-        for contact in all_import_contacts
-        if not is_contact_deleted(contact)
-        and not contact.blacklisted
-        and contact.consent_status != ConsentStatus.BLOCKED.value
-    ]
+    eligible_contacts, _skipped = filter_eligible(all_import_contacts)
 
     if not eligible_contacts:
         raise HTTPException(
@@ -1011,7 +1056,7 @@ def create_campaign_from_import(
     skipped_contacts_count = len(all_import_contacts) - len(eligible_contacts)
 
     try:
-        campaign, contacts_attached_count, senders, auto_prepare = (
+        campaign, contacts_attached_count, senders, auto_prepare, sender_assignment = (
             _create_campaign_draft_from_eligible_contacts(
                 db=db,
                 current_user=current_user,
@@ -1037,6 +1082,7 @@ def create_campaign_from_import(
             account_ids=[sender.account_id for sender in senders],
             sender_accounts=senders,
             auto_prepare=auto_prepare,
+            sender_assignment=sender_assignment,
         )
     except HTTPException:
         db.rollback()
@@ -1103,7 +1149,7 @@ def create_campaign_from_contacts(
         )
 
     try:
-        campaign, contacts_attached_count, senders, auto_prepare = (
+        campaign, contacts_attached_count, senders, auto_prepare, sender_assignment = (
             _create_campaign_draft_from_eligible_contacts(
                 db=db,
                 current_user=current_user,
@@ -1130,6 +1176,7 @@ def create_campaign_from_contacts(
             sender_accounts=senders,
             skipped_contacts=skipped_contacts,  # type: ignore[arg-type]
             auto_prepare=auto_prepare,
+            sender_assignment=sender_assignment,
         )
     except HTTPException:
         db.rollback()
@@ -1179,7 +1226,7 @@ def create_campaign_from_tags(
             },
         )
     try:
-        campaign, contacts_attached_count, senders, auto_prepare = (
+        campaign, contacts_attached_count, senders, auto_prepare, sender_assignment = (
             _create_campaign_draft_from_eligible_contacts(
                 db=db,
                 current_user=current_user,
@@ -1209,6 +1256,7 @@ def create_campaign_from_tags(
             account_ids=[sender.account_id for sender in senders],
             sender_accounts=senders,
             auto_prepare=auto_prepare,
+            sender_assignment=sender_assignment,
         )
     except HTTPException:
         db.rollback()

@@ -33,6 +33,9 @@ from core_engine.api.schemas import (
     RubikaUserLoginStartResponse,
     RubikaUserLoginVerifyRequest,
     RubikaUserLoginVerifyResponse,
+    RubikaActivationConfirmRequest,
+    RubikaActivationConfirmResponse,
+    RubikaActivationStatusResponse,
     LiveSendPreflightResponse,
     AccountTestConnectionRequest,
     AccountTestConnectionResponse,
@@ -723,16 +726,10 @@ async def register_rubika_user_session(
     db: Annotated[Session, Depends(get_db)] = None,
     current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
 ):
-    """مرحله ۱ ورود تعاملی روبیکا (user_account) — ارسال کد یا تکمیل pass_key.
+    """مرحله ۱ ورود تعاملی روبیکا (user_account) — ارسال کد.
 
-    دو روش فراخوانی: phone_number برای شروع تازه، یا registration_token+pass_key
-    برای تکمیل مرحله pass_key (وقتی پاسخ قبلی stage=pass_key_required بود).
+    تنها مسیر فعال: L3 ``request_rubika_login``. Legacy start بسته است.
     """
-    from core_engine.services.rubika_user_session import (
-        RubikaLoginError,
-        start_rubika_user_login,
-    )
-
     account = db.query(Account).filter(Account.id == account_id).first()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found.")
@@ -748,63 +745,38 @@ async def register_rubika_user_session(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    from core_engine.config import get_settings
+    from core_engine.services.rubika_login_live_provider import LiveRubikaLoginProvider
+    from core_engine.services.rubika_login_state_machine import request_rubika_login
 
-    from core_engine.services.rubika_login_state_machine import (
-        account_uses_l3_login,
-        request_rubika_login,
+    result = await request_rubika_login(
+        db,
+        account_id,
+        phone_number=payload.phone_number,
+        provider=LiveRubikaLoginProvider(),
     )
-
-    if account_uses_l3_login(account_id, db):
-        from core_engine.services.rubika_login_live_provider import LiveRubikaLoginProvider
-
-        result = await request_rubika_login(
-            db,
-            account_id,
-            phone_number=payload.phone_number,
-            provider=LiveRubikaLoginProvider(),
-        )
-        if not result.ok:
-            raise _login_http_error(
-                result.code,
-                retry_after_seconds=result.retry_after_seconds,
-                state=result.state,
-            )
-        record_audit(
-            db,
-            current_user["username"],
-            "request_rubika_login",
-            "account",
-            str(account.id),
-            {"challenge_id": result.challenge_id, "state": result.state},
-        )
-        db.commit()
-        return RubikaUserLoginStartResponse(
-            registration_token=result.challenge_id or "",
-            stage="code_required",
-            message=result.message or result.code,
-            state=result.state,
-            code=result.code,
+    if not result.ok:
+        raise _login_http_error(
+            result.code,
             retry_after_seconds=result.retry_after_seconds,
+            state=result.state,
         )
-
-    try:
-        result = await start_rubika_user_login(
-            account_id=account_id,
-            phone_number=payload.phone_number,
-            pass_key=payload.pass_key,
-            registration_token=payload.registration_token,
-        )
-    except RubikaLoginError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
     record_audit(
-        db, current_user["username"], "register_rubika_user_session", "account",
-        str(account.id), {"stage": result["stage"]},
+        db,
+        current_user["username"],
+        "request_rubika_login",
+        "account",
+        str(account.id),
+        {"challenge_id": result.challenge_id, "state": result.state},
     )
     db.commit()
-
-    return RubikaUserLoginStartResponse(**result)
+    return RubikaUserLoginStartResponse(
+        registration_token=result.challenge_id or "",
+        stage="code_required",
+        message=result.message or result.code,
+        state=result.state,
+        code=result.code,
+        retry_after_seconds=result.retry_after_seconds,
+    )
 
 
 @router.post(
@@ -817,12 +789,10 @@ async def verify_rubika_user_session(
     db: Annotated[Session, Depends(get_db)] = None,
     current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
 ):
-    """مرحله ۲ — تأیید کد پیامکی و ذخیره session رمزنگاری‌شده اکانت شخصی روبیکا."""
-    from core_engine.services.rubika_user_session import (
-        RubikaLoginError,
-        verify_rubika_user_login,
-    )
+    """مرحله ۲ — تأیید کد پیامکی از طریق L3 ``submit_rubika_login_code``.
 
+    Legacy ``verify_rubika_user_login`` برای Login جدید بسته است.
+    """
     account = db.query(Account).filter(Account.id == account_id).first()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found.")
@@ -838,82 +808,62 @@ async def verify_rubika_user_session(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    from core_engine.config import get_settings
-
-    from core_engine.services.rubika_login_state_machine import (
-        account_uses_l3_login,
-        submit_rubika_login_code,
+    from core_engine.services.account_runtime_status import compute_account_runtime_status
+    from core_engine.services.rubika_account_activation import (
+        dispatch_activation_challenge,
+        latest_activation,
+        send_activation_state,
     )
+    from core_engine.services.rubika_candidate_prover import resolve_canonical_candidate_prover
+    from core_engine.services.rubika_login_live_provider import LiveRubikaLoginProvider
+    from core_engine.services.rubika_login_state_machine import submit_rubika_login_code
 
-    if account_uses_l3_login(account_id, db):
-        from core_engine.services.rubika_candidate_prover import resolve_canonical_candidate_prover
-        from core_engine.services.rubika_login_live_provider import LiveRubikaLoginProvider
-
-        result = await submit_rubika_login_code(
-            db,
-            account_id,
-            challenge_id=payload.registration_token,
-            code=payload.phone_code,
-            provider=LiveRubikaLoginProvider(),
-            prover=resolve_canonical_candidate_prover(),
-        )
-        if not result.ok:
-            db.rollback()
-            raise _login_http_error(result.code, state=result.state)
-        record_audit(
-            db,
-            current_user["username"],
-            "submit_rubika_login_code",
-            "account",
-            str(account.id),
-            {
-                "challenge_id": result.challenge_id,
-                "state": result.state,
-                "auth_ready": result.auth_ready,
-                "dispatch_ready": result.dispatch_ready,
-                "lifecycle_status": result.lifecycle_status,
-            },
-        )
-        db.commit()
-        db.refresh(account)
-        from core_engine.services.account_runtime_status import compute_account_runtime_status
-
-        runtime = compute_account_runtime_status(db, account)
-        return RubikaUserLoginVerifyResponse(
-            success=True,
-            account_id=account_id,
-            guid="",  # never echo secrets; GUID is bound on Account
-            phone_number="",
-            message=result.message or result.code,
-            lifecycle_status=result.lifecycle_status,
-            runtime_status=runtime.runtime_status,
-            runtime_status_label=runtime.runtime_status_label,
-        )
-
-    try:
-        result = await verify_rubika_user_login(
-            db,
-            registration_token=payload.registration_token,
-            phone_code=payload.phone_code,
-        )
-    except RubikaLoginError as exc:
+    result = await submit_rubika_login_code(
+        db,
+        account_id,
+        challenge_id=payload.registration_token,
+        code=payload.phone_code,
+        provider=LiveRubikaLoginProvider(),
+        prover=resolve_canonical_candidate_prover(),
+    )
+    if not result.ok:
         db.rollback()
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    if result["account_id"] != account_id:
-        db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="این registration_token برای اکانت دیگری ساخته شده است.",
-        )
-
+        raise _login_http_error(result.code, state=result.state)
     record_audit(
-        db, current_user["username"], "verify_rubika_user_session", "account",
-        str(account.id), {"guid": result["guid"]},
+        db,
+        current_user["username"],
+        "submit_rubika_login_code",
+        "account",
+        str(account.id),
+        {
+            "challenge_id": result.challenge_id,
+            "state": result.state,
+            "auth_ready": result.auth_ready,
+            "dispatch_ready": result.dispatch_ready,
+            "lifecycle_status": result.lifecycle_status,
+        },
     )
     db.commit()
-
-    return RubikaUserLoginVerifyResponse(**result)
+    db.refresh(account)
+    try:
+        await dispatch_activation_challenge(db, account_id)
+        db.commit()
+    except Exception:  # noqa: BLE001
+        db.rollback()
+    runtime = compute_account_runtime_status(db, account)
+    activation = latest_activation(db, account_id)
+    return RubikaUserLoginVerifyResponse(
+        success=True,
+        account_id=account_id,
+        guid="",  # never echo secrets; GUID is bound on Account
+        phone_number="",
+        message=result.message or result.code,
+        lifecycle_status=result.lifecycle_status,
+        runtime_status=runtime.runtime_status,
+        runtime_status_label=runtime.runtime_status_label,
+        send_activation_state=send_activation_state(db, account_id),
+        activation_confirm_code=activation.confirm_code if activation else None,
+    )
 
 @router.get(
     "/{account_id}/operational-send/preflight",
@@ -929,6 +879,95 @@ def live_send_preflight(
     if not account:
         raise HTTPException(status_code=404, detail="Account not found.")
     return LiveSendPreflightResponse(**build_live_send_preflight(db, account))
+
+
+@router.get(
+    "/{account_id}/activation",
+    response_model=RubikaActivationStatusResponse,
+)
+def get_rubika_activation(
+    account_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str],
+        Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR, RoleType.VIEWER)),
+    ] = None,
+):
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found.")
+    from core_engine.services.rubika_account_activation import (
+        latest_activation,
+        send_activation_state,
+    )
+
+    row = latest_activation(db, account_id)
+    return RubikaActivationStatusResponse(
+        account_id=account_id,
+        send_activation_state=send_activation_state(db, account_id),
+        status=row.state.value if row and hasattr(row.state, "value") else (str(row.state) if row else None),
+        confirm_code=row.confirm_code if row else None,
+        manager_phone=row.manager_phone if row else None,
+        test_sent_at=None,
+        test_error=row.last_error if row else None,
+        confirmed_at=row.confirmed_at if row else None,
+        confirmed_by=row.confirmed_by if row else None,
+    )
+
+
+@router.post(
+    "/{account_id}/activation/confirm",
+    response_model=RubikaActivationConfirmResponse,
+)
+def confirm_rubika_activation(
+    account_id: int,
+    payload: RubikaActivationConfirmRequest | None = None,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str],
+        Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR)),
+    ] = None,
+):
+    """Manager button in the operator UI. Does not bypass send preflight."""
+    account = db.query(Account).filter(Account.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found.")
+    from core_engine.services.account_runtime_status import compute_account_runtime_status
+    from core_engine.services.rubika_account_activation import confirm_activation
+
+    body = payload or RubikaActivationConfirmRequest()
+    result = confirm_activation(
+        db,
+        account_id,
+        actor=current_user["username"],
+        token=body.token,
+        confirm_code=body.confirm_code,
+    )
+    if not result.ok:
+        raise HTTPException(
+            status_code=400,
+            detail={"code": result.code, "message": result.message or result.code},
+        )
+    record_audit(
+        db,
+        current_user["username"],
+        "confirm_rubika_activation",
+        "account",
+        str(account.id),
+        {"code": result.code, "activation_id": result.activation_id},
+    )
+    db.commit()
+    db.refresh(account)
+    runtime = compute_account_runtime_status(db, account)
+    return RubikaActivationConfirmResponse(
+        success=True,
+        account_id=account_id,
+        code=result.code,
+        send_activation_state=result.send_activation_state,
+        message=result.message,
+        runtime_status=runtime.runtime_status,
+        runtime_status_label=runtime.runtime_status_label,
+    )
 
 
 @router.post("/{account_id}/send-test", response_model=AccountSendTestResponse)

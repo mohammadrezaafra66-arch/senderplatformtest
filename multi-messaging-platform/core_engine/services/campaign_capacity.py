@@ -33,6 +33,9 @@ HARD_BLOCK_CODES = frozenset(
         "CONFIG_INVALID",
         "WRONG_PLATFORM",
         "ACCOUNT_MISSING",
+        "ACTIVATION_PENDING",
+        "RUBIKA_ACTIVATION_PENDING",
+        "rubika_activation_pending",
     }
 )
 

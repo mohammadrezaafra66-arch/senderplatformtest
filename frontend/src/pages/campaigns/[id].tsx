@@ -38,6 +38,7 @@ import {
   restoreCampaign,
   startCampaign,
   stopCampaign,
+  campaignSenderSaveNoticeKey,
   updateCampaignAccounts,
 } from "@/lib/campaign-api";
 import { useAuth } from "@/state/auth";
@@ -55,7 +56,10 @@ import { toJalaliDateTime } from "@/utils/jalali";
 import {
   controlledProductionStatusLabel,
   formatPreflightBlockers,
+  formatReadinessRatio,
+  formatUnknownOrCount,
   hasTechnicalStartBlockers,
+  isCapacityUnknown,
   isStartActionable,
   nextPreflightRefreshMs,
   preflightNeedsAutoRefresh,
@@ -64,6 +68,7 @@ import {
   resolvePreparationUiState,
   resolvePreflightAccountHealthLabel,
   resolvePreflightExecutionLabel,
+  resolvePreflightOperationalAlerts,
 } from "@/utils/campaign-preflight-display";
 
 function isCampaignRunningOrQueued(status: string, stats?: { queued?: number }): boolean {
@@ -184,6 +189,10 @@ export default function CampaignMonitorPage() {
   const showTechnicalStartBlockers = Boolean(
     preflight && technicalStartBlocked && !controlledConfirmationRequired,
   );
+  const leftoverBlockers = preflight ? formatPreflightBlockers(preflight, t) : [];
+  const operationalAlerts = resolvePreflightOperationalAlerts(preflight);
+  const capacityUnknown = isCapacityUnknown(preflight);
+  const unknownLabel = t("nA");
   const preparationState = resolvePreparationUiState(preflight, prepareLoading);
   const preparationLabel = preparationStatusLabel(preparationState, t);
   const showPrepareRetry =
@@ -335,8 +344,11 @@ export default function CampaignMonitorPage() {
     setError(null);
     setNotice(null);
     try {
-      await updateCampaignAccounts(campaignId, senderMode === "auto" ? [] : selectedAccountIds);
-      setNotice(t("senderAccountsSaved"));
+      const result = await updateCampaignAccounts(
+        campaignId,
+        senderMode === "auto" ? [] : selectedAccountIds,
+      );
+      setNotice(t(campaignSenderSaveNoticeKey(result)));
       await loadCampaign();
     } catch (err) {
       setError(campaignAccountError(err, t));
@@ -504,10 +516,23 @@ export default function CampaignMonitorPage() {
                 </Alert>
               ) : null}
               {preflightError ? <Alert>{preflightError}</Alert> : null}
-              {showTechnicalStartBlockers && preflight ? (
+              {operationalAlerts.redisUnavailable ? (
+                <Alert>{t("campaignRedisUnavailable")}</Alert>
+              ) : null}
+              {operationalAlerts.workerNotRunning ? (
+                <Alert>
+                  {t("campaignWorkerNotRunning", {
+                    count: preflight?.assigned_accounts ?? 0,
+                  })}
+                </Alert>
+              ) : null}
+              {operationalAlerts.noSenders ? (
+                <Alert>{t("campaignNoSendersAssigned")}</Alert>
+              ) : null}
+              {showTechnicalStartBlockers && leftoverBlockers.length > 0 ? (
                 <Alert>
                   <div className="mmp-stack">
-                    {formatPreflightBlockers(preflight, t).map((line) => (
+                    {leftoverBlockers.map((line) => (
                       <div key={line}>{line}</div>
                     ))}
                   </div>
@@ -536,14 +561,23 @@ export default function CampaignMonitorPage() {
                       </div>
                       <div>
                         {t("campaignAccountReadinessTitle")}:{" "}
-                        {preflight.campaign_eligible_accounts ??
-                          preflight.ready_accounts ??
-                          preflight.usable_accounts}
-                        /{preflight.assigned_accounts}
+                        {formatReadinessRatio(
+                          preflight.campaign_eligible_accounts ??
+                            preflight.ready_accounts ??
+                            preflight.usable_accounts,
+                          preflight.assigned_accounts,
+                          unknownLabel,
+                          { unknown: false },
+                        )}
                       </div>
                       <div>
                         {t("campaignExecutionReadinessTitle")}:{" "}
-                        {preflight.execution_usable_accounts ?? 0}/{preflight.assigned_accounts}
+                        {formatReadinessRatio(
+                          preflight.execution_usable_accounts,
+                          preflight.assigned_accounts,
+                          unknownLabel,
+                          { unknown: capacityUnknown },
+                        )}
                       </div>
                       <div>
                         {t("campaignPreparationTitle")}:{" "}
@@ -557,18 +591,27 @@ export default function CampaignMonitorPage() {
                       <div className="mmp-muted">{t("campaignReadinessSemanticsNote")}</div>
                       <div>
                         {t("campaignSenderReadyCount")}:{" "}
-                        {preflight.campaign_eligible_accounts ??
-                          preflight.ready_accounts ??
-                          preflight.usable_accounts}
-                        /{preflight.assigned_accounts}
+                        {formatReadinessRatio(
+                          preflight.campaign_eligible_accounts ??
+                            preflight.ready_accounts ??
+                            preflight.usable_accounts,
+                          preflight.assigned_accounts,
+                          unknownLabel,
+                          { unknown: false },
+                        )}
                         {preflight.assignment_materialized === false
                           ? ` (${t("campaignPreparedSeparate")})`
                           : ""}
                       </div>
                       <div>
-                        {t("campaignUsableAccounts")}: {preflight.usable_accounts}/
-                        {preflight.assigned_accounts}
-                        {typeof preflight.execution_usable_accounts === "number"
+                        {t("campaignUsableAccounts")}:{" "}
+                        {formatReadinessRatio(
+                          preflight.usable_accounts,
+                          preflight.assigned_accounts,
+                          unknownLabel,
+                          { unknown: capacityUnknown },
+                        )}
+                        {!capacityUnknown && typeof preflight.execution_usable_accounts === "number"
                           ? ` · execution ${preflight.execution_usable_accounts}`
                           : ""}
                       </div>
@@ -576,13 +619,28 @@ export default function CampaignMonitorPage() {
                         {t("campaignBlockedAccounts")}: {preflight.blocked_accounts}
                       </div>
                       <div>
-                        {t("campaignTodayCapacity")}: {preflight.estimated_today_capacity ?? t("nA")}
+                        {t("campaignTodayCapacity")}:{" "}
+                        {formatUnknownOrCount(
+                          preflight.estimated_today_capacity,
+                          capacityUnknown,
+                          unknownLabel,
+                        )}
                       </div>
                       <div>
-                        {t("campaignHourlyCapacity")}: {preflight.estimated_hourly_capacity ?? t("nA")}
+                        {t("campaignHourlyCapacity")}:{" "}
+                        {formatUnknownOrCount(
+                          preflight.estimated_hourly_capacity,
+                          capacityUnknown,
+                          unknownLabel,
+                        )}
                       </div>
                       <div>
-                        {t("campaignImmediateCapacity")}: {preflight.immediate_capacity ?? t("nA")}
+                        {t("campaignImmediateCapacity")}:{" "}
+                        {formatUnknownOrCount(
+                          preflight.immediate_capacity,
+                          capacityUnknown,
+                          unknownLabel,
+                        )}
                       </div>
                       <div>
                         {t("campaignCircuitState")}: {preflight.circuit_state ?? t("nA")}

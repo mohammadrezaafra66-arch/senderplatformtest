@@ -97,10 +97,18 @@ async def deliver_platform_message(
     # Race-safe archive guard: re-read DB immediately before provider send.
     from workers.db import check_archive_blocks_provider_send
 
+    campaign_id_for_archive_check = payload.campaign_id
+
+    if (payload.metadata or {}).get("source") == "operational_send_test":
+        # Operational test is not backed by a Campaign row.
+        # Keep account archive protection, skip campaign archive lookup.
+        campaign_id_for_archive_check = None
+
     archive_block = check_archive_blocks_provider_send(
         account_id=payload.account_id,
-        campaign_id=payload.campaign_id,
+        campaign_id=campaign_id_for_archive_check,
     )
+
     if archive_block:
         code = archive_block.upper()
         return WorkerResult(
@@ -110,7 +118,6 @@ async def deliver_platform_message(
             error_message=f"{code}: entity archived; provider send refused.",
             retryable=False,
         )
-
     if refresh.refreshed:
         # The connector may accept this request even if the local result is lost.
         # A later retry must replay this text instead of rendering a new price.

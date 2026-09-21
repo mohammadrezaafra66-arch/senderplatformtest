@@ -34,6 +34,7 @@ CAMPAIGN_SENDER_STATUS_LABEL_FA: dict[str, str] = {
     "SESSION_ERROR": "خطای سشن",
     "CONNECTION_ERROR": "خطای اتصال",
     "AUTHENTICATED_NO_WORKER": "احراز شده، Worker آماده نیست",
+    "ACTIVATION_PENDING": "ورود موفق؛ در انتظار تایید مدیر",
     "DISABLED": "غیرفعال",
     "CAPACITY_EXHAUSTED": "ظرفیت تکمیل شده",
     "CIRCUIT_BLOCKED": "موقتاً مسدود",
@@ -55,6 +56,7 @@ _RUNTIME_BLOCKERS: dict[str, str] = {
     RuntimeStatus.SESSION_ERROR.value: "SESSION_ERROR",
     RuntimeStatus.CONNECTION_ERROR.value: "CONNECTION_ERROR",
     RuntimeStatus.AUTHENTICATED_NO_WORKER.value: "AUTHENTICATED_NO_WORKER",
+    RuntimeStatus.ACTIVATION_PENDING.value: "ACTIVATION_PENDING",
     RuntimeStatus.CONFIG_ERROR.value: "CONFIG_ERROR",
     RuntimeStatus.NOT_APPLICABLE.value: "NOT_APPLICABLE",
 }
@@ -236,6 +238,7 @@ def evaluate_campaign_sender_eligibility(
     auth_ready = l18_status in {
         RuntimeStatus.READY.value,
         RuntimeStatus.AUTHENTICATED_NO_WORKER.value,
+        RuntimeStatus.ACTIVATION_PENDING.value,
     }
     worker_ready = bool(runtime.worker_covered) and l18_status == RuntimeStatus.READY.value
     dispatch_ready = bool(runtime.dispatch_ready) and l18_status == RuntimeStatus.READY.value

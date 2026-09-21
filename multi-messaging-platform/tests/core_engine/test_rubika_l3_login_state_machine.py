@@ -42,7 +42,11 @@ from core_engine.services.rubika_login_state_machine import (
     request_rubika_login,
     submit_rubika_login_code,
 )
-from core_engine.services.rubika_user_session import RubikaLoginError, start_rubika_user_login
+from core_engine.services.rubika_user_session import (
+    RubikaLoginError,
+    start_rubika_user_login,
+    verify_rubika_user_login,
+)
 from core_engine.services.session_storage import store_channel_session
 from core_engine.services.rubika_user_session import build_session_envelope
 
@@ -55,6 +59,7 @@ def _secrets_and_flag(monkeypatch):
     monkeypatch.setenv("AUTO_ENROLL_RUBIKA_POOL", "false")
     monkeypatch.setenv("RUBIKA_OTP_RESEND_COOLDOWN_SECONDS", "60")
     monkeypatch.setenv("RUBIKA_OTP_CHALLENGE_TTL_SECONDS", "600")
+    monkeypatch.setenv("RUBIKA_MANAGER_ACTIVATION_REQUIRED", "true")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
@@ -494,11 +499,17 @@ async def test_login_ready_and_auth_dispatch_separation(pg_session_factory):
     assert sub.login_state == "ready"
     assert sub.auth_ready is True
     assert sub.dispatch_ready is False
-    assert sub.dispatch_block in {"NOT_IN_POOL", "NO_SCHEDULE", "NO_WORKER_CONSUMER"}
+    assert sub.dispatch_block in {
+        "NOT_IN_POOL",
+        "NO_SCHEDULE",
+        "NO_WORKER_CONSUMER",
+        "ACTIVATION_PENDING",
+        "rubika_activation_pending",
+    }
 
 
 @pytest.mark.asyncio
-async def test_login_enrolls_pool_once(pg_session_factory):
+async def test_login_starts_activation_not_pool(pg_session_factory):
     db = pg_session_factory()
     acct = _acct(db)
     store: dict = {}
@@ -517,10 +528,13 @@ async def test_login_enrolls_pool_once(pg_session_factory):
         secret_store=store,
     )
     db.commit()
-    from core_engine.models import RubikaAccountPool
+    from core_engine.models import RubikaAccountActivation, RubikaAccountPool
 
     assert submitted.ok is True
-    assert db.query(RubikaAccountPool).filter_by(account_id=acct.id).count() == 1
+    assert db.query(RubikaAccountPool).filter_by(account_id=acct.id).count() == 0
+    assert (
+        db.query(RubikaAccountActivation).filter_by(account_id=acct.id).count() == 1
+    )
 
 
 def test_legacy_path_fenced_when_flag_true():
@@ -535,10 +549,36 @@ async def test_legacy_start_raises_when_flag_true(pg_session_factory):
         await start_rubika_user_login(account_id=1, phone_number="989120000001")
 
 
-def test_legacy_allowed_when_flag_false(monkeypatch):
+def test_legacy_always_blocked_even_when_v1_false(monkeypatch):
     monkeypatch.setenv("RUBIKA_CANONICAL_SESSION_V1", "false")
     get_settings.cache_clear()
-    assert_legacy_login_allowed()  # must not raise
+    with pytest.raises(RubikaLoginError) as ei:
+        assert_legacy_login_allowed()
+    assert LEGACY_LOGIN_DISABLED.split(":")[0] in str(ei.value) or "LEGACY_LOGIN" in str(ei.value)
+
+
+@pytest.mark.asyncio
+async def test_legacy_verify_raises_for_new_login(pg_session_factory):
+    db = pg_session_factory()
+    try:
+        with pytest.raises(RubikaLoginError, match="LEGACY_LOGIN"):
+            await verify_rubika_user_login(
+                db, registration_token="not-a-challenge", phone_code="123456"
+            )
+    finally:
+        db.close()
+
+
+def test_http_login_endpoints_always_use_l3():
+    from pathlib import Path
+
+    import core_engine.api.accounts as accounts_mod
+
+    src = Path(accounts_mod.__file__).read_text(encoding="utf-8")
+    assert "await request_rubika_login(" in src
+    assert "await submit_rubika_login_code(" in src
+    assert "await start_rubika_user_login(" not in src
+    assert "await verify_rubika_user_login(" not in src
 
 
 def test_login_module_does_not_restart_workers():

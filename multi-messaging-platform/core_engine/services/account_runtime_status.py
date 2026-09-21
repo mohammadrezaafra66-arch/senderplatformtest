@@ -41,6 +41,7 @@ class RuntimeStatus(str, Enum):
     OTP_WAITING = "OTP_WAITING"
     AUTHENTICATING = "AUTHENTICATING"
     AUTHENTICATED_NO_WORKER = "AUTHENTICATED_NO_WORKER"
+    ACTIVATION_PENDING = "ACTIVATION_PENDING"
     READY = "READY"
     MANUAL_REVIEW = "MANUAL_REVIEW"
     SESSION_ERROR = "SESSION_ERROR"
@@ -61,6 +62,7 @@ RUNTIME_STATUS_LABEL_FA: dict[str, str] = {
     RuntimeStatus.OTP_WAITING.value: "در انتظار کد",
     RuntimeStatus.AUTHENTICATING.value: "در حال احراز",
     RuntimeStatus.AUTHENTICATED_NO_WORKER.value: "احراز شده، Worker آماده نیست",
+    RuntimeStatus.ACTIVATION_PENDING.value: "ورود موفق؛ در انتظار تایید مدیر",
     RuntimeStatus.READY.value: "آماده ارسال",
     RuntimeStatus.MANUAL_REVIEW.value: "نیازمند بررسی",
     RuntimeStatus.SESSION_ERROR.value: "خطای سشن",
@@ -80,6 +82,7 @@ OPERATOR_ACTION_LABEL_FA: dict[str, str] = {
     "FIX_CONNECTION": "بررسی اتصال / تست اتصال",
     "FIX_CONFIG": "بررسی پیکربندی",
     "WAIT_WORKER": "منتظر پوشش worker",
+    "CONFIRM_ACTIVATION": "تایید ارسال توسط مدیر",
 }
 
 _OTP_WAITING_STATES = frozenset(
@@ -691,6 +694,28 @@ def compute_rubika_runtime_status(
             if dispatch_eligible_ids is not None:
                 eligible = int(account.id) in dispatch_eligible_ids
             covered = bool(worker_covered)
+            from core_engine.services.rubika_account_activation import (
+                ACTIVATION_PENDING as ACT_PENDING,
+                assert_send_activation_allowed,
+            )
+
+            if assert_send_activation_allowed(db, int(account.id), context="worker"):
+                return _make(
+                    account,
+                    status=RuntimeStatus.ACTIVATION_PENDING,
+                    reason_code=ACT_PENDING,
+                    auth_state="authenticated",
+                    credential_type="rubika_session",
+                    credential_state="active",
+                    identity_state="bound",
+                    worker_state="covered" if covered else "missing",
+                    worker_covered=covered,
+                    worker_heartbeat_fresh=covered,
+                    dispatch_ready=False,
+                    dispatch_blocker=ACT_PENDING,
+                    operator_action_code="CONFIRM_ACTIVATION",
+                    details={"canonical_managed": canonical_managed, "auth_label": AUTHENTICATED_LABEL_FA},
+                )
             if covered and eligible and account.status == AccountStatus.ACTIVE:
                 if rubika_account_quarantined(int(account.id)):
                     return _quarantine_block(account)
@@ -741,6 +766,28 @@ def compute_rubika_runtime_status(
             dispatch_eligible_ids is None or int(account.id) in dispatch_eligible_ids
         )
         covered = bool(worker_covered)
+        from core_engine.services.rubika_account_activation import (
+            ACTIVATION_PENDING as ACT_PENDING,
+            assert_send_activation_allowed,
+        )
+
+        if assert_send_activation_allowed(db, int(account.id), context="worker"):
+            return _make(
+                account,
+                status=RuntimeStatus.ACTIVATION_PENDING,
+                reason_code=ACT_PENDING,
+                auth_state="authenticated",
+                credential_type="rubika_session",
+                credential_state="legacy_usable",
+                identity_state="legacy",
+                worker_state="covered" if covered else "missing",
+                worker_covered=covered,
+                worker_heartbeat_fresh=covered,
+                dispatch_ready=False,
+                dispatch_blocker=ACT_PENDING,
+                operator_action_code="CONFIRM_ACTIVATION",
+                details={"session_id": int(row.id), "legacy": True, "canonical": False},
+            )
         if covered and eligible and account.status == AccountStatus.ACTIVE:
             if rubika_account_quarantined(int(account.id)):
                 return _quarantine_block(account)

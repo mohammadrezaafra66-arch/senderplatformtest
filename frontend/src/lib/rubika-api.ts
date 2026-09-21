@@ -18,6 +18,8 @@ import type {
   RubikaSendLogResult,
   RubikaUserLoginStartResult,
   RubikaUserLoginVerifyResult,
+  RubikaActivationConfirmResult,
+  RubikaActivationStatusResult,
 } from "@/types/rubika";
 
 // ─── استخر اکانت‌ها ───
@@ -80,6 +82,25 @@ export async function verifyRubikaUserLogin(
     body: JSON.stringify(payload),
   });
   return response.json() as Promise<RubikaUserLoginVerifyResult>;
+}
+
+export async function fetchRubikaActivation(
+  accountId: number,
+): Promise<RubikaActivationStatusResult> {
+  const response = await apiFetch(`/accounts/${accountId}/activation`);
+  return response.json() as Promise<RubikaActivationStatusResult>;
+}
+
+export async function confirmRubikaActivation(
+  accountId: number,
+  payload: { token?: string; confirm_code?: string } = {},
+): Promise<RubikaActivationConfirmResult> {
+  const response = await apiFetch(`/accounts/${accountId}/activation/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return response.json() as Promise<RubikaActivationConfirmResult>;
 }
 
 // ─── لاگ ارسال ───

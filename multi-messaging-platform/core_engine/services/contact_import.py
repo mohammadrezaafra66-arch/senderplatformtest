@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from core_engine.models import ConsentStatus, Contact
+from core_engine.models import ConsentStatus, Contact, ImportRow
 from core_engine.services.contact_delete import (
     is_contact_deleted,
     reactivate_deleted_contact_from_import,
@@ -21,6 +22,41 @@ def find_contact_by_phone(db: Session, phone_e164: str) -> Contact | None:
         .filter(Contact.phone_e164 == phone_e164)
         .first()
     )
+
+
+def resolve_contacts_for_import_batch(db: Session, import_batch_id: int) -> list[Contact]:
+    """Contacts created by this batch, plus existing contacts reused by its rows.
+
+    Reused numbers keep their original source_import_id. The new ImportRow
+    points at them via duplicate_of_contact_id. Campaign selection must
+    union both links so a re-import is sendable without duplicating Contact.
+    """
+    reused_ids = (
+        db.query(ImportRow.duplicate_of_contact_id)
+        .filter(
+            ImportRow.batch_id == import_batch_id,
+            ImportRow.duplicate_of_contact_id.isnot(None),
+        )
+    )
+    rows = (
+        db.query(Contact)
+        .filter(
+            or_(
+                Contact.source_import_id == import_batch_id,
+                Contact.id.in_(reused_ids),
+            )
+        )
+        .all()
+    )
+    seen: set[int] = set()
+    unique: list[Contact] = []
+    for contact in rows:
+        cid = int(contact.id)
+        if cid in seen:
+            continue
+        seen.add(cid)
+        unique.append(contact)
+    return unique
 
 
 def apply_import_to_contact(

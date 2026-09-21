@@ -447,6 +447,13 @@ async def test_redis_failure_fail_closed(pg_session_factory):
     result = await evaluate_campaign_send_preflight(session, campaign.id, redis=Boom())
     assert result.allowed_to_start is False
     assert result.code == CAMPAIGN_CAPACITY_UNKNOWN
+    assert result.redis_ok is False
+    assert result.capacity_known is False
+    assert result.assigned_accounts >= 1
+    assert result.total_messages >= 2
+    assert result.immediate_capacity is None
+    assert any(b.get("code") == CAMPAIGN_CAPACITY_UNKNOWN for b in result.blockers)
+    assert result.accounts, "Redis down must not hide CampaignAccount rows"
     session.expire_all()
     still = session.query(Campaign).filter(Campaign.id == campaign.id).one()
     assert still.status == CampaignStatus.PREPARED.value

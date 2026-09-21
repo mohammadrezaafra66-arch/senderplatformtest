@@ -7,9 +7,8 @@ from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
 import pytest
-from fastapi.testclient import TestClient
+from sqlalchemy import text
 
-from core_engine.main import app
 from core_engine.models import (
     Account,
     AccountStatus,
@@ -29,7 +28,6 @@ from core_engine.services.product_feed.errors import INSUFFICIENT_ADVERTISING_PR
 from core_engine.services.product_feed.fake_provider import FakeProductFeedProvider
 from core_engine.services.product_feed.service import set_product_feed_provider
 
-client = TestClient(app)
 AUTH = {"Authorization": "Bearer fake_token"}
 TEMPLATE = "سلام {{first_name}}، پیام تست."
 TEMPLATE_GPT = "سلام {{first_name}}، برای اطلاع از قیمت‌های امروز با ما در ارتباط باشید."
@@ -79,6 +77,7 @@ def _contact(session) -> Contact:
 
 
 def _create_via_api(
+    client,
     session,
     *,
     use_gpt: bool = False,
@@ -108,10 +107,10 @@ def _create_via_api(
     return response.json()
 
 
-def test_new_campaign_auto_prepares_plain_text(pg_session_factory):
+def test_new_campaign_auto_prepares_plain_text(client, pg_session_factory):
     """Golden E2E: create workflow auto-prepares without manual prepare call."""
     session = pg_session_factory()
-    body = _create_via_api(session, use_gpt=False, include_products=False)
+    body = _create_via_api(client, session, use_gpt=False, include_products=False)
     campaign_id = body["campaign_id"]
     auto = body.get("auto_prepare") or {}
     assert auto.get("prepared") is True or auto.get("ready_count", 0) >= 1
@@ -141,9 +140,15 @@ def test_new_campaign_auto_prepares_plain_text(pg_session_factory):
     )
 
 
-def test_auto_prepare_after_sender_update(pg_session_factory):
-    """Assigning senders on a valid draft triggers auto-prepare."""
+def test_auto_prepare_after_sender_update(client, pg_session_factory):
+    """Assigning senders stores CampaignAccount rows and does not prepare."""
     session = pg_session_factory()
+    from tests.isolation import DEFAULT_PYTEST_DATABASE, assert_pytest_database_name
+
+    current = assert_pytest_database_name(
+        str(session.execute(text("SELECT current_database()")).scalar())
+    )
+    assert current == DEFAULT_PYTEST_DATABASE
     contact = _contact(session)
     account = _account(session)
     campaign = Campaign(
@@ -170,17 +175,21 @@ def test_auto_prepare_after_sender_update(pg_session_factory):
     )
     assert response.status_code == 200, response.text
     auto = response.json().get("auto_prepare") or {}
-    assert auto.get("prepared") is True or auto.get("ready_count", 0) >= 1
+    assert auto.get("attempted") is False
+    assert auto.get("prepared") is False
+    assert auto.get("skipped") is True
+    assert auto.get("skip_reason") == "accounts_update_does_not_prepare"
 
     session.expire_all()
     campaign = session.query(Campaign).filter(Campaign.id == campaign.id).one()
-    assert campaign.status == CampaignStatus.PREPARED.value
+    assert campaign.status == CampaignStatus.DRAFT.value
+    assert session.query(Message).filter(Message.campaign_id == campaign.id).count() == 0
 
 
-def test_auto_prepare_idempotent_on_create(pg_session_factory):
+def test_auto_prepare_idempotent_on_create(client, pg_session_factory):
     """Repeated prepare attempts must not duplicate final messages."""
     session = pg_session_factory()
-    body = _create_via_api(session)
+    body = _create_via_api(client, session)
     campaign_id = body["campaign_id"]
 
     retry = client.post(f"/campaigns/{campaign_id}/prepare", json={}, headers=AUTH)
@@ -197,12 +206,12 @@ def test_auto_prepare_idempotent_on_create(pg_session_factory):
     )
 
 
-def test_product_free_campaign_independent(pg_session_factory):
+def test_product_free_campaign_independent(client, pg_session_factory):
     """include_products=False must not surface product feed blockers."""
     session = pg_session_factory()
     set_product_feed_provider(FakeProductFeedProvider(_ad_rows()[:1]))
     try:
-        body = _create_via_api(session, include_products=False)
+        body = _create_via_api(client, session, include_products=False)
         campaign_id = body["campaign_id"]
         preflight = client.get(f"/campaigns/{campaign_id}/preflight").json()
         prep_blockers = preflight.get("preparation_blockers") or []
@@ -214,11 +223,11 @@ def test_product_free_campaign_independent(pg_session_factory):
         set_product_feed_provider(None)
 
 
-def test_products_on_auto_prepare_pass(pg_session_factory):
+def test_products_on_auto_prepare_pass(client, pg_session_factory):
     session = pg_session_factory()
     set_product_feed_provider(FakeProductFeedProvider(_ad_rows()))
     try:
-        body = _create_via_api(session, include_products=True, use_gpt=False)
+        body = _create_via_api(client, session, include_products=True, use_gpt=False)
         assert (body.get("auto_prepare") or {}).get("prepared") is True
         preflight = client.get(f"/campaigns/{body['campaign_id']}/preflight").json()
         assert preflight["campaign_prepared"] is True
@@ -226,11 +235,11 @@ def test_products_on_auto_prepare_pass(pg_session_factory):
         set_product_feed_provider(None)
 
 
-def test_products_on_blocked_when_insufficient(pg_session_factory):
+def test_products_on_blocked_when_insufficient(client, pg_session_factory):
     session = pg_session_factory()
     set_product_feed_provider(FakeProductFeedProvider(_ad_rows()[:1]))
     try:
-        body = _create_via_api(session, include_products=True)
+        body = _create_via_api(client, session, include_products=True)
         auto = body.get("auto_prepare") or {}
         assert auto.get("prepared") is False
         blockers = auto.get("blockers") or []
@@ -241,12 +250,13 @@ def test_products_on_blocked_when_insufficient(pg_session_factory):
         set_product_feed_provider(None)
 
 
-def test_gpt_auto_prepare_pass(pg_session_factory):
+def test_gpt_auto_prepare_pass(client, pg_session_factory):
     session = pg_session_factory()
     gpt = FakeMessageVariationProvider(_gpt_variations())
     set_message_variation_provider(gpt)
     try:
         body = _create_via_api(
+            client,
             session,
             use_gpt=True,
             include_products=False,
@@ -260,7 +270,7 @@ def test_gpt_auto_prepare_pass(pg_session_factory):
         set_message_variation_provider(None)
 
 
-def test_gpt_auto_prepare_surfaces_failure(pg_session_factory):
+def test_gpt_auto_prepare_surfaces_failure(client, pg_session_factory):
     from core_engine.services.message_variation.errors import GptVariationError
 
     session = pg_session_factory()
@@ -268,27 +278,27 @@ def test_gpt_auto_prepare_surfaces_failure(pg_session_factory):
         "core_engine.services.phase4_prepare.generate_validated_pool",
         side_effect=GptVariationError("GPT_RENDER_FAILED"),
     ):
-        body = _create_via_api(session, use_gpt=True, include_products=False, template_text=TEMPLATE_GPT)
+        body = _create_via_api(client, session, use_gpt=True, include_products=False, template_text=TEMPLATE_GPT)
     auto = body.get("auto_prepare") or {}
     assert auto.get("prepared") is False
     assert auto.get("error_code") == "GPT_RENDER_FAILED"
 
 
-def test_blocked_draft_stays_draft(pg_session_factory):
+def test_blocked_draft_stays_draft(client, pg_session_factory):
     session = pg_session_factory()
-    body = _create_via_api(session, template_text="   ")
+    body = _create_via_api(client, session, template_text="   ")
     auto = body.get("auto_prepare") or {}
     assert auto.get("prepared") is False
     blockers = auto.get("blockers") or []
     assert any(item.get("code") == "TEMPLATE_MISSING" for item in blockers)
 
 
-def test_concurrent_auto_prepare_safe(pg_session_factory):
+def test_concurrent_auto_prepare_safe(client, pg_session_factory):
     """Two concurrent prepare attempts must not duplicate output."""
     from core_engine.services.campaign_auto_prepare import try_auto_prepare_campaign
 
     session = pg_session_factory()
-    body = _create_via_api(session)
+    body = _create_via_api(client, session)
     campaign_id = body["campaign_id"]
     factory = pg_session_factory
 

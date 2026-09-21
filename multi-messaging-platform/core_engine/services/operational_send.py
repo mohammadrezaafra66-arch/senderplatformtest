@@ -164,6 +164,28 @@ def build_live_send_preflight(db: Session, account: Account) -> dict[str, Any]:
             )
         )
 
+    if account.platform == PlatformType.RUBIKA:
+        from core_engine.services.rubika_account_activation import (
+            RUBIKA_ACTIVATION_PENDING,
+            assert_send_activation_allowed,
+        )
+
+        activation_block = assert_send_activation_allowed(
+            db, int(account.id), context="worker"
+        )
+        checks.append(
+            LiveSendPreflightCheck(
+                key="rubika_activation_confirmed",
+                passed=activation_block is None,
+                message=(
+                    f"error_code={RUBIKA_ACTIVATION_PENDING}: "
+                    "ورود موفق است؛ ارسال کمپین و send-test زنده تا تایید مدیر مجاز نیست."
+                    if activation_block
+                    else "Rubika activation confirmed (READY_TO_SEND)."
+                ),
+            )
+        )
+
     readiness = evaluate_account_session_readiness(db, account)
     checks.append(
         LiveSendPreflightCheck(
@@ -256,11 +278,20 @@ async def send_account_test_message(
     if not dry_run:
         preflight = build_live_send_preflight(db, account)
         if not preflight["ready_for_live_send"]:
-            failed = [
-                item["message"]
-                for item in preflight["checks"]
-                if not item["passed"]
+            failed_checks = [
+                item for item in preflight["checks"] if not item["passed"]
             ]
+            activation = next(
+                (
+                    item
+                    for item in failed_checks
+                    if item["key"] == "rubika_activation_confirmed"
+                ),
+                None,
+            )
+            if activation:
+                raise OperationalSendError(activation["message"])
+            failed = [item["message"] for item in failed_checks]
             raise OperationalSendError(
                 "Live send preflight failed: " + "; ".join(failed[:3]),
             )

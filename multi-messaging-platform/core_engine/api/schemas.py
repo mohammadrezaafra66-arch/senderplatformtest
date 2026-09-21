@@ -104,6 +104,18 @@ class CampaignAutoPrepareSummary(BaseModel):
     staged_count: int | None = None
 
 
+class AutomaticSenderAssignmentSummary(BaseModel):
+    mode: str = "automatic"
+    eligible_accounts: int = 0
+    existing_assignments: int = 0
+    created_assignments: int = 0
+    skipped_assignments: int = 0
+    excluded_accounts: int = 0
+    reason: str | None = None
+    eligible_account_ids: list[int] = Field(default_factory=list)
+    created_account_ids: list[int] = Field(default_factory=list)
+
+
 class AudiencePreviewRequest(BaseModel):
     selected_tags: list[str] = Field(..., min_length=1)
     tag_match: Literal["any", "all"] = "any"
@@ -128,6 +140,7 @@ class CampaignFromTagsResponse(BaseModel):
     account_ids: list[int] = Field(default_factory=list)
     sender_accounts: list["SenderAccountResponse"] = Field(default_factory=list)
     auto_prepare: CampaignAutoPrepareSummary | None = None
+    sender_assignment: AutomaticSenderAssignmentSummary | None = None
 
 
 class CampaignFromContactsResponse(BaseModel):
@@ -140,6 +153,7 @@ class CampaignFromContactsResponse(BaseModel):
     sender_accounts: list["SenderAccountResponse"] = Field(default_factory=list)
     skipped_contacts: list[CampaignSkippedContactInfo] = Field(default_factory=list)
     auto_prepare: CampaignAutoPrepareSummary | None = None
+    sender_assignment: AutomaticSenderAssignmentSummary | None = None
 
 
 class ContactSearchItemResponse(BaseModel):
@@ -285,6 +299,7 @@ class CampaignFromImportResponse(BaseModel):
     account_ids: list[int] = Field(default_factory=list)
     sender_accounts: list[SenderAccountResponse] = Field(default_factory=list)
     auto_prepare: CampaignAutoPrepareSummary | None = None
+    sender_assignment: AutomaticSenderAssignmentSummary | None = None
 
 
 class CampaignStatsData(BaseModel):
@@ -427,9 +442,13 @@ class CampaignPreflightResponse(BaseModel):
     limitations: list[str] = Field(default_factory=list)
     evaluated_at: str = ""
     redis_ok: bool = True
+    redis_available: bool = True
+    capacity_known: bool = True
     ready_accounts: int = 0
     execution_usable_accounts: int = 0
     campaign_eligible_accounts: int = 0
+    authenticated_accounts: int = 0
+    worker_ready_accounts: int = 0
     assignment_materialized: bool = False
     capacity_applicable: bool = False
     campaign_prepared: bool = False
@@ -782,6 +801,35 @@ class RubikaUserLoginVerifyResponse(BaseModel):
     phone_number: str
     message: str
     lifecycle_status: str | None = None
+    runtime_status: str | None = None
+    runtime_status_label: str | None = None
+    send_activation_state: str | None = None
+    activation_confirm_code: str | None = None
+
+
+class RubikaActivationStatusResponse(BaseModel):
+    account_id: int
+    send_activation_state: str
+    status: str | None = None
+    confirm_code: str | None = None
+    manager_phone: str | None = None
+    test_sent_at: datetime | None = None
+    test_error: str | None = None
+    confirmed_at: datetime | None = None
+    confirmed_by: str | None = None
+
+
+class RubikaActivationConfirmRequest(BaseModel):
+    token: str | None = Field(default=None, max_length=128)
+    confirm_code: str | None = Field(default=None, max_length=16)
+
+
+class RubikaActivationConfirmResponse(BaseModel):
+    success: bool
+    account_id: int
+    code: str
+    send_activation_state: str
+    message: str
     runtime_status: str | None = None
     runtime_status_label: str | None = None
 

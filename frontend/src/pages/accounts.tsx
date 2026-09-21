@@ -4,6 +4,11 @@ import { useTranslation } from "react-i18next";
 
 import { Layout } from "@/components/Layout";
 import { ApiTokenSessionPanel } from "@/components/ApiTokenSessionPanel";
+import {
+  needsManagerActivationCard,
+  RubikaActivationBadge,
+  RubikaActivationCard,
+} from "@/components/RubikaActivationCard";
 import { RubikaUserAccountLoginPanel } from "@/components/RubikaUserAccountLoginPanel";
 import { WhatsAppWebPanel } from "@/components/WhatsAppWebPanel";
 import WhatsAppEvolutionPanel from "@/components/WhatsAppEvolutionPanel";
@@ -21,6 +26,7 @@ import {
   testAccountConnection,
   updateAccount,
 } from "@/lib/accounts-api";
+import { fetchRubikaActivation } from "@/lib/rubika-api";
 import { useAuth } from "@/state/auth";
 import type {
   AccountItem,
@@ -28,6 +34,7 @@ import type {
   PlatformOption,
   ProxyAssignRequest,
 } from "@/types/account";
+import type { RubikaActivationStatusResult } from "@/types/rubika";
 import {
   ACCOUNT_STATUS_OPTIONS,
   accountStatusColor,
@@ -120,6 +127,31 @@ export default function AccountsPage() {
   const [waPanelId, setWaPanelId] = useState<number | null>(null);
   const [sessionPanelId, setSessionPanelId] = useState<number | null>(null);
   const [rubikaUserPanelId, setRubikaUserPanelId] = useState<number | null>(null);
+  const [activations, setActivations] = useState<Record<number, RubikaActivationStatusResult>>(
+    {},
+  );
+
+  const loadActivations = useCallback(async (accounts: AccountItem[]) => {
+    const ids = accounts.filter((item) => item.platform === "rubika").map((item) => item.id);
+    if (ids.length === 0) {
+      setActivations({});
+      return;
+    }
+    const entries = await Promise.all(
+      ids.map(async (id) => {
+        try {
+          return [id, await fetchRubikaActivation(id)] as const;
+        } catch {
+          return [id, null] as const;
+        }
+      }),
+    );
+    const next: Record<number, RubikaActivationStatusResult> = {};
+    for (const [id, row] of entries) {
+      if (row) next[id] = row;
+    }
+    setActivations(next);
+  }, []);
 
   const loadAccounts = useCallback(async () => {
     if (!canView) {
@@ -134,12 +166,13 @@ export default function AccountsPage() {
         archived: archiveView === "archived",
       });
       setItems(data.items);
+      void loadActivations(data.items);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : t("accountsLoadError"));
     } finally {
       setLoading(false);
     }
-  }, [canView, platformFilter, archiveView, t]);
+  }, [canView, platformFilter, archiveView, t, loadActivations]);
 
   useEffect(() => {
     void loadAccounts();
@@ -575,7 +608,7 @@ export default function AccountsPage() {
                   </TableWrap>
                 ) : (
                   <TableWrap>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 1080 }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14, minWidth: 1180 }}>
                     <thead>
                       <tr style={{ background: "rgba(0,0,0,0.02)" }}>
                         <th style={{ padding: 10, textAlign: "right" }}>{t("accountIdCol")}</th>
@@ -584,6 +617,7 @@ export default function AccountsPage() {
                         <th style={{ padding: 10, textAlign: "right" }}>{t("accountIdentifier")}</th>
                         <th style={{ padding: 10, textAlign: "right" }}>{t("accountLifecycleStatus")}</th>
                         <th style={{ padding: 10, textAlign: "right" }}>{t("connectionStatus")}</th>
+                        <th style={{ padding: 10, textAlign: "right" }}>{t("rubikaActivationCol")}</th>
                         <th style={{ padding: 10, textAlign: "right" }}>{t("dispatchReadiness")}</th>
                         <th style={{ padding: 10, textAlign: "right" }}>{t("lastVerifiedAt")}</th>
                         <th style={{ padding: 10, textAlign: "right" }}>{t("actions")}</th>
@@ -627,6 +661,13 @@ export default function AccountsPage() {
                               title={account.runtime?.reason_code ?? undefined}
                             >
                               {runtimeStatusIcon(runtimeStatus)} {runtimeLabel}
+                            </td>
+                            <td style={{ padding: 10, fontSize: 13 }}>
+                              {account.platform === "rubika" ? (
+                                <RubikaActivationBadge activation={activations[account.id]} />
+                              ) : (
+                                "—"
+                              )}
                             </td>
                             <td style={{ padding: 10, fontSize: 13 }}>
                               {dispatchReady
@@ -750,9 +791,25 @@ export default function AccountsPage() {
                               </div>
                             </td>
                           </tr>
+                          {account.platform === "rubika" &&
+                          needsManagerActivationCard(activations[account.id]) ? (
+                            <tr>
+                              <td colSpan={10} style={{ padding: "0 12px 12px" }}>
+                                <RubikaActivationCard
+                                  accountId={account.id}
+                                  activation={activations[account.id]}
+                                  canConfirm={canManage}
+                                  onConfirmed={() => {
+                                    setNotice(t("rubikaActivationConfirmed"));
+                                    void loadAccounts();
+                                  }}
+                                />
+                              </td>
+                            </tr>
+                          ) : null}
                           {waPanelId === account.id && account.platform === "whatsapp" ? (
                             <tr>
-                              <td colSpan={9} style={{ padding: "0 12px 12px" }}>
+                              <td colSpan={10} style={{ padding: "0 12px 12px" }}>
                                 {EVOLUTION_MODE ? (
                                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                                     <WhatsAppEvolutionPanel
@@ -785,7 +842,7 @@ export default function AccountsPage() {
                           ) : null}
                           {sessionPanelId === account.id && isApiTokenPlatform(account.platform) ? (
                             <tr>
-                              <td colSpan={9} style={{ padding: "0 12px 12px" }}>
+                              <td colSpan={10} style={{ padding: "0 12px 12px" }}>
                                 <ApiTokenSessionPanel
                                   accountId={account.id}
                                   platform={account.platform}
@@ -797,7 +854,7 @@ export default function AccountsPage() {
                           ) : null}
                           {rubikaUserPanelId === account.id && account.platform === "rubika" ? (
                             <tr>
-                              <td colSpan={9} style={{ padding: "0 12px 12px" }}>
+                              <td colSpan={10} style={{ padding: "0 12px 12px" }}>
                                 <RubikaUserAccountLoginPanel
                                   accountId={account.id}
                                   accountPhone={account.account_identifier}
@@ -812,7 +869,7 @@ export default function AccountsPage() {
                           ) : null}
                           {editingId === account.id && editForm ? (
                             <tr>
-                              <td colSpan={9} style={{ padding: 12, background: "rgba(0,0,0,0.02)" }}>
+                              <td colSpan={10} style={{ padding: 12, background: "rgba(0,0,0,0.02)" }}>
                                 <form
                                   onSubmit={(e) => void handleSaveEdit(e)}
                                   style={{

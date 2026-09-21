@@ -146,10 +146,7 @@ async def start_rubika_user_login(
 ) -> dict[str, Any]:
     """مرحله ۱ — ارسال کد پیامکی.
 
-    دو روش فراخوانی:
-    - شروع تازه: phone_number بده (بدون registration_token).
-    - تکمیل pass_key: registration_token (از پاسخ قبلی با stage=pass_key_required)
-      + pass_key بده؛ phone_number از حالت ذخیره‌شده در Redis خوانده می‌شود.
+    Closed for new logins. Callers must use ``request_rubika_login``.
     """
     from core_engine.services.rubika_login_state_machine import assert_legacy_login_allowed
 
@@ -237,7 +234,10 @@ async def start_rubika_user_login(
 async def verify_rubika_user_login(
     db: Session, *, registration_token: str, phone_code: str
 ) -> dict[str, Any]:
-    """مرحله ۲ — تأیید کد، ذخیره session رمزنگاری‌شده، register_device."""
+    """مرحله ۲ — تأیید کد، ذخیره session رمزنگاری‌شده، register_device.
+
+    Closed for new logins. Callers must use ``submit_rubika_login_code``.
+    """
     from core_engine.services.rubika_login_state_machine import assert_legacy_login_allowed
 
     assert_legacy_login_allowed()

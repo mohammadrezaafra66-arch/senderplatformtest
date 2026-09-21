@@ -147,6 +147,29 @@ export type RubikaUserLoginVerifyResult = {
   lifecycle_status?: string | null;
   runtime_status?: string | null;
   runtime_status_label?: string | null;
+  send_activation_state?: string | null;
+  activation_confirm_code?: string | null;
+};
+
+export type RubikaActivationStatusResult = {
+  account_id: number;
+  send_activation_state: string;
+  status?: string | null;
+  confirm_code?: string | null;
+  manager_phone?: string | null;
+  test_error?: string | null;
+  confirmed_at?: string | null;
+  confirmed_by?: string | null;
+};
+
+export type RubikaActivationConfirmResult = {
+  success: boolean;
+  account_id: number;
+  code: string;
+  send_activation_state: string;
+  message: string;
+  runtime_status?: string | null;
+  runtime_status_label?: string | null;
 };
 
 // ─── Phase 5 — Protection Center ───

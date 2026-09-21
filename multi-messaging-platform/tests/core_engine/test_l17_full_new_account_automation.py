@@ -76,6 +76,7 @@ def _l17_env(monkeypatch):
     monkeypatch.setenv("RUBIKA_WORKER_DISCOVERY_COHORT_IDS", "")
     monkeypatch.setenv("RUBIKA_WORKER_DISCOVERY_SCOPE", "all_eligible")
     monkeypatch.setenv("RUBIKA_OTP_RESEND_COOLDOWN_SECONDS", "0")
+    monkeypatch.setenv("RUBIKA_MANAGER_ACTIVATION_REQUIRED", "false")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

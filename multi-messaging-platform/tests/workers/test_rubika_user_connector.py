@@ -1,9 +1,6 @@
-import base64
 import json
 
 import pytest
-from Crypto.Cipher import PKCS1_OAEP
-from Crypto.PublicKey import RSA
 from cryptography.fernet import Fernet
 
 from core_engine.config import get_settings
@@ -23,7 +20,6 @@ from core_engine.services.rubika_user_session import (
     build_session_envelope,
     parse_session_envelope,
     start_rubika_user_login,
-    verify_rubika_user_login,
 )
 from core_engine.services.session_storage import store_channel_session
 from rubpy.types import Update
@@ -108,7 +104,7 @@ def test_parse_session_envelope_missing_field_raises():
 
 
 @pytest.mark.asyncio
-async def test_rubika_user_login_flow_success(monkeypatch, pg_session_factory):
+async def test_rubika_user_legacy_login_flow_blocked(monkeypatch, pg_session_factory):
     session = pg_session_factory()
     leftover_ids = [
         row.id
@@ -133,69 +129,13 @@ async def test_rubika_user_login_flow_success(monkeypatch, pg_session_factory):
     session.commit()
     session.refresh(account)
 
-    fake_send_code_result = Update({"status": "OK", "phone_code_hash": "hash123"})
+    from core_engine.services.rubika_user_session import RubikaLoginError
 
-    async def fake_connect(self):
-        return None
+    with pytest.raises(RubikaLoginError, match="LEGACY_LOGIN"):
+        await start_rubika_user_login(
+            account_id=account.id, phone_number="09121110011"
+        )
 
-    async def fake_disconnect(self):
-        return None
-
-    async def mock_send_code(self, **kwargs):
-        return fake_send_code_result
-
-    monkeypatch.setattr("rubpy.Client.connect", fake_connect)
-    monkeypatch.setattr("rubpy.Client.disconnect", fake_disconnect)
-    monkeypatch.setattr("rubpy.Client.send_code", mock_send_code)
-
-    start_result = await start_rubika_user_login(
-        account_id=account.id, phone_number="09121110011"
-    )
-    assert start_result["stage"] == "code_required"
-    registration_token = start_result["registration_token"]
-
-    from core_engine.services.redis_client import get_redis_client
-
-    redis = get_redis_client()
-    raw_state = await redis.get(f"rubika:user_login:{registration_token}")
-    state = json.loads(raw_state)
-    public_key = state["public_key"]
-
-    from rubpy.crypto import Crypto as RubikaCrypto
-
-    raw_pub_b64 = RubikaCrypto.decode_auth(public_key)
-    pub_key_obj = RSA.import_key(base64.b64decode(raw_pub_b64))
-    encrypted_auth = base64.b64encode(
-        PKCS1_OAEP.new(pub_key_obj).encrypt(b"b" * 32)
-    ).decode()
-
-    fake_sign_in_result = Update(
-        {
-            "status": "OK",
-            "auth": encrypted_auth,
-            "user": {"user_guid": "uOTPTEST", "phone": "989121110011"},
-        }
-    )
-
-    async def fake_sign_in(self, **kwargs):
-        return fake_sign_in_result
-
-    async def fake_register_device(self, **kwargs):
-        return None
-
-    monkeypatch.setattr("rubpy.Client.sign_in", fake_sign_in)
-    monkeypatch.setattr("rubpy.Client.register_device", fake_register_device)
-
-    verify_result = await verify_rubika_user_login(
-        session, registration_token=registration_token, phone_code="11111"
-    )
-    assert verify_result["success"] is True
-    assert verify_result["guid"] == "uOTPTEST"
-
-    session.refresh(account)
-    assert account.status == AccountStatus.ACTIVE
-
-    session.query(ChannelSession).filter(ChannelSession.account_id == account.id).delete()
     session.query(Account).filter(Account.id == account.id).delete()
     session.commit()
     session.close()

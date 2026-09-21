@@ -7,11 +7,14 @@ from sqlalchemy.orm import sessionmaker
 from core_engine.database import Base
 from tests.isolation import (
     PRODUCTION_DB_NAME,
+    assert_connected_pytest_database,
     assert_no_production_row_visibility,
+    assert_pytest_database_url,
     assert_test_database_url,
     assert_test_redis_url,
-    database_name_from_url,
     is_production_database_url,
+    rebind_sessionlocal,
+    truncate_pytest_database,
 )
 
 
@@ -31,6 +34,8 @@ def _fail_fast_production_database():
             f"REFUSE: DATABASE_URL targets production DB '{PRODUCTION_DB_NAME}'. "
             "Isolated regression tests must use a dedicated ephemeral test database."
         )
+    if url.startswith("postgresql"):
+        assert_pytest_database_url(url)
     # Also refuse unmarked remote DSNs (legacy R8).
     allow = (os.environ.get("ALLOW_PRODUCTION_DB_MUTATION") or "").strip().lower()
     if allow in {"1", "true", "yes", "on"}:
@@ -88,11 +93,7 @@ def pg_engine():
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-            current = conn.execute(text("SELECT current_database()")).scalar()
-            if str(current).lower() == PRODUCTION_DB_NAME.lower():
-                raise RuntimeError(
-                    f"REFUSE: connected database is production '{PRODUCTION_DB_NAME}'."
-                )
+            current = assert_connected_pytest_database(conn)
             if str(current) != test_db_name:
                 raise RuntimeError(
                     f"REFUSE: connected database '{current}' != expected '{test_db_name}'."
@@ -106,13 +107,26 @@ def pg_engine():
     except Exception:
         engine.dispose()
         pytest.skip("Postgres not reachable for core_engine DB tests")
+    rebind_sessionlocal(engine)
     yield engine
     engine.dispose()
 
 
 @pytest.fixture
 def pg_session_factory(pg_engine):
-    Base.metadata.create_all(pg_engine)
     with pg_engine.connect() as conn:
+        assert_connected_pytest_database(conn)
         assert_no_production_row_visibility(conn)
-    return sessionmaker(autocommit=False, autoflush=False, bind=pg_engine)
+    Base.metadata.create_all(pg_engine)
+    maker = sessionmaker(autocommit=False, autoflush=False, bind=pg_engine)
+    opened: list = []
+
+    def factory():
+        session = maker()
+        opened.append(session)
+        return session
+
+    yield factory
+    for session in opened:
+        session.close()
+    truncate_pytest_database(pg_engine)
