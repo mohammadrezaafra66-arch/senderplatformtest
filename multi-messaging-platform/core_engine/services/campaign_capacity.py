@@ -74,6 +74,9 @@ class AccountCapacityInput:
     remaining_hourly: int | None = None
     daily_cap: int | None = None
     hourly_cap: int | None = None
+    daily_unlimited: bool | None = None
+    hourly_unlimited: bool | None = None
+    quota_known: bool = True
     min_interval_seconds: int = 0
     next_allowed_at: datetime | None = None
     cooldown_until: datetime | None = None
@@ -81,6 +84,18 @@ class AccountCapacityInput:
     applies_quota: bool = True
     block_code: str | None = None
     delivery_mode: str | None = None
+
+
+def _daily_unlimited(row: AccountCapacityInput) -> bool:
+    if row.daily_unlimited is not None:
+        return bool(row.daily_unlimited)
+    return row.daily_cap is None
+
+
+def _hourly_unlimited(row: AccountCapacityInput) -> bool:
+    if row.hourly_unlimited is not None:
+        return bool(row.hourly_unlimited)
+    return row.hourly_cap is None
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +111,9 @@ class AccountCapacityPlan:
     remaining_hourly: int | None
     daily_cap: int | None
     hourly_cap: int | None
+    daily_unlimited: bool
+    hourly_unlimited: bool
+    quota_known: bool
     next_allowed_at: datetime | None
     cooldown_until: datetime | None
     window_open: bool
@@ -241,9 +259,9 @@ def account_ready_now(row: AccountCapacityInput) -> bool:
     if not row.window_open and row.applies_quota:
         return False
     if row.applies_quota:
-        if (row.remaining_daily or 0) <= 0:
+        if not _daily_unlimited(row) and (row.remaining_daily or 0) <= 0:
             return False
-        if (row.remaining_hourly or 0) <= 0:
+        if not _hourly_unlimited(row) and (row.remaining_hourly or 0) <= 0:
             return False
     if row.block_code in {
         "COOLDOWN_ACTIVE",
@@ -272,11 +290,16 @@ def immediate_slots_for_account(row: AccountCapacityInput) -> int:
         return 0
     if not row.applies_quota:
         return 1
-    slot = min(
-        row.assigned_remaining,
-        max(0, int(row.remaining_hourly or 0)),
-        max(0, int(row.remaining_daily or 0)),
-    )
+    daily_unlimited = _daily_unlimited(row)
+    hourly_unlimited = _hourly_unlimited(row)
+    if (not daily_unlimited or not hourly_unlimited) and not row.quota_known:
+        return 0
+    parts = [row.assigned_remaining]
+    if not hourly_unlimited:
+        parts.append(max(0, int(row.remaining_hourly or 0)))
+    if not daily_unlimited:
+        parts.append(max(0, int(row.remaining_daily or 0)))
+    slot = min(parts)
     if row.min_interval_seconds > 0:
         slot = min(slot, 1)
     return max(0, slot)
@@ -298,9 +321,19 @@ def today_slots_for_account(
         return 0
     if not row.applies_quota:
         return None
-    remaining_daily = max(0, int(row.remaining_daily or 0))
-    remaining_hourly = max(0, int(row.remaining_hourly or 0))
-    hourly_cap = max(0, int(row.hourly_cap or 0))
+    daily_unlimited = _daily_unlimited(row)
+    hourly_unlimited = _hourly_unlimited(row)
+    if (not daily_unlimited or not hourly_unlimited) and not row.quota_known:
+        return None
+    remaining_daily = (
+        row.assigned_remaining if daily_unlimited else max(0, int(row.remaining_daily or 0))
+    )
+    remaining_hourly = (
+        row.assigned_remaining if hourly_unlimited else max(0, int(row.remaining_hourly or 0))
+    )
+    interval = max(0, int(row.min_interval_seconds or 0))
+    interval_per_hour = int(3600 / interval) if interval > 0 else row.assigned_remaining
+    hourly_cap = interval_per_hour if hourly_unlimited else max(0, int(row.hourly_cap or 0))
     hours_left = remaining_window_hours_today(windows, now)
     in_window = row.window_open
     this_hour = remaining_hourly if in_window else 0
@@ -322,11 +355,23 @@ def effective_daily_throughput(
             return hours * per_hour
         return None
     hours = window_hours_per_policy_day(windows)
-    hourly_cap = max(0, int(row.hourly_cap or 0))
-    daily_cap = max(0, int(row.daily_cap or 0))
     interval = max(0, int(row.min_interval_seconds or 0))
-    interval_per_hour = int(3600 / interval) if interval > 0 else hourly_cap
-    hourly_effective = min(hourly_cap, interval_per_hour) if hourly_cap else interval_per_hour
+    interval_per_hour = int(3600 / interval) if interval > 0 else None
+    if _hourly_unlimited(row):
+        hourly_effective = interval_per_hour if interval_per_hour is not None else None
+    else:
+        hourly_cap = max(0, int(row.hourly_cap or 0))
+        hourly_effective = (
+            min(hourly_cap, interval_per_hour) if interval_per_hour is not None else hourly_cap
+        )
+        if not hourly_cap:
+            hourly_effective = interval_per_hour
+    if hourly_effective is None:
+        hourly_effective = row.assigned_remaining
+    hours = hours or 24
+    if _daily_unlimited(row):
+        return hourly_effective * hours
+    daily_cap = max(0, int(row.daily_cap or 0))
     return min(daily_cap, hourly_effective * hours) if daily_cap else hourly_effective * hours
 
 
@@ -410,7 +455,12 @@ def _bottleneck_reason(row: AccountCapacityInput, today: int | None) -> str | No
         return row.block_code or "hard_blocked"
     if today is not None and row.assigned_remaining > today:
         return "assigned_exceeds_today_capacity"
-    if row.applies_quota and (row.remaining_daily or 0) < row.assigned_remaining:
+    if (
+        row.applies_quota
+        and not _daily_unlimited(row)
+        and row.quota_known
+        and (row.remaining_daily or 0) < row.assigned_remaining
+    ):
         return "daily_remaining_below_assignment"
     return None
 
@@ -454,9 +504,15 @@ def aggregate_campaign_capacity(
             today_known = False
         else:
             today_total += today
-        if row.applies_quota and row.remaining_hourly is not None and not hard:
+        if row.applies_quota and (
+            _hourly_unlimited(row)
+            or (row.remaining_hourly is not None and not hard)
+        ):
             hourly_known = True
-            hourly_total += min(max(0, row.assigned_remaining), max(0, row.remaining_hourly))
+            if _hourly_unlimited(row):
+                hourly_total += max(0, row.assigned_remaining)
+            elif row.remaining_hourly is not None:
+                hourly_total += min(max(0, row.assigned_remaining), max(0, row.remaining_hourly))
         reason = _bottleneck_reason(row, today)
         is_bottleneck = bool(reason) and row.assigned_remaining > 0
         if is_bottleneck:
@@ -474,6 +530,9 @@ def aggregate_campaign_capacity(
                 remaining_hourly=row.remaining_hourly,
                 daily_cap=row.daily_cap,
                 hourly_cap=row.hourly_cap,
+                daily_unlimited=_daily_unlimited(row),
+                hourly_unlimited=_hourly_unlimited(row),
+                quota_known=bool(row.quota_known),
                 next_allowed_at=row.next_allowed_at,
                 cooldown_until=row.cooldown_until,
                 window_open=row.window_open,
@@ -560,6 +619,9 @@ def plan_to_matrix_row(plan: AccountCapacityPlan) -> dict[str, Any]:
         "readiness": plan.readiness,
         "daily_remaining": plan.remaining_daily,
         "hourly_remaining": plan.remaining_hourly,
+        "daily_unlimited": plan.daily_unlimited,
+        "hourly_unlimited": plan.hourly_unlimited,
+        "quota_known": plan.quota_known,
         "window": "open" if plan.window_open else "closed",
         "cooldown": plan.cooldown_until.isoformat() if plan.cooldown_until else None,
         "eligible_now": plan.eligible_now,

@@ -611,14 +611,17 @@ async def evaluate_rubika_send_preflight(
         try:
             from workers.config import get_worker_settings
 
-            settings = get_worker_settings()
-            cfg_hourly = int(
-                hourly_cap
-                if hourly_cap is not None
-                else settings.RUBIKA_HOURLY_SEND_CAP
+            from core_engine.services.account_message_limits import (
+                remaining_for_limit,
+                resolve_account_count_limits,
+                should_enforce_message_limit,
             )
-            cfg_daily = int(
-                daily_cap if daily_cap is not None else settings.RUBIKA_DAILY_SEND_CAP
+
+            settings = get_worker_settings()
+            hourly_limit, daily_limit = resolve_account_count_limits(
+                account,
+                hourly_override=hourly_cap,
+                daily_override=daily_cap,
             )
             cfg_min = int(settings.RUBIKA_MIN_SEND_DELAY_SECONDS)
             cfg_max = int(settings.RUBIKA_MAX_SEND_DELAY_SECONDS)
@@ -636,8 +639,8 @@ async def evaluate_rubika_send_preflight(
             )
             limits = resolve_effective_limits(
                 lifecycle,
-                configured_daily_cap=cfg_daily,
-                configured_hourly_cap=cfg_hourly,
+                configured_daily_cap=int(settings.RUBIKA_DAILY_SEND_CAP),
+                configured_hourly_cap=int(settings.RUBIKA_HOURLY_SEND_CAP),
                 configured_min_interval=cfg_min,
                 configured_max_interval=cfg_max,
                 jitter_enabled=jitter_enabled,
@@ -646,11 +649,15 @@ async def evaluate_rubika_send_preflight(
             policy_base = {
                 "lifecycle_state": lifecycle.value,
                 "warmup_day": warmup_day,
-                "daily_cap": limits.daily_cap,
-                "hourly_cap": limits.hourly_cap,
+                "daily_cap": daily_limit,
+                "hourly_cap": hourly_limit,
+                "daily_unlimited": daily_limit is None,
+                "hourly_unlimited": hourly_limit is None,
                 "minimum_interval_seconds": limits.min_interval_seconds,
                 "sent_today": snap.sent_today,
                 "sent_this_hour": snap.sent_this_hour,
+                "remaining_daily": remaining_for_limit(daily_limit, snap.sent_today),
+                "remaining_hourly": remaining_for_limit(hourly_limit, snap.sent_this_hour),
                 "timezone": "Asia/Tehran",
                 "send_window_phase": phase,
             }
@@ -709,7 +716,7 @@ async def evaluate_rubika_send_preflight(
                     },
                 )
 
-            if snap.sent_today >= limits.daily_cap:
+            if should_enforce_message_limit(daily_limit) and snap.sent_today >= daily_limit:
                 return _deny(
                     code=DAILY_CAP_REACHED,
                     account_id=account_id,
@@ -717,7 +724,7 @@ async def evaluate_rubika_send_preflight(
                     session_type=session_type,
                     details={**details, **policy_base},
                 )
-            if snap.sent_this_hour >= limits.hourly_cap:
+            if should_enforce_message_limit(hourly_limit) and snap.sent_this_hour >= hourly_limit:
                 return _deny(
                     code=HOURLY_CAP_REACHED,
                     account_id=account_id,
@@ -739,6 +746,8 @@ async def evaluate_rubika_send_preflight(
                 cooldown_reason=snap.cooldown_reason,
                 send_window_phase=phase,
                 details={"context": context},
+                daily_count_cap=daily_limit,
+                hourly_count_cap=hourly_limit,
             )
             details["policy"] = {
                 "lifecycle_state": snapshot.lifecycle_state,
@@ -746,9 +755,11 @@ async def evaluate_rubika_send_preflight(
                 "sent_today": snapshot.sent_today,
                 "daily_cap": snapshot.daily_cap,
                 "remaining_daily": snapshot.remaining_daily,
+                "daily_unlimited": daily_limit is None,
                 "sent_this_hour": snapshot.sent_this_hour,
                 "hourly_cap": snapshot.hourly_cap,
                 "remaining_hourly": snapshot.remaining_hourly,
+                "hourly_unlimited": hourly_limit is None,
                 "minimum_interval_seconds": snapshot.minimum_interval_seconds,
                 "timezone": snapshot.timezone,
                 "send_window_phase": snapshot.send_window_phase,

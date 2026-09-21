@@ -229,6 +229,11 @@ export type CampaignPreflightAccount = {
   worker_coverage?: boolean;
   daily_remaining: number | null;
   hourly_remaining: number | null;
+  daily_unlimited?: boolean | null;
+  hourly_unlimited?: boolean | null;
+  daily_cap?: number | null;
+  hourly_cap?: number | null;
+  quota_known?: boolean | null;
   next_allowed_at: string | null;
   window_state: string | null;
   cooldown_until: string | null;

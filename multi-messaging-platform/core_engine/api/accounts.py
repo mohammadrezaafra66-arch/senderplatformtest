@@ -5,6 +5,7 @@ from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core_engine.config import get_settings
@@ -174,6 +175,8 @@ def _account_to_response(account: Account, runtime=None, db: Session | None = No
         status=account.status,
         proxy_url=account.proxy_url,
         policy_id=account.policy_id,
+        hourly_message_limit=account.hourly_message_limit,
+        daily_message_limit=account.daily_message_limit,
         created_at=account.created_at,
         updated_at=account.updated_at,
         last_used_at=account.last_used_at,
@@ -270,6 +273,8 @@ def create_account(
             label=payload.label,
             proxy_url=payload.proxy_url,
             status=create_status,
+            hourly_message_limit=payload.hourly_message_limit,
+            daily_message_limit=payload.daily_message_limit,
         )
         db.add(account)
         db.flush()
@@ -284,6 +289,8 @@ def create_account(
                 "platform": payload.platform.value,
                 "account_identifier": account_identifier,
                 "status": create_status.value,
+                "hourly_message_limit": payload.hourly_message_limit,
+                "daily_message_limit": payload.daily_message_limit,
             },
         )
         db.commit()
@@ -303,6 +310,12 @@ def create_account(
     except HTTPException:
         db.rollback()
         raise
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=422,
+            detail="hourly_message_limit and daily_message_limit must be null or a positive integer.",
+        ) from exc
     except Exception as exc:
         db.rollback()
         import traceback
@@ -456,6 +469,10 @@ def update_account(
                 },
             )
         account.status = next_status
+    if "hourly_message_limit" in updates:
+        account.hourly_message_limit = updates["hourly_message_limit"]
+    if "daily_message_limit" in updates:
+        account.daily_message_limit = updates["daily_message_limit"]
 
     try:
         record_audit(
@@ -473,6 +490,12 @@ def update_account(
     except HTTPException:
         db.rollback()
         raise
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=422,
+            detail="hourly_message_limit and daily_message_limit must be null or a positive integer.",
+        ) from exc
     except Exception as exc:
         db.rollback()
         raise HTTPException(status_code=500, detail="Failed to update account.") from exc

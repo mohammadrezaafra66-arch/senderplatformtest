@@ -300,8 +300,6 @@ async def deliver_rubika_user_live(
             campaign_id=payload.campaign_id,
             context="worker",
             redis=redis,
-            hourly_cap=settings.RUBIKA_HOURLY_SEND_CAP,
-            daily_cap=settings.RUBIKA_DAILY_SEND_CAP,
             check_runtime_limits=True,
             check_pool_membership=True,
             check_send_window=True,
@@ -323,16 +321,15 @@ async def deliver_rubika_user_live(
         pool = RubikaAccountPoolManager(session)
         phase = resolve_current_phase(session)
 
-        # Phase 3: atomic quota reservation BEFORE transport (burst-safe).
-        policy = preflight.details.get("policy") or {}
-        daily_cap = int(policy.get("daily_cap") or settings.RUBIKA_DAILY_SEND_CAP)
-        hourly_cap = int(policy.get("hourly_cap") or settings.RUBIKA_HOURLY_SEND_CAP)
+        from core_engine.services.account_message_limits import resolve_account_count_limits
+
+        hourly_limit, daily_limit = resolve_account_count_limits(account)
         try:
             reserve = await reserve_send_quota(
                 redis,
                 account.id,
-                daily_cap=daily_cap,
-                hourly_cap=hourly_cap,
+                daily_cap=daily_limit,
+                hourly_cap=hourly_limit,
                 reserve_ttl_seconds=int(settings.RUBIKA_RESERVE_TTL_SECONDS),
             )
         except Exception as exc:  # noqa: BLE001 — fail closed

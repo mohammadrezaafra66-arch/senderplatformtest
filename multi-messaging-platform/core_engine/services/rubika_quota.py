@@ -77,10 +77,11 @@ end
 local daily = tonumber(redis.call("GET", daily_key) or "0")
 local hourly = tonumber(redis.call("GET", hourly_key) or "0")
 
-if daily >= daily_cap then
+-- cap > 0 enforces; cap == 0 is the internal unlimited sentinel (never from DB/API).
+if daily_cap > 0 and daily >= daily_cap then
   return {"deny", "DAILY_CAP_REACHED", "0", tostring(daily), tostring(hourly)}
 end
-if hourly >= hourly_cap then
+if hourly_cap > 0 and hourly >= hourly_cap then
   return {"deny", "HOURLY_CAP_REACHED", "0", tostring(daily), tostring(hourly)}
 end
 
@@ -238,13 +239,18 @@ async def reserve_send_quota(
     redis: "Redis",
     account_id: int,
     *,
-    daily_cap: int,
-    hourly_cap: int,
+    daily_cap: int | None = None,
+    hourly_cap: int | None = None,
     reserve_ttl_seconds: int = DEFAULT_RESERVE_TTL_SECONDS,
     clock: datetime | None = None,
     token: str | None = None,
 ) -> RubikaReserveResult:
-    """Atomically reserve one daily+hourly slot. Fail-closed on Redis errors."""
+    """Atomically reserve one daily+hourly slot. Fail-closed on Redis errors.
+
+    ``None`` caps are unlimited for that dimension. Counters still INCR.
+    """
+    from core_engine.services.account_message_limits import redis_cap_arg
+
     day = rubika_day_bucket(clock)
     hour = rubika_hour_bucket(clock)
     tok = token or uuid.uuid4().hex
@@ -256,8 +262,8 @@ async def reserve_send_quota(
         hourly_rate_key(account_id, hour),
         delay_key(account_id),
         reserve,
-        int(daily_cap),
-        int(hourly_cap),
+        redis_cap_arg(daily_cap),
+        redis_cap_arg(hourly_cap),
         int(reserve_ttl_seconds),
         DAILY_COUNTER_TTL_SECONDS,
         HOURLY_COUNTER_TTL_SECONDS,

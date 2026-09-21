@@ -172,13 +172,23 @@ def _preflight_display(
             "code": "MIN_INTERVAL_ACTIVE",
             "label": "فاصله حداقل فعال",
         }
-    if int(getattr(quota, "sent_today", 0)) >= int(limits.daily_cap):
+    from core_engine.services.account_message_limits import (
+        resolve_account_count_limits,
+        should_enforce_message_limit,
+    )
+
+    hourly_limit, daily_limit = resolve_account_count_limits(account)
+    if should_enforce_message_limit(daily_limit) and int(
+        getattr(quota, "sent_today", 0)
+    ) >= int(daily_limit):
         return {
             "send_allowed": False,
             "code": "DAILY_CAP_REACHED",
             "label": "سقف روزانه تکمیل",
         }
-    if int(getattr(quota, "sent_this_hour", 0)) >= int(limits.hourly_cap):
+    if should_enforce_message_limit(hourly_limit) and int(
+        getattr(quota, "sent_this_hour", 0)
+    ) >= int(hourly_limit):
         return {
             "send_allowed": False,
             "code": "HOURLY_CAP_REACHED",
@@ -512,6 +522,8 @@ async def build_protection_overview(
             cooldown_until=quota.cooldown_until,
             cooldown_reason=quota.cooldown_reason,
             last_send_at=_iso_or_none(account.last_used_at),
+            daily_count_cap=getattr(account, "daily_message_limit", None),
+            hourly_count_cap=getattr(account, "hourly_message_limit", None),
         )
         preflight = _preflight_display(
             circuit_state=circuit.state,
@@ -577,9 +589,11 @@ async def build_protection_overview(
                 "sent_today": policy.sent_today,
                 "daily_cap": policy.daily_cap,
                 "remaining_daily": policy.remaining_daily,
+                "daily_unlimited": policy.daily_cap is None,
                 "sent_this_hour": policy.sent_this_hour,
                 "hourly_cap": policy.hourly_cap,
                 "remaining_hourly": policy.remaining_hourly,
+                "hourly_unlimited": policy.hourly_cap is None,
                 "minimum_interval_seconds": policy.minimum_interval_seconds,
                 "next_allowed_send_at": policy.next_allowed_send_at,
                 "cooldown_until": policy.cooldown_until,
@@ -761,9 +775,11 @@ async def build_account_protection_detail(
             "sent_today": account_row.get("sent_today"),
             "daily_cap": account_row.get("daily_cap"),
             "remaining_daily": account_row.get("remaining_daily"),
+            "daily_unlimited": account_row.get("daily_unlimited"),
             "sent_this_hour": account_row.get("sent_this_hour"),
             "hourly_cap": account_row.get("hourly_cap"),
             "remaining_hourly": account_row.get("remaining_hourly"),
+            "hourly_unlimited": account_row.get("hourly_unlimited"),
             "minimum_interval_seconds": account_row.get("minimum_interval_seconds"),
             "next_allowed_send_at": account_row.get("next_allowed_send_at"),
             "cooldown_until": account_row.get("cooldown_until"),

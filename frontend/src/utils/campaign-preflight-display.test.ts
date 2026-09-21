@@ -14,6 +14,7 @@ import {
   resolvePreflightExecutionLabel,
   resolvePreflightOperationalAlerts,
 } from "./campaign-preflight-display";
+import { formatAccountCapRemaining } from "./account-message-limits";
 
 const t = (key: string, options?: { defaultValue?: string }) => {
   const map: Record<string, string> = {
@@ -144,6 +145,26 @@ describe("campaign preflight display semantics", () => {
     expect(formatReadinessRatio(0, 2, "نامشخص")).toBe("0/2");
     expect(formatUnknownOrCount(0, true, "نامشخص")).toBe("نامشخص");
     expect(formatUnknownOrCount(0, false, "نامشخص")).toBe("0");
+  });
+
+  it("does not treat unlimited remaining as redis-unknown", () => {
+    expect(
+      formatAccountCapRemaining({
+        unlimited: true,
+        remaining: null,
+        quotaKnown: false,
+        unlimitedLabel: "بدون محدودیت",
+        unknownLabel: "ظرفیت لحظه‌ای نامشخص",
+      }),
+    ).toBe("بدون محدودیت");
+    expect(
+      formatAccountCapRemaining({
+        unlimited: false,
+        remaining: null,
+        quotaKnown: false,
+        unknownLabel: "ظرفیت لحظه‌ای نامشخص",
+      }),
+    ).toBe("ظرفیت لحظه‌ای نامشخص");
   });
 
   it("splits redis / worker / no-sender alerts", () => {

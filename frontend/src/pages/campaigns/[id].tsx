@@ -53,6 +53,7 @@ import { campaignStatusLabel, SEND_STATUS_OPTIONS } from "@/utils/campaign-statu
 import { canControlCampaign, canViewCampaigns } from "@/utils/permissions";
 import { accountDisplayName, orderedSenders, resolveCampaignSenderStatusLabel } from "@/utils/sender-accounts";
 import { toJalaliDateTime } from "@/utils/jalali";
+import { formatAccountCapRemaining } from "@/utils/account-message-limits";
 import {
   controlledProductionStatusLabel,
   formatPreflightBlockers,
@@ -193,6 +194,7 @@ export default function CampaignMonitorPage() {
   const operationalAlerts = resolvePreflightOperationalAlerts(preflight);
   const capacityUnknown = isCapacityUnknown(preflight);
   const unknownLabel = t("nA");
+  const capacityUnknownLabel = t("capacityUnknownLive");
   const preparationState = resolvePreparationUiState(preflight, prepareLoading);
   const preparationLabel = preparationStatusLabel(preparationState, t);
   const showPrepareRetry =
@@ -623,7 +625,7 @@ export default function CampaignMonitorPage() {
                         {formatUnknownOrCount(
                           preflight.estimated_today_capacity,
                           capacityUnknown,
-                          unknownLabel,
+                          capacityUnknownLabel,
                         )}
                       </div>
                       <div>
@@ -631,7 +633,7 @@ export default function CampaignMonitorPage() {
                         {formatUnknownOrCount(
                           preflight.estimated_hourly_capacity,
                           capacityUnknown,
-                          unknownLabel,
+                          capacityUnknownLabel,
                         )}
                       </div>
                       <div>
@@ -639,7 +641,7 @@ export default function CampaignMonitorPage() {
                         {formatUnknownOrCount(
                           preflight.immediate_capacity,
                           capacityUnknown,
-                          unknownLabel,
+                          capacityUnknownLabel,
                         )}
                       </div>
                       <div>
@@ -677,8 +679,28 @@ export default function CampaignMonitorPage() {
                                 <td>{row.health ?? "—"}</td>
                                 <td>{resolvePreflightAccountHealthLabel(row, t)}</td>
                                 <td>{resolvePreflightExecutionLabel(row, t)}</td>
-                                <td>{row.daily_remaining ?? "—"}</td>
-                                <td>{row.hourly_remaining ?? "—"}</td>
+                                <td>
+                                  {formatAccountCapRemaining({
+                                    unlimited: row.daily_unlimited,
+                                    remaining: row.daily_remaining,
+                                    quotaKnown: row.quota_known,
+                                    unlimitedLabel:
+                                      t("dailyCapUnlimited") || "سقف روزانه: بدون محدودیت",
+                                    unknownLabel:
+                                      t("capacityUnknownLive") || "ظرفیت لحظه‌ای نامشخص",
+                                  })}
+                                </td>
+                                <td>
+                                  {formatAccountCapRemaining({
+                                    unlimited: row.hourly_unlimited,
+                                    remaining: row.hourly_remaining,
+                                    quotaKnown: row.quota_known,
+                                    unlimitedLabel:
+                                      t("hourlyCapUnlimited") || "سقف ساعتی: بدون محدودیت",
+                                    unknownLabel:
+                                      t("capacityUnknownLive") || "ظرفیت لحظه‌ای نامشخص",
+                                  })}
+                                </td>
                                 <td>
                                   {row.next_allowed_at
                                     ? new Date(row.next_allowed_at).toLocaleString("fa-IR")

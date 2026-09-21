@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from workers.config import get_worker_settings
 from workers.redis_keys import daily_rate_key, delay_key, hourly_rate_key
 
 if TYPE_CHECKING:
@@ -130,27 +129,18 @@ async def can_send_daily(
     """آیا این اکانت امروز مجاز به ارسال است؟
 
     Returns:
-        (allowed, reason_fa, count, cap)
+        (allowed, reason_fa, count, cap) — cap 0 means unlimited.
     """
-    setting_cap = get_worker_settings().WHATSAPP_DAILY_SEND_CAP
-
-    policy_daily_cap: int | None = None
-    try:
-        policy = getattr(account, "policy", None)
-        if policy is not None:
-            policy_daily_cap = policy.daily_cap
-    except Exception:
-        policy_daily_cap = None
-
-    warming_day = compute_warming_day(getattr(account, "warming_started_at", None))
+    daily_cap = getattr(account, "daily_message_limit", None)
     count = await get_daily_count(redis, account.id)
-    cap = effective_daily_cap(warming_day, policy_daily_cap, setting_cap)
+    if daily_cap is None or type(daily_cap) is not int or daily_cap <= 0:
+        return True, "", count, 0
 
-    if count < cap:
-        return True, "", count, cap
+    if count < daily_cap:
+        return True, "", count, daily_cap
     return (
         False,
-        f"سقف روزانه اکانت پر شد ({count}/{cap}، روز warming={warming_day}).",
+        f"سقف روزانه اکانت پر شد ({count}/{daily_cap}).",
         count,
-        cap,
+        daily_cap,
     )

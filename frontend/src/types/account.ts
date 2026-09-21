@@ -55,6 +55,8 @@ export type AccountItem = {
   status: AccountStatusOption;
   proxy_url: string | null;
   policy_id: number | null;
+  hourly_message_limit?: number | null;
+  daily_message_limit?: number | null;
   created_at: string;
   updated_at: string;
   last_used_at: string | null;
@@ -99,6 +101,8 @@ export type AccountCreatePayload = {
   label?: string | null;
   proxy_url?: string | null;
   status?: AccountStatusOption;
+  hourly_message_limit?: number | null;
+  daily_message_limit?: number | null;
 };
 
 export type AccountUpdatePayload = {
@@ -106,6 +110,8 @@ export type AccountUpdatePayload = {
   label?: string | null;
   proxy_url?: string | null;
   status?: AccountStatusOption;
+  hourly_message_limit?: number | null;
+  daily_message_limit?: number | null;
 };
 
 export type AccountTestConnectionResult = {

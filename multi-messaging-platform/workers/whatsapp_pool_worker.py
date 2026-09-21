@@ -221,10 +221,17 @@ class WhatsAppPoolWorker(MultiAccountWorker):
                 retryable=True,
             )
 
+        account = _load_account(account_id)
+        hourly_cap = 0
+        if account is not None:
+            account_hourly = getattr(account, "hourly_message_limit", None)
+            if type(account_hourly) is int and account_hourly > 0:
+                hourly_cap = account_hourly
+
         if await is_hourly_cap_reached(
             self.redis,
             account_id,
-            settings.WHATSAPP_HOURLY_SEND_CAP,
+            hourly_cap,
         ):
             return WorkerResult(
                 success=False,
@@ -234,8 +241,6 @@ class WhatsAppPoolWorker(MultiAccountWorker):
                 retryable=True,
             )
 
-        # Phase 4 — سقف روزانه + warming ramp. رفتار hourly دست‌نخورده می‌ماند.
-        account = _load_account(account_id)
         if account is not None:
             ok, reason, count, cap = await can_send_daily(account, self.redis)
             if not ok:

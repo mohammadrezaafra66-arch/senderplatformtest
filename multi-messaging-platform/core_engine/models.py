@@ -187,7 +187,17 @@ class RoleType(str, enum.Enum):
 
 class Account(Base):
     __tablename__ = "accounts"
-    __table_args__ = (Index("ix_accounts_platform_status", "platform", "status"),)
+    __table_args__ = (
+        Index("ix_accounts_platform_status", "platform", "status"),
+        CheckConstraint(
+            "hourly_message_limit IS NULL OR hourly_message_limit > 0",
+            name="ck_accounts_hourly_message_limit_positive",
+        ),
+        CheckConstraint(
+            "daily_message_limit IS NULL OR daily_message_limit > 0",
+            name="ck_accounts_daily_message_limit_positive",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     platform: Mapped[PlatformType] = mapped_column(Enum(PlatformType), nullable=False)
@@ -203,6 +213,9 @@ class Account(Base):
         ForeignKey("rate_policies.id"),
         nullable=True,
     )
+    # NULL = unlimited for that dimension. Positive int = exact cap.
+    hourly_message_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    daily_message_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,

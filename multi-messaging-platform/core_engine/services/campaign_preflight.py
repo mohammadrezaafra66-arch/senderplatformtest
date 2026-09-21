@@ -31,6 +31,7 @@ from core_engine.models import (
     StagedQueueItem,
     StagedQueueItemStatus,
 )
+from core_engine.services.account_message_limits import remaining_for_limit
 from core_engine.services.account_session_wiring import evaluate_account_session_readiness
 from core_engine.services.campaign_capacity import (
     AccountCapacityInput,
@@ -423,12 +424,15 @@ def _pg_only_capacity_input(
     delivery_mode: str | None,
     window_open: bool,
     applies_quota: bool,
+    account: Any | None = None,
 ) -> AccountCapacityInput:
     """Build a capacity row from Postgres only. Never invent Redis quota."""
     if not session_ready:
         block_code = readiness_code or "SESSION_INVALID"
     else:
         block_code = "NO_WORKER_CONSUMER"
+    daily_cap = getattr(account, "daily_message_limit", None) if account is not None else None
+    hourly_cap = getattr(account, "hourly_message_limit", None) if account is not None else None
     return AccountCapacityInput(
         account_id=account_id,
         assigned_remaining=assigned_n,
@@ -438,8 +442,11 @@ def _pg_only_capacity_input(
         lifecycle=None,
         remaining_daily=None,
         remaining_hourly=None,
-        daily_cap=None,
-        hourly_cap=None,
+        daily_cap=daily_cap,
+        hourly_cap=hourly_cap,
+        daily_unlimited=daily_cap is None,
+        hourly_unlimited=hourly_cap is None,
+        quota_known=False,
         window_open=window_open,
         applies_quota=applies_quota,
         block_code=block_code,
@@ -749,8 +756,6 @@ async def evaluate_campaign_send_preflight(
         code = CAMPAIGN_NO_SENDERS
         blockers.append(_issue(code))
 
-    cfg_daily = int(settings.RUBIKA_DAILY_SEND_CAP)
-    cfg_hourly = int(settings.RUBIKA_HOURLY_SEND_CAP)
     cfg_min = int(settings.RUBIKA_MIN_SEND_DELAY_SECONDS)
     cfg_max = int(settings.RUBIKA_MAX_SEND_DELAY_SECONDS)
 
@@ -772,8 +777,11 @@ async def evaluate_campaign_send_preflight(
         lifecycle = None
         remaining_daily = None
         remaining_hourly = None
-        daily_cap = None
-        hourly_cap = None
+        daily_cap = getattr(account, "daily_message_limit", None) if account is not None else None
+        hourly_cap = getattr(account, "hourly_message_limit", None) if account is not None else None
+        daily_unlimited = daily_cap is None
+        hourly_unlimited = hourly_cap is None
+        quota_known = False
         next_allowed = None
         cooldown_until = None
         label = account.label if account is not None else None
@@ -833,6 +841,7 @@ async def evaluate_campaign_send_preflight(
                     delivery_mode=delivery_mode,
                     window_open=account_window_open,
                     applies_quota=applies_quota,
+                    account=account,
                 )
             )
             continue
@@ -883,6 +892,7 @@ async def evaluate_campaign_send_preflight(
                     delivery_mode=delivery_mode,
                     window_open=account_window_open,
                     applies_quota=applies_quota,
+                    account=account,
                 )
             )
             continue
@@ -899,31 +909,47 @@ async def evaluate_campaign_send_preflight(
         lifecycle = lifecycle_state.value
         limits = resolve_effective_limits(
             lifecycle_state,
-            configured_daily_cap=cfg_daily,
-            configured_hourly_cap=cfg_hourly,
+            configured_daily_cap=int(settings.RUBIKA_DAILY_SEND_CAP),
+            configured_hourly_cap=int(settings.RUBIKA_HOURLY_SEND_CAP),
             configured_min_interval=cfg_min,
             configured_max_interval=cfg_max,
             jitter_enabled=bool(settings.RUBIKA_JITTER_ENABLED),
         )
+        min_interval_seconds = limits.min_interval_seconds
         if applies_quota:
-            daily_cap = limits.daily_cap
-            hourly_cap = limits.hourly_cap
-            remaining_daily = max(0, limits.daily_cap - int(snap.sent_today))
-            remaining_hourly = max(0, limits.hourly_cap - int(snap.sent_this_hour))
+            remaining_daily = remaining_for_limit(daily_cap, int(snap.sent_today))
+            remaining_hourly = remaining_for_limit(hourly_cap, int(snap.sent_this_hour))
+            quota_known = True
             if snap.cooldown_until and cooldown_until is None:
                 cooldown_until = _parse_dt(snap.cooldown_until)
             if snap.delay_ttl_seconds > 0:
                 next_allowed = evaluated + timedelta(seconds=int(snap.delay_ttl_seconds))
             policy = pf.details.get("policy") if isinstance(pf.details, dict) else None
             if isinstance(policy, dict):
-                if policy.get("remaining_daily") is not None:
-                    remaining_daily = max(0, int(policy["remaining_daily"]))
-                if policy.get("remaining_hourly") is not None:
-                    remaining_hourly = max(0, int(policy["remaining_hourly"]))
+                if "remaining_daily" in policy:
+                    remaining_daily = policy.get("remaining_daily")
+                    if remaining_daily is not None:
+                        remaining_daily = max(0, int(remaining_daily))
+                if "remaining_hourly" in policy:
+                    remaining_hourly = policy.get("remaining_hourly")
+                    if remaining_hourly is not None:
+                        remaining_hourly = max(0, int(remaining_hourly))
+                if "daily_unlimited" in policy:
+                    daily_unlimited = bool(policy.get("daily_unlimited"))
+                if "hourly_unlimited" in policy:
+                    hourly_unlimited = bool(policy.get("hourly_unlimited"))
                 if policy.get("daily_cap") is not None:
                     daily_cap = int(policy["daily_cap"])
+                    daily_unlimited = False
+                elif policy.get("daily_unlimited") is True:
+                    daily_cap = None
+                    daily_unlimited = True
                 if policy.get("hourly_cap") is not None:
                     hourly_cap = int(policy["hourly_cap"])
+                    hourly_unlimited = False
+                elif policy.get("hourly_unlimited") is True:
+                    hourly_cap = None
+                    hourly_unlimited = True
 
         inputs.append(
             AccountCapacityInput(
@@ -937,7 +963,10 @@ async def evaluate_campaign_send_preflight(
                 remaining_hourly=remaining_hourly,
                 daily_cap=daily_cap,
                 hourly_cap=hourly_cap,
-                min_interval_seconds=cfg_min,
+                daily_unlimited=daily_unlimited,
+                hourly_unlimited=hourly_unlimited,
+                quota_known=quota_known,
+                min_interval_seconds=min_interval_seconds,
                 next_allowed_at=next_allowed,
                 cooldown_until=cooldown_until,
                 window_open=account_window_open,
@@ -1313,6 +1342,11 @@ async def evaluate_campaign_send_preflight(
                 "worker_coverage": worker_coverage,
                 "daily_remaining": plan.remaining_daily,
                 "hourly_remaining": plan.remaining_hourly,
+                "daily_unlimited": plan.daily_unlimited,
+                "hourly_unlimited": plan.hourly_unlimited,
+                "daily_cap": plan.daily_cap,
+                "hourly_cap": plan.hourly_cap,
+                "quota_known": plan.quota_known,
                 "next_allowed_at": plan.next_allowed_at.isoformat() if plan.next_allowed_at else None,
                 "window_state": "open" if plan.window_open else "closed",
                 "cooldown_until": plan.cooldown_until.isoformat() if plan.cooldown_until else None,

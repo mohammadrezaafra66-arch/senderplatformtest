@@ -44,6 +44,11 @@ import {
   runtimeStatusIcon,
   runtimeStatusLabel,
 } from "@/utils/account-status";
+import {
+  ACCOUNT_MESSAGE_LIMIT_PLACEHOLDER,
+  accountMessageLimitToInputValue,
+  parseAccountMessageLimitInput,
+} from "@/utils/account-message-limits";
 import { toJalaliDateTime } from "@/utils/jalali";
 import { canArchiveAccounts, canManageAccounts, canViewAccounts } from "@/utils/permissions";
 
@@ -76,6 +81,8 @@ type EditFormState = {
   label: string;
   proxy_url: string;
   status: AccountStatusOption;
+  hourly_message_limit: string;
+  daily_message_limit: string;
 };
 
 const defaultCreateForm = (): CreateFormState => ({
@@ -92,6 +99,8 @@ function toEditForm(account: AccountItem): EditFormState {
     label: account.label ?? "",
     proxy_url: account.proxy_url ?? "",
     status: account.status,
+    hourly_message_limit: accountMessageLimitToInputValue(account.hourly_message_limit),
+    daily_message_limit: accountMessageLimitToInputValue(account.daily_message_limit),
   };
 }
 
@@ -238,11 +247,23 @@ export default function AccountsPage() {
     setError(null);
     setNotice(null);
     try {
+      let hourly_message_limit: number | null;
+      let daily_message_limit: number | null;
+      try {
+        hourly_message_limit = parseAccountMessageLimitInput(editForm.hourly_message_limit);
+        daily_message_limit = parseAccountMessageLimitInput(editForm.daily_message_limit);
+      } catch {
+        setError(t("actionFailed"));
+        setSaving(false);
+        return;
+      }
       await updateAccount(editingId, {
         account_identifier: editForm.account_identifier.trim(),
         label: editForm.label.trim() || null,
         proxy_url: editForm.proxy_url.trim() || null,
         status: editForm.status,
+        hourly_message_limit,
+        daily_message_limit,
       });
       setNotice(t("accountSaved"));
       setEditingId(null);
@@ -935,6 +956,38 @@ export default function AccountsPage() {
                                         </option>
                                       ))}
                                     </select>
+                                  </label>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+                                    <span>{t("hourlyMessageLimit")}</span>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      step={1}
+                                      placeholder={t("messageLimitUnlimitedPlaceholder") || ACCOUNT_MESSAGE_LIMIT_PLACEHOLDER}
+                                      value={editForm.hourly_message_limit}
+                                      onChange={(e) =>
+                                        setEditForm((f) =>
+                                          f ? { ...f, hourly_message_limit: e.target.value } : f,
+                                        )
+                                      }
+                                      style={inputStyle}
+                                    />
+                                  </label>
+                                  <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+                                    <span>{t("dailyMessageLimit")}</span>
+                                    <input
+                                      type="number"
+                                      min={1}
+                                      step={1}
+                                      placeholder={t("messageLimitUnlimitedPlaceholder") || ACCOUNT_MESSAGE_LIMIT_PLACEHOLDER}
+                                      value={editForm.daily_message_limit}
+                                      onChange={(e) =>
+                                        setEditForm((f) =>
+                                          f ? { ...f, daily_message_limit: e.target.value } : f,
+                                        )
+                                      }
+                                      style={inputStyle}
+                                    />
                                   </label>
                                   <div style={{ display: "flex", gap: 8, alignItems: "end" }}>
                                     <button

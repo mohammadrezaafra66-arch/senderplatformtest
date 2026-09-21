@@ -1,9 +1,9 @@
 """Schemaهای request/response برای API."""
 
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, PositiveInt, model_validator
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, PositiveInt, model_validator
 
 from core_engine.models import AccountStatus, PlatformType
 
@@ -612,6 +612,8 @@ class AccountResponse(BaseModel):
     status: AccountStatus
     proxy_url: str | None = None
     policy_id: int | None = None
+    hourly_message_limit: int | None = None
+    daily_message_limit: int | None = None
     created_at: datetime
     updated_at: datetime
     last_used_at: datetime | None = None
@@ -651,12 +653,28 @@ class ArchiveActionResponse(BaseModel):
     details: dict = Field(default_factory=dict)
 
 
+def _optional_positive_message_limit(value: Any) -> int | None:
+    if value is None:
+        return None
+    if type(value) is not int or value <= 0:
+        raise ValueError("must be a positive integer or null")
+    return value
+
+
+OptionalPositiveMessageLimit = Annotated[
+    int | None,
+    BeforeValidator(_optional_positive_message_limit),
+]
+
+
 class AccountCreateRequest(BaseModel):
     platform: PlatformType
     account_identifier: str = Field(..., min_length=1, max_length=32)
     label: str | None = Field(default=None, max_length=255)
     proxy_url: str | None = Field(default=None, max_length=512)
     status: AccountStatus = AccountStatus.ACTIVE
+    hourly_message_limit: OptionalPositiveMessageLimit = None
+    daily_message_limit: OptionalPositiveMessageLimit = None
 
 
 class AccountCreateResponse(BaseModel):
@@ -670,6 +688,8 @@ class AccountUpdateRequest(BaseModel):
     label: str | None = Field(default=None, max_length=255)
     proxy_url: str | None = Field(default=None, max_length=512)
     status: AccountStatus | None = None
+    hourly_message_limit: OptionalPositiveMessageLimit = None
+    daily_message_limit: OptionalPositiveMessageLimit = None
 
 
 class AccountTestConnectionRequest(BaseModel):

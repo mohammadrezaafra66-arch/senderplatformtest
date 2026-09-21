@@ -60,11 +60,11 @@ class RubikaPolicySnapshot:
     lifecycle_state: str
     warmup_day: int
     sent_today: int
-    daily_cap: int
-    remaining_daily: int
+    daily_cap: int | None
+    remaining_daily: int | None
     sent_this_hour: int
-    hourly_cap: int
-    remaining_hourly: int
+    hourly_cap: int | None
+    remaining_hourly: int | None
     minimum_interval_seconds: int
     last_send_at: str | None
     next_allowed_send_at: str | None
@@ -257,17 +257,21 @@ def build_policy_snapshot(
     last_send_at: str | None = None,
     send_window_phase: str | None = None,
     details: dict[str, Any] | None = None,
+    daily_count_cap: int | None = None,
+    hourly_count_cap: int | None = None,
 ) -> RubikaPolicySnapshot:
+    from core_engine.services.account_message_limits import remaining_for_limit
+
     return RubikaPolicySnapshot(
         account_id=account_id,
         lifecycle_state=lifecycle.value,
         warmup_day=warmup_day,
         sent_today=sent_today,
-        daily_cap=limits.daily_cap,
-        remaining_daily=max(0, limits.daily_cap - sent_today),
+        daily_cap=daily_count_cap,
+        remaining_daily=remaining_for_limit(daily_count_cap, sent_today),
         sent_this_hour=sent_this_hour,
-        hourly_cap=limits.hourly_cap,
-        remaining_hourly=max(0, limits.hourly_cap - sent_this_hour),
+        hourly_cap=hourly_count_cap,
+        remaining_hourly=remaining_for_limit(hourly_count_cap, sent_this_hour),
         minimum_interval_seconds=limits.min_interval_seconds,
         last_send_at=last_send_at,
         next_allowed_send_at=next_allowed_send_at,
