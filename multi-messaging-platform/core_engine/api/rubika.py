@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -77,15 +77,27 @@ def list_rubika_pool_accounts(
     current_user: Annotated[
         dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
     ] = None,
+    limit: int | None = Query(default=None, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
 ):
-    """همه اکانت‌های روبیکا، با ردیف pool هر کدام (اگر در استخری عضو باشند)."""
+    """اکانت‌های روبیکای غیرآرشیو، با ردیف pool هر کدام (اگر در استخری عضو باشند).
+
+    Archived accounts stay in accounts / rubika_account_pool tables; this list
+    hides them from query, table, total_count, and pagination.
+    """
     rows = (
         db.query(Account, RubikaAccountPool)
         .outerjoin(RubikaAccountPool, RubikaAccountPool.account_id == Account.id)
         .filter(Account.platform == PlatformType.RUBIKA)
+        .filter(Account.archived_at.is_(None))
         .order_by(Account.id.asc())
         .all()
     )
+    total_count = len(rows)
+    if offset:
+        rows = rows[offset:]
+    if limit is not None:
+        rows = rows[:limit]
 
     items = [
         RubikaPoolAccountItem(
@@ -101,7 +113,7 @@ def list_rubika_pool_accounts(
         )
         for account, pool_row in rows
     ]
-    return RubikaAccountsListResponse(items=items, total_count=len(items))
+    return RubikaAccountsListResponse(items=items, total_count=total_count)
 
 
 @router.post("/accounts/{account_id}/pool", response_model=RubikaPoolUpsertResponse)

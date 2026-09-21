@@ -14,6 +14,7 @@ import {
 } from "@/lib/rubika-api";
 import type { RubikaPoolAccountItem, RubikaPoolPhase, RubikaScheduleItem } from "@/types/rubika";
 import { toJalaliDateTime } from "@/utils/jalali";
+import { visibleRubikaPoolAccounts } from "@/utils/rubika-pool-visibility";
 
 const PHASES: RubikaPoolPhase[] = ["day", "night", "listener", "status"];
 
@@ -116,6 +117,7 @@ export function RubikaPoolPanel({ canManage }: RubikaPoolPanelProps) {
     }
   }
 
+  const visibleAccounts = visibleRubikaPoolAccounts(accounts);
   const [scheduleDraft, setScheduleDraft] = useState<Record<string, RubikaScheduleItem>>({});
 
   function scheduleKey(slot: number) {
@@ -196,9 +198,9 @@ export function RubikaPoolPanel({ canManage }: RubikaPoolPanelProps) {
           </Button>
         </div>
 
-        {loading && accounts.length === 0 ? (
+        {loading && visibleAccounts.length === 0 ? (
           <EmptyState>{t("loading")}</EmptyState>
-        ) : accounts.length === 0 ? (
+        ) : visibleAccounts.length === 0 ? (
           <EmptyState>{t("rubikaPoolEmpty")}</EmptyState>
         ) : (
           <TableWrap>
@@ -215,7 +217,7 @@ export function RubikaPoolPanel({ canManage }: RubikaPoolPanelProps) {
                 </tr>
               </thead>
               <tbody>
-                {accounts.map((acc) => (
+                {visibleAccounts.map((acc) => (
                   <Fragment key={`${acc.account_id}-${acc.phase}`}>
                   <tr>
                     <td>

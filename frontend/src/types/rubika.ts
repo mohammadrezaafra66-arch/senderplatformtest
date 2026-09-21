@@ -10,6 +10,8 @@ export type RubikaPoolAccountItem = {
   last_error_at: string | null;
   last_error_message: string | null;
   last_used_at: string | null;
+  archived?: boolean | null;
+  archived_at?: string | null;
 };
 
 export type RubikaAccountsListResult = {
