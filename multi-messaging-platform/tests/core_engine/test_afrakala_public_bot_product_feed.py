@@ -49,8 +49,10 @@ def _cash_price(
     settlement_type_code: str = "cash",
     final: int | None = None,
     rounded: int | None = None,
+    current: int | None = None,
+    include_current: bool = True,
 ) -> dict:
-    return {
+    row = {
         "sale_price_type_title": price_type,
         "sale_price_type_code": price_type_code,
         "settlement_type_code": settlement_type_code,
@@ -58,6 +60,9 @@ def _cash_price(
         "rounded_sale_price": rounded if rounded is not None else amount,
         "computed_at": computed_at,
     }
+    if include_current:
+        row["current_price"] = amount if current is None else current
+    return row
 
 
 def _product(
@@ -141,23 +146,33 @@ def test_multiple_cash_prices_select_newest():
     assert computed_at == datetime(2026, 8, 22, 12, 0, tzinfo=timezone.utc)
 
 
-def test_uses_rounded_prepayment_price_not_final_sale_price():
+def test_current_price_maps_to_prepayment_display_price():
     record = {
         "sale_price_type_code": "cash_price",
         "settlement_type_code": "cash",
+        "current_price": 27_500_000,
         "final_sale_price": 28_500_000,
         "rounded_sale_price": 28_000_000,
         "computed_at": "2026-08-22T10:00:00+00:00",
     }
     selected = select_cash_price([record])
     assert selected is not None
-    assert selected[0] == Decimal("28000000")
+    assert selected[0] == Decimal("27500000")
+    flat, reason = normalize_public_bot_product(
+        _product(product_id=44, prices=[record]),
+        default_currency="IRR",
+    )
+    assert reason is None
+    assert flat is not None
+    assert flat["prepayment_display_price"] == Decimal("27500000")
+    assert flat["cash_price"] == Decimal("27500000")
 
 
 def test_other_cash_settlement_is_rejected():
     record = {
         "sale_price_type_code": "cash_price",
         "settlement_type_code": "three_day",
+        "current_price": 30_200_000,
         "final_sale_price": 30_500_000,
         "rounded_sale_price": 30_000_000,
         "computed_at": "2026-08-22T12:00:00+00:00",
@@ -168,18 +183,19 @@ def test_other_cash_settlement_is_rejected():
 def test_missing_settlement_metadata_is_rejected():
     record = {
         "sale_price_type_code": "cash_price",
-        "rounded_sale_price": 28_000_000,
+        "current_price": 28_000_000,
+        "rounded_sale_price": 28_100_000,
         "computed_at": "2026-08-22T10:00:00+00:00",
     }
     assert select_cash_price([record]) is None
 
 
-def test_missing_rounded_price_does_not_fallback_to_final():
+def test_missing_current_price_does_not_fallback_to_rounded_or_final():
     record = {
         "sale_price_type_code": "cash_price",
         "settlement_type_code": "cash",
         "final_sale_price": 28_500_000,
-        "rounded_sale_price": None,
+        "rounded_sale_price": 28_000_000,
         "computed_at": "2026-08-22T10:00:00+00:00",
     }
     assert select_cash_price([record]) is None
@@ -193,8 +209,9 @@ def test_malformed_price_rejected():
                 "sale_price_type_title": "نقدی",
                 "sale_price_type_code": "cash_price",
                 "settlement_type_code": "cash",
-                "rounded_sale_price": 12.5,
-                "final_sale_price": 12.5,
+                "current_price": 12.5,
+                "rounded_sale_price": 28_000_000,
+                "final_sale_price": 28_500_000,
                 "computed_at": "2026-08-22T10:00:00+00:00",
             }
         ],
@@ -315,19 +332,149 @@ def test_pagination_across_multiple_pages(monkeypatch):
 
 
 def test_duplicate_product_id_deduped(monkeypatch):
-    same = _product(product_id=42)
+    first = _product(
+        product_id=42,
+        prices=[_cash_price(amount=10_000_000, current=10_500_000, computed_at="2026-08-22T08:00:00+00:00")],
+    )
+    later = _product(
+        product_id=42,
+        prices=[_cash_price(amount=99_000_000, current=99_500_000, computed_at="2026-08-22T18:00:00+00:00")],
+    )
 
     def handler(url, headers):
         if "page=1" in url:
-            return _MockResponse(payload=_page_payload([same], has_more=True))
+            return _MockResponse(payload=_page_payload([first], has_more=True))
         if "page=2" in url:
-            return _MockResponse(payload=_page_payload([same], has_more=False))
+            return _MockResponse(payload=_page_payload([later], has_more=False))
         raise AssertionError(url)
 
     _install_client(monkeypatch, handler)
     provider = AfraKalaPublicBotProductFeedProvider(base_url="https://afrakala.example")
     result = provider.fetch_advertising_products(clock=FRESH_CLOCK)
     assert len(result.products) == 1
+    assert result.products[0].price == Decimal("10500000")
+
+
+def test_list_pages_filters_and_newest_current_price_without_detail(monkeypatch):
+    """Regression: paginate the list, unique by id, and do not call product detail."""
+    calls: list[str] = []
+    keep_prices = [
+        _cash_price(amount=10_000_000, current=10_100_000, computed_at="2026-08-22T08:00:00+00:00"),
+        _cash_price(amount=12_000_000, current=12_300_000, computed_at="2026-08-22T12:00:00+00:00"),
+        _cash_price(
+            amount=99_000_000,
+            current=99_000_000,
+            computed_at="2026-08-22T13:00:00+00:00",
+            settlement_type_code="three_day",
+        ),
+    ]
+    inactive = _product(product_id="drop-status", stock_status="available")
+    inactive["status"] = "inactive"
+    pages = {
+        1: _page_payload(
+            [
+                _product(
+                    product_id="keep-1",
+                    sku="K1",
+                    name="محصول نگه داشته",
+                    prices=keep_prices,
+                    labels=[{"title": "سایت"}, {"title": "تبلیغات"}],
+                ),
+                _product(product_id="drop-stock", stock_status="unavailable"),
+                inactive,
+                _product(product_id="drop-label", labels=[{"title": "پیشنهاد"}, {"title": "سایت"}]),
+            ],
+            has_more=True,
+        ),
+        2: _page_payload(
+            [
+                _product(product_id="drop-similar", labels=[{"title": "تبلیغاتی"}]),
+                _product(
+                    product_id="drop-settlement",
+                    prices=[
+                        _cash_price(
+                            amount=8_000_000,
+                            current=8_000_000,
+                            computed_at=FIXTURE_SOURCE_TS,
+                            settlement_type_code="three_day",
+                        )
+                    ],
+                ),
+                _product(
+                    product_id="drop-price",
+                    prices=[
+                        _cash_price(
+                            amount=7_000_000,
+                            computed_at=FIXTURE_SOURCE_TS,
+                            include_current=False,
+                        )
+                    ],
+                ),
+                _product(
+                    product_id="keep-1",
+                    prices=[
+                        _cash_price(
+                            amount=1,
+                            current=1,
+                            computed_at="2026-08-22T19:00:00+00:00",
+                        )
+                    ],
+                ),
+            ],
+            has_more=True,
+        ),
+        3: _page_payload(
+            [
+                _product(
+                    product_id="keep-2",
+                    sku="K2",
+                    name="محصول دوم",
+                    labels=[{"title": "  تبلیغات  "}],
+                    prices=[
+                        _cash_price(
+                            amount=5_000_000,
+                            current=5_500_000,
+                            computed_at=FIXTURE_SOURCE_TS,
+                        )
+                    ],
+                ),
+            ],
+            has_more=False,
+        ),
+    }
+
+    def handler(url, headers):
+        calls.append(url)
+        assert "/api/public/bot/products/" not in url
+        assert headers.get("Authorization") == "Bearer secret-token"
+        if "page=1" in url:
+            return _MockResponse(payload=pages[1])
+        if "page=2" in url:
+            return _MockResponse(payload=pages[2])
+        if "page=3" in url:
+            return _MockResponse(payload=pages[3])
+        raise AssertionError(f"unexpected url {url}")
+
+    _install_client(monkeypatch, handler)
+    provider = AfraKalaPublicBotProductFeedProvider(
+        base_url="https://afrakala.example",
+        token="secret-token",
+        page_size=100,
+    )
+    result = provider.fetch_advertising_products(clock=FRESH_CLOCK)
+    assert [call.split("?")[-1] for call in calls] == [
+        "page=1&page_size=100",
+        "page=2&page_size=100",
+        "page=3&page_size=100",
+    ]
+    assert [product.external_id for product in result.products] == ["keep-1", "keep-2"]
+    assert result.products[0].price == Decimal("12300000")
+    assert result.products[1].price == Decimal("5500000")
+    assert result.discarded_invalid == 6
+    assert "unavailable_stock" in result.diagnostics
+    assert "inactive_product" in result.diagnostics
+    assert "not_advertising" in result.diagnostics
+    assert "missing_cash_price" in result.diagnostics
 
 
 def test_no_advertising_products_eligible(monkeypatch):

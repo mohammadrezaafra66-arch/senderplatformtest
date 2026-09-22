@@ -30,6 +30,9 @@ logger = logging.getLogger("core_engine.services.product_feed.afrakala_public_bo
 MAX_BODY_BYTES = 2_000_000
 DEFAULT_PAGE_SIZE = 100
 MAX_PAGES = 200
+# List payload already includes labels, stock, status, and prices.
+# Per-product GET /api/public/bot/products/{id} is not called; that route
+# returns 429 after repeated requests and is not required for eligibility.
 PRODUCTS_PATH = "/api/public/bot/products"
 
 
@@ -225,6 +228,13 @@ class AfraKalaPublicBotProductFeedProvider:
         timeout: httpx.Timeout,
         host: str,
     ) -> Any:
+        path = urlparse(url).path.rstrip("/") or "/"
+        if path != PRODUCTS_PATH:
+            raise ProductFeedError(
+                PRODUCT_FEED_UNAVAILABLE,
+                details={"reason": "product_detail_not_used"},
+            )
+
         last_error: Exception | None = None
         response: httpx.Response | None = None
         for attempt in range(2):

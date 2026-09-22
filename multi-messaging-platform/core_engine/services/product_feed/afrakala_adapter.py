@@ -70,16 +70,20 @@ def is_unavailable_stock(stock_status: Any) -> bool:
 def _price_from_prepayment_record(
     record: dict[str, Any],
 ) -> Decimal | None:
-    """Use only AfraKala's rounded/display price for the exact prepayment row."""
-    return parse_price(record.get("rounded_sale_price"))
+    """Map the cash prepayment row's current_price to the display price.
+
+    rounded_sale_price and final_sale_price are not the prepayment display price.
+    """
+    return parse_price(record.get("current_price"))
 
 
 def select_cash_price(
     prices: Any,
 ) -> tuple[Decimal, datetime | None] | None:
-    """Select only cash_price + cash (prepayment), using rounded_sale_price.
+    """Select only cash_price + cash, newest by computed_at.
 
-    Do not fall back to another settlement type or final_sale_price.
+    The selected current_price is the prepayment display price.
+    Do not fall back to another settlement type, rounded_sale_price, or final_sale_price.
     """
     if not isinstance(prices, list):
         return None
@@ -146,7 +150,7 @@ def normalize_public_bot_product(
     if not decision.eligible or decision.product is None:
         codes = set(decision.reason_codes)
         status = normalize_whitespace(raw.get("status")).lower()
-        if status and status != "active":
+        if status != "active":
             return None, "inactive_product"
         if PRODUCT_UNAVAILABLE in codes:
             stock = normalize_whitespace(raw.get("stock_status"))
@@ -179,6 +183,7 @@ def normalize_public_bot_product(
         "sku": decision.product.product_code,
         "name": decision.product.name,
         "cash_price": price,
+        "prepayment_display_price": price,
         "currency": default_currency,
         "advertising": True,
         "source_updated_at": source_updated_at.isoformat() if source_updated_at else None,

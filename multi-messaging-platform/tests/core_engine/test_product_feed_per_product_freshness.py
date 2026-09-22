@@ -123,6 +123,7 @@ def test_old_computed_at_preserved_in_source_updated_at_metadata():
                 "sale_price_type_title": "نقدی",
                 "sale_price_type_code": "cash_price",
                 "settlement_type_code": "cash",
+                "current_price": 76_400_000,
                 "final_sale_price": 76_548_750,
                 "rounded_sale_price": 76_500_000,
                 "computed_at": OLD_COMPUTED_AT,

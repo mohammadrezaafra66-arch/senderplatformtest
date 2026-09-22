@@ -20,7 +20,7 @@ CASH_PREPAYMENT_PRICE_MISSING = "CASH_PREPAYMENT_PRICE_MISSING"
 INVALID_PRICE = "INVALID_PRICE"
 INVALID_PRODUCT_DATA = "INVALID_PRODUCT_DATA"
 
-_AVAILABLE_STOCK = frozenset({"available", "in_stock", "instock", "موجود"})
+_AVAILABLE_STOCK = frozenset({"available"})
 _UNAVAILABLE_STOCK = frozenset(
     {
         "out_of_stock",
@@ -72,18 +72,28 @@ def has_exact_advertising_tag(raw: dict[str, Any]) -> bool:
     return any(exact_advertising_tag(tag) for tag in product_tags(raw))
 
 
+def _entity_name(value: Any) -> str:
+    """Brand and category arrive as strings or as {name: ...} objects."""
+    if isinstance(value, dict):
+        return normalize_product_tag(value.get("name") or value.get("title"))
+    return normalize_product_tag(value)
+
+
 def availability_state(raw: dict[str, Any]) -> str:
-    """available, unavailable, or unknown. Unknown fails closed."""
+    """available, unavailable, or unknown. Unknown fails closed.
+
+    Live list rows are eligible only for status=active and stock_status=available.
+    """
     status = normalize_product_tag(raw.get("status")).lower()
     stock = normalize_product_tag(raw.get("stock_status"))
     stock_key = stock.lower()
-    if status and status != "active":
+    if status != "active":
         return "unavailable"
     if not stock:
         return "unknown"
     if stock_key in _UNAVAILABLE_STOCK or stock in _UNAVAILABLE_STOCK:
         return "unavailable"
-    if stock_key in _AVAILABLE_STOCK or stock in _AVAILABLE_STOCK:
+    if stock_key in _AVAILABLE_STOCK:
         return "available"
     return "unknown"
 
@@ -144,8 +154,8 @@ def evaluate_advertising_product(
     if not external_id or not name:
         reasons.append(INVALID_PRODUCT_DATA)
 
-    brand = normalize_product_tag(raw.get("brand")) or None
-    category = normalize_product_tag(raw.get("category")) or None
+    brand = _entity_name(raw.get("brand")) or None
+    category = _entity_name(raw.get("category")) or None
     product = None
     eligible = not reasons
     if eligible and price is not None:

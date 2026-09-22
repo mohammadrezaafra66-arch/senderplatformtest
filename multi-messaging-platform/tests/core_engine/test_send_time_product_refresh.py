@@ -25,7 +25,8 @@ def _price(amount, *, settlement="cash"):
     return {
         "sale_price_type_code": "cash_price",
         "settlement_type_code": settlement,
-        "rounded_sale_price": amount,
+        "current_price": amount,
+        "rounded_sale_price": amount + 1,
     }
 
 

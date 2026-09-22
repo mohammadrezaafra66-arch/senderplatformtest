@@ -22,8 +22,9 @@ def _price(amount: int, *, code: str = "cash_price", settlement: str = "cash") -
         "sale_price_type_title": "نقدی",
         "sale_price_type_code": code,
         "settlement_type_code": settlement,
-        "rounded_sale_price": amount,
-        "final_sale_price": amount,
+        "current_price": amount,
+        "rounded_sale_price": amount + 1,
+        "final_sale_price": amount + 2,
         "computed_at": "2026-08-22T10:00:00+00:00",
     }
 
@@ -59,6 +60,16 @@ def _row(
     if stock is not None:
         row["stock_status"] = stock
     return row
+
+
+def test_brand_and_category_objects_use_name():
+    row = _row(product_id="obj", name="محصول", tags=[ADVERTISING_TAG], available=True, cash=4_000_000)
+    row["brand"] = {"name": "بوش"}
+    row["category"] = {"name": "لوازم خانگی"}
+    result = evaluate_advertising_product(row)
+    assert result.eligible is True
+    assert result.brand == "بوش"
+    assert result.category == "لوازم خانگی"
 
 
 def test_exact_advertising_tag_and_whitespace():
