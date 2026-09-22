@@ -7,7 +7,10 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
-from core_engine.services.product_feed.afrakala_adapter import select_cash_price
+from core_engine.services.product_feed.afrakala_adapter import (
+    final_sale_price_issue,
+    select_cash_price,
+)
 from core_engine.services.product_feed.canonical import parse_price
 from core_engine.services.product_feed.dto import AdvertisingProduct
 
@@ -144,7 +147,10 @@ def evaluate_advertising_product(
         # Already-flattened rows may carry the selected cash price only.
         price = parse_price(raw.get("cash_price"))
     if price is None:
-        reasons.append(CASH_PREPAYMENT_PRICE_MISSING)
+        if raw.get("prices") and final_sale_price_issue(raw.get("prices")) == "invalid_final_sale_price":
+            reasons.append(INVALID_PRICE)
+        else:
+            reasons.append(CASH_PREPAYMENT_PRICE_MISSING)
     elif price <= 0:
         reasons.append(INVALID_PRICE)
         price = None

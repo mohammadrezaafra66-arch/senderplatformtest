@@ -18,13 +18,13 @@ from core_engine.services.product_feed.selection import select_explicit_products
 
 
 def _price(amount: int, *, code: str = "cash_price", settlement: str = "cash") -> dict:
+    title = "نقدی" if code == "cash_price" and settlement == "cash" else "سایر"
     return {
-        "sale_price_type_title": "نقدی",
+        "sale_price_type_title": title,
         "sale_price_type_code": code,
         "settlement_type_code": settlement,
-        "current_price": amount,
+        "final_sale_price": amount,
         "rounded_sale_price": amount + 1,
-        "final_sale_price": amount + 2,
         "computed_at": "2026-08-22T10:00:00+00:00",
     }
 

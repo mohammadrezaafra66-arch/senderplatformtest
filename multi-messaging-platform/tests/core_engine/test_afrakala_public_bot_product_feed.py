@@ -45,23 +45,18 @@ def _cash_price(
     amount: int,
     computed_at: str,
     price_type: str = "نقدی",
-    price_type_code: str = "cash_price",
-    settlement_type_code: str = "cash",
     final: int | None = None,
     rounded: int | None = None,
-    current: int | None = None,
-    include_current: bool = True,
+    include_final: bool = True,
 ) -> dict:
     row = {
         "sale_price_type_title": price_type,
-        "sale_price_type_code": price_type_code,
-        "settlement_type_code": settlement_type_code,
-        "final_sale_price": final if final is not None else amount,
-        "rounded_sale_price": rounded if rounded is not None else amount,
+        "sale_price_type_id": "type-1",
+        "rounded_sale_price": rounded if rounded is not None else amount + 1,
         "computed_at": computed_at,
     }
-    if include_current:
-        row["current_price"] = amount if current is None else current
+    if include_final:
+        row["final_sale_price"] = amount if final is None else final
     return row
 
 
@@ -126,11 +121,11 @@ def test_nested_labels_with_whitespace():
 def test_only_site_price_rejected():
     raw = _product(
         product_id=4,
-        prices=[_cash_price(amount=1, computed_at="2026-08-22T10:00:00+00:00", price_type="سایت", price_type_code="site_price")],
+        prices=[_cash_price(amount=1, computed_at="2026-08-22T10:00:00+00:00", price_type="سایت")],
     )
     flat, reason = normalize_public_bot_product(raw, default_currency="IRR")
     assert flat is None
-    assert reason == "missing_cash_price"
+    assert reason == "missing_final_sale_price"
 
 
 def test_multiple_cash_prices_select_newest():
@@ -146,33 +141,30 @@ def test_multiple_cash_prices_select_newest():
     assert computed_at == datetime(2026, 8, 22, 12, 0, tzinfo=timezone.utc)
 
 
-def test_current_price_maps_to_prepayment_display_price():
+def test_final_sale_price_maps_to_prepayment_display_price():
     record = {
-        "sale_price_type_code": "cash_price",
-        "settlement_type_code": "cash",
-        "current_price": 27_500_000,
+        "sale_price_type_title": "نقدی",
+        "sale_price_type_id": "type-1",
         "final_sale_price": 28_500_000,
         "rounded_sale_price": 28_000_000,
         "computed_at": "2026-08-22T10:00:00+00:00",
     }
     selected = select_cash_price([record])
     assert selected is not None
-    assert selected[0] == Decimal("27500000")
+    assert selected[0] == Decimal("28500000")
     flat, reason = normalize_public_bot_product(
         _product(product_id=44, prices=[record]),
         default_currency="IRR",
     )
     assert reason is None
     assert flat is not None
-    assert flat["prepayment_display_price"] == Decimal("27500000")
-    assert flat["cash_price"] == Decimal("27500000")
+    assert flat["prepayment_display_price"] == Decimal("28500000")
+    assert flat["cash_price"] == Decimal("28500000")
 
 
-def test_other_cash_settlement_is_rejected():
+def test_non_cash_title_is_rejected():
     record = {
-        "sale_price_type_code": "cash_price",
-        "settlement_type_code": "three_day",
-        "current_price": 30_200_000,
+        "sale_price_type_title": "سایت",
         "final_sale_price": 30_500_000,
         "rounded_sale_price": 30_000_000,
         "computed_at": "2026-08-22T12:00:00+00:00",
@@ -180,45 +172,65 @@ def test_other_cash_settlement_is_rejected():
     assert select_cash_price([record]) is None
 
 
-def test_missing_settlement_metadata_is_rejected():
+def test_missing_cash_title_is_rejected():
     record = {
-        "sale_price_type_code": "cash_price",
-        "current_price": 28_000_000,
+        "final_sale_price": 28_000_000,
         "rounded_sale_price": 28_100_000,
         "computed_at": "2026-08-22T10:00:00+00:00",
     }
     assert select_cash_price([record]) is None
 
 
-def test_missing_current_price_does_not_fallback_to_rounded_or_final():
+def test_rounded_price_is_not_used_when_final_is_missing():
     record = {
-        "sale_price_type_code": "cash_price",
-        "settlement_type_code": "cash",
-        "final_sale_price": 28_500_000,
+        "sale_price_type_title": "نقدی",
         "rounded_sale_price": 28_000_000,
         "computed_at": "2026-08-22T10:00:00+00:00",
     }
     assert select_cash_price([record]) is None
+    flat, reason = normalize_public_bot_product(
+        _product(product_id=45, prices=[record]),
+        default_currency="IRR",
+    )
+    assert flat is None
+    assert reason == "missing_final_sale_price"
 
 
-def test_malformed_price_rejected():
-    raw = _product(
+def test_malformed_and_zero_final_price_rejected():
+    malformed = _product(
         product_id=5,
         prices=[
             {
                 "sale_price_type_title": "نقدی",
-                "sale_price_type_code": "cash_price",
-                "settlement_type_code": "cash",
-                "current_price": 12.5,
+                "final_sale_price": 12.5,
                 "rounded_sale_price": 28_000_000,
-                "final_sale_price": 28_500_000,
                 "computed_at": "2026-08-22T10:00:00+00:00",
             }
         ],
     )
-    flat, reason = normalize_public_bot_product(raw, default_currency="IRR")
+    flat, reason = normalize_public_bot_product(malformed, default_currency="IRR")
     assert flat is None
-    assert reason == "missing_cash_price"
+    assert reason == "invalid_final_sale_price"
+    zero = _product(
+        product_id=51,
+        prices=[
+            {
+                "sale_price_type_title": "نقدی",
+                "final_sale_price": 0,
+                "rounded_sale_price": 28_000_000,
+                "computed_at": "2026-08-22T11:00:00+00:00",
+            },
+            {
+                "sale_price_type_title": "نقدی",
+                "final_sale_price": 10_000_000,
+                "rounded_sale_price": 9_000_000,
+                "computed_at": "2026-08-22T08:00:00+00:00",
+            },
+        ],
+    )
+    flat, reason = normalize_public_bot_product(zero, default_currency="IRR")
+    assert flat is None
+    assert reason == "invalid_final_sale_price"
 
 
 def test_unavailable_stock_discarded():
@@ -334,11 +346,11 @@ def test_pagination_across_multiple_pages(monkeypatch):
 def test_duplicate_product_id_deduped(monkeypatch):
     first = _product(
         product_id=42,
-        prices=[_cash_price(amount=10_000_000, current=10_500_000, computed_at="2026-08-22T08:00:00+00:00")],
+        prices=[_cash_price(amount=10_500_000, rounded=10_000_000, computed_at="2026-08-22T08:00:00+00:00")],
     )
     later = _product(
         product_id=42,
-        prices=[_cash_price(amount=99_000_000, current=99_500_000, computed_at="2026-08-22T18:00:00+00:00")],
+        prices=[_cash_price(amount=99_500_000, rounded=99_000_000, computed_at="2026-08-22T18:00:00+00:00")],
     )
 
     def handler(url, headers):
@@ -355,17 +367,17 @@ def test_duplicate_product_id_deduped(monkeypatch):
     assert result.products[0].price == Decimal("10500000")
 
 
-def test_list_pages_filters_and_newest_current_price_without_detail(monkeypatch):
+def test_list_pages_filters_and_newest_final_price_without_detail(monkeypatch):
     """Regression: paginate the list, unique by id, and do not call product detail."""
     calls: list[str] = []
     keep_prices = [
-        _cash_price(amount=10_000_000, current=10_100_000, computed_at="2026-08-22T08:00:00+00:00"),
-        _cash_price(amount=12_000_000, current=12_300_000, computed_at="2026-08-22T12:00:00+00:00"),
+        _cash_price(amount=10_100_000, rounded=10_000_000, computed_at="2026-08-22T08:00:00+00:00"),
+        _cash_price(amount=12_300_000, rounded=12_000_000, computed_at="2026-08-22T12:00:00+00:00"),
         _cash_price(
             amount=99_000_000,
-            current=99_000_000,
+            rounded=98_000_000,
             computed_at="2026-08-22T13:00:00+00:00",
-            settlement_type_code="three_day",
+            price_type="سایت",
         ),
     ]
     inactive = _product(product_id="drop-status", stock_status="available")
@@ -390,13 +402,12 @@ def test_list_pages_filters_and_newest_current_price_without_detail(monkeypatch)
             [
                 _product(product_id="drop-similar", labels=[{"title": "تبلیغاتی"}]),
                 _product(
-                    product_id="drop-settlement",
+                    product_id="drop-title",
                     prices=[
                         _cash_price(
                             amount=8_000_000,
-                            current=8_000_000,
                             computed_at=FIXTURE_SOURCE_TS,
-                            settlement_type_code="three_day",
+                            price_type="سایت",
                         )
                     ],
                 ),
@@ -406,7 +417,7 @@ def test_list_pages_filters_and_newest_current_price_without_detail(monkeypatch)
                         _cash_price(
                             amount=7_000_000,
                             computed_at=FIXTURE_SOURCE_TS,
-                            include_current=False,
+                            include_final=False,
                         )
                     ],
                 ),
@@ -415,7 +426,6 @@ def test_list_pages_filters_and_newest_current_price_without_detail(monkeypatch)
                     prices=[
                         _cash_price(
                             amount=1,
-                            current=1,
                             computed_at="2026-08-22T19:00:00+00:00",
                         )
                     ],
@@ -432,8 +442,8 @@ def test_list_pages_filters_and_newest_current_price_without_detail(monkeypatch)
                     labels=[{"title": "  تبلیغات  "}],
                     prices=[
                         _cash_price(
-                            amount=5_000_000,
-                            current=5_500_000,
+                            amount=5_500_000,
+                            rounded=5_000_000,
                             computed_at=FIXTURE_SOURCE_TS,
                         )
                     ],
@@ -474,7 +484,8 @@ def test_list_pages_filters_and_newest_current_price_without_detail(monkeypatch)
     assert "unavailable_stock" in result.diagnostics
     assert "inactive_product" in result.diagnostics
     assert "not_advertising" in result.diagnostics
-    assert "missing_cash_price" in result.diagnostics
+    assert "missing_final_sale_price" in result.diagnostics
+    assert "invalid_final_sale_price" not in result.diagnostics
 
 
 def test_no_advertising_products_eligible(monkeypatch):

@@ -67,57 +67,60 @@ def is_unavailable_stock(stock_status: Any) -> bool:
     return normalized in _UNAVAILABLE_STOCK_STATUSES
 
 
-def _price_from_prepayment_record(
-    record: dict[str, Any],
-) -> Decimal | None:
-    """Map the cash prepayment row's current_price to the display price.
+def _is_exact_cash_title(record: dict[str, Any]) -> bool:
+    return normalize_whitespace(record.get("sale_price_type_title")) == CASH_PRICE_TYPE_TITLE
 
-    rounded_sale_price and final_sale_price are not the prepayment display price.
-    """
-    return parse_price(record.get("current_price"))
+
+def newest_cash_price_record(
+    prices: Any,
+) -> tuple[dict[str, Any], datetime | None] | None:
+    """Newest row whose sale_price_type_title is exactly نقدی."""
+    if not isinstance(prices, list):
+        return None
+    candidates: list[tuple[datetime, dict[str, Any], datetime | None]] = []
+    for record in prices:
+        if not isinstance(record, dict) or not _is_exact_cash_title(record):
+            continue
+        computed_at = _parse_dt(record.get("computed_at"))
+        sort_key = computed_at or datetime.min.replace(tzinfo=timezone.utc)
+        candidates.append((sort_key, record, computed_at))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    _, record, computed_at = candidates[0]
+    return record, computed_at
+
+
+def final_sale_price_issue(prices: Any) -> str:
+    """Why the newest نقدی row cannot become the prepayment display price."""
+    found = newest_cash_price_record(prices)
+    if found is None:
+        return "missing_final_sale_price"
+    record, _computed_at = found
+    raw_price = record.get("final_sale_price")
+    if raw_price is None or (isinstance(raw_price, str) and not raw_price.strip()):
+        return "missing_final_sale_price"
+    price = parse_price(raw_price)
+    if price is None or price <= 0:
+        return "invalid_final_sale_price"
+    return "missing_final_sale_price"
 
 
 def select_cash_price(
     prices: Any,
 ) -> tuple[Decimal, datetime | None] | None:
-    """Select only cash_price + cash, newest by computed_at.
+    """Use final_sale_price from the newest exact title نقدی.
 
-    The selected current_price is the prepayment display price.
-    Do not fall back to another settlement type, rounded_sale_price, or final_sale_price.
+    rounded_sale_price is never a display price. An empty, invalid, or zero
+    final_sale_price on that newest row rejects the product.
     """
-    if not isinstance(prices, list):
+    found = newest_cash_price_record(prices)
+    if found is None:
         return None
-
-    candidates: list[tuple[datetime, Decimal, datetime | None]] = []
-    for record in prices:
-        if not isinstance(record, dict):
-            continue
-
-        price_type_code = normalize_whitespace(
-            record.get("sale_price_type_code")
-        ).lower()
-        settlement_type_code = normalize_whitespace(
-            record.get("settlement_type_code")
-        ).lower()
-
-        if price_type_code != CASH_PRICE_TYPE_CODE:
-            continue
-        if settlement_type_code != PREPAYMENT_SETTLEMENT_TYPE_CODE:
-            continue
-
-        price = _price_from_prepayment_record(record)
-        if price is None:
-            continue
-
-        computed_at = _parse_dt(record.get("computed_at"))
-        sort_key = computed_at or datetime.min.replace(tzinfo=timezone.utc)
-        candidates.append((sort_key, price, computed_at))
-
-    if not candidates:
+    record, computed_at = found
+    price = parse_price(record.get("final_sale_price"))
+    if price is None or price <= 0:
         return None
-
-    candidates.sort(key=lambda item: item[0], reverse=True)
-    _, price, computed_at = candidates[0]
     return price, computed_at
 
 
@@ -158,7 +161,7 @@ def normalize_public_bot_product(
                 return None, "unknown_availability"
             return None, "unavailable_stock"
         if CASH_PREPAYMENT_PRICE_MISSING in codes or INVALID_PRICE in codes:
-            return None, "missing_cash_price"
+            return None, final_sale_price_issue(raw.get("prices"))
         if MISSING_ADVERTISING_TAG in codes:
             return None, "not_advertising"
         if INVALID_PRODUCT_DATA in codes:

@@ -23,10 +23,11 @@ from core_engine.services.product_feed.service import set_product_feed_provider
 
 def _price(amount, *, settlement="cash"):
     return {
-        "sale_price_type_code": "cash_price",
+        "sale_price_type_title": "نقدی" if settlement == "cash" else "سایر",
         "settlement_type_code": settlement,
-        "current_price": amount,
+        "final_sale_price": amount,
         "rounded_sale_price": amount + 1,
+        "computed_at": "2026-08-22T10:00:00+00:00",
     }
 
 
