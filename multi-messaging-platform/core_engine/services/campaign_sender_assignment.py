@@ -24,6 +24,7 @@ from core_engine.models import (
     ChannelSession,
     Message,
     PlatformType,
+    RenderedMessage,
     RubikaAccountPool,
     RubikaIdentityStatus,
     RubikaSessionStatus,
@@ -60,10 +61,17 @@ def _sender_error(code: str, message: str) -> HTTPException:
     )
 
 
-def resolve_campaign_sender_accounts(db: Session, campaign: Campaign) -> list[Account]:
+def resolve_campaign_sender_accounts(
+    db: Session,
+    campaign: Campaign,
+    *,
+    persist_required: bool = False,
+) -> list[Account]:
     """Return one validated sender pool; an empty relation set means Auto mode.
 
-    Auto mode selects ONLY campaign_eligible=True accounts (L18 + capacity base).
+    Prepare must pass persist_required=True so only current CampaignAccount rows
+    are used. Auto mode (empty links) selects campaign_eligible=True accounts
+    and is not allowed for message preparation.
     Manual/persisted links return assigned enabled accounts (ASSIGNED_BUT_NOT_READY
     allowed); start/preflight gates still block non-ready senders.
     """
@@ -74,6 +82,11 @@ def resolve_campaign_sender_accounts(db: Session, campaign: Campaign) -> list[Ac
         .all()
     )
     if not links:
+        if persist_required:
+            raise _sender_error(
+                "no_campaign_sender_account",
+                "No sender account is assigned to this campaign.",
+            )
         accounts = (
             db.query(Account)
             .filter(
@@ -127,8 +140,85 @@ def resolve_campaign_sender_accounts(db: Session, campaign: Campaign) -> list[Ac
                 "campaign_sender_platform_mismatch",
                 f"Campaign sender account {account.id} does not match {campaign.platform.value}.",
             )
+        if getattr(account, "archived_at", None) is not None:
+            raise _sender_error(
+                "campaign_sender_inactive",
+                f"Campaign sender account {account.id} is not active.",
+            )
         result.append(account)
+    if persist_required and not result:
+        raise _sender_error(
+            "no_ready_campaign_sender_account",
+            "No allowed ready sender account is assigned to this campaign.",
+        )
     return result
+
+
+def resync_campaign_prepared_senders(db: Session, campaign: Campaign) -> None:
+    """Map existing prepared artifacts onto current CampaignAccount rows.
+
+    Updates Message.account_id and queue payload account_id only. Does not
+    create messages, change campaign status, or start delivery.
+    """
+    from sqlalchemy.orm.attributes import flag_modified
+
+    try:
+        senders = resolve_campaign_sender_accounts(db, campaign, persist_required=True)
+    except HTTPException:
+        return
+    if not senders:
+        return
+
+    recipients = (
+        db.query(CampaignRecipient)
+        .filter(CampaignRecipient.campaign_id == campaign.id)
+        .order_by(CampaignRecipient.id.asc())
+        .all()
+    )
+    index_by_contact = {int(row.contact_id): index for index, row in enumerate(recipients)}
+
+    def assigned_id_for_contact(contact_id: int | None) -> int:
+        index = index_by_contact.get(int(contact_id or 0), 0)
+        return int(senders[index % len(senders)].id)
+
+    messages = (
+        db.query(Message)
+        .filter(Message.campaign_id == campaign.id)
+        .order_by(Message.id.asc())
+        .all()
+    )
+    for message in messages:
+        new_id = assigned_id_for_contact(message.contact_id)
+        if int(message.account_id) != new_id:
+            message.account_id = new_id
+
+    staged_items = (
+        db.query(StagedQueueItem)
+        .filter(StagedQueueItem.campaign_id == campaign.id)
+        .all()
+    )
+    for item in staged_items:
+        payload = dict(item.queue_payload or {})
+        new_id = assigned_id_for_contact(item.contact_id)
+        if payload.get("account_id") != new_id:
+            payload["account_id"] = new_id
+            item.queue_payload = payload
+            flag_modified(item, "queue_payload")
+
+    rendered_items = (
+        db.query(RenderedMessage)
+        .filter(RenderedMessage.campaign_id == campaign.id)
+        .all()
+    )
+    for rendered in rendered_items:
+        payload = dict(rendered.queue_payload or {}) if rendered.queue_payload else {}
+        if not payload:
+            continue
+        new_id = assigned_id_for_contact(rendered.contact_id)
+        if payload.get("account_id") != new_id:
+            payload["account_id"] = new_id
+            rendered.queue_payload = payload
+            flag_modified(rendered, "queue_payload")
 
 
 def resolve_assignment_target_phase(db: Session) -> str:

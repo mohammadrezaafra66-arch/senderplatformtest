@@ -13,6 +13,7 @@ from core_engine.models import (
     Account,
     AccountStatus,
     Campaign,
+    CampaignAccount,
     CampaignRecipient,
     CampaignStatus,
     Contact,
@@ -21,6 +22,7 @@ from core_engine.models import (
     RenderedMessage,
     StagedQueueItem,
 )
+from core_engine.config import get_settings
 from core_engine.schemas.phase4 import PrepareMessagesRequest
 from core_engine.services import campaign_control
 from core_engine.services.phase4_prepare import (
@@ -28,6 +30,7 @@ from core_engine.services.phase4_prepare import (
     prepare_campaign_messages,
     render_campaign_template,
 )
+from core_engine.services.phase4_utils import build_staged_queue_payload
 
 client = TestClient(app)
 
@@ -91,6 +94,13 @@ def campaign_env(pg_session_factory):
         contact = _attach_contact(
             session, campaign, first_name=first_name, phone=phone
         )
+        session.add(
+            CampaignAccount(
+                campaign_id=campaign.id,
+                account_id=sender.id,
+                priority=1,
+            )
+        )
         session.commit()
         created_campaigns.append(campaign.id)
         created_contacts.append(contact.id)
@@ -111,6 +121,9 @@ def campaign_env(pg_session_factory):
         session.query(Message).filter(Message.campaign_id == campaign_id).delete(
             synchronize_session=False
         )
+        session.query(CampaignAccount).filter(
+            CampaignAccount.campaign_id == campaign_id
+        ).delete(synchronize_session=False)
         session.query(Campaign).filter(Campaign.id == campaign_id).delete(
             synchronize_session=False
         )
@@ -435,8 +448,41 @@ def test_recipient_uniqueness_prevents_duplicate_contacts(campaign_env):
     )
 
 
-def test_staging_payload_stays_dry_run_only(campaign_env):
-    """Preparing must never mark anything as pushed to a real queue."""
+def test_build_staged_queue_payload_defaults_to_experimental():
+    payload = build_staged_queue_payload(
+        campaign_id=1,
+        contact_id=1,
+        rendered_message_id=1,
+        message_id=1,
+        account_id=1,
+        channel="rubika",
+        phone="+989120000000",
+        channel_handle=None,
+        final_text="x",
+    )
+    assert payload["dry_run"] is True
+
+
+def test_build_staged_queue_payload_honors_explicit_dry_run_false():
+    payload = build_staged_queue_payload(
+        campaign_id=1,
+        contact_id=1,
+        rendered_message_id=1,
+        message_id=1,
+        account_id=1,
+        channel="rubika",
+        phone="+989120000000",
+        channel_handle=None,
+        final_text="x",
+        dry_run=False,
+    )
+    assert payload["dry_run"] is False
+
+
+def test_staging_payload_stays_dry_run_only(campaign_env, monkeypatch):
+    """DRY_RUN=true stages an experimental queue and never Redis-pushes."""
+    monkeypatch.setenv("DRY_RUN", "true")
+    get_settings.cache_clear()
     session, factory = campaign_env
     campaign, _ = factory(
         title="dry-only",
@@ -456,6 +502,32 @@ def test_staging_payload_stays_dry_run_only(campaign_env):
         .one()
     )
     assert staged.queue_payload["dry_run"] is True
+    assert staged.queue_payload["safety_note"] == "DB staging only. Not pushed to Redis."
+
+
+def test_staging_payload_follows_settings_dry_run_false(campaign_env, monkeypatch):
+    """DRY_RUN=false stages a real-queue flag; prepare still does not Redis-push."""
+    monkeypatch.setenv("DRY_RUN", "false")
+    get_settings.cache_clear()
+    session, factory = campaign_env
+    campaign, _ = factory(
+        title="real-queue-flag",
+        template_text=TEMPLATE_A,
+        first_name="مهرداد",
+        phone="+989120000117",
+    )
+
+    result = prepare_campaign_messages(
+        session, campaign.id, PrepareMessagesRequest(force_mock_output=False)
+    )
+
+    assert result.redis_queue_pushed is False
+    staged = (
+        session.query(StagedQueueItem)
+        .filter(StagedQueueItem.campaign_id == campaign.id)
+        .one()
+    )
+    assert staged.queue_payload["dry_run"] is False
     assert staged.queue_payload["safety_note"] == "DB staging only. Not pushed to Redis."
 
 

@@ -222,8 +222,15 @@ def test_auto_round_robin_filters_status_and_platform(sender_env):
     session, make_campaign, make_account = sender_env
     campaign = make_campaign(contact_count=5)
     first, second = make_account(), make_account()
+    make_account()  # ACTIVE but not on CampaignAccount — must not be used
     make_account(status=AccountStatus.RESTING)
     make_account(platform=PlatformType.RUBIKA)
+    session.add_all(
+        [
+            CampaignAccount(campaign_id=campaign.id, account_id=first.id, priority=1),
+            CampaignAccount(campaign_id=campaign.id, account_id=second.id, priority=2),
+        ]
+    )
     session.commit()
     prepare_campaign_messages(session, campaign.id, PrepareMessagesRequest())
     assert [row.account_id for row in _assignments(session, campaign.id)] == [
@@ -238,7 +245,7 @@ def test_auto_round_robin_filters_status_and_platform(sender_env):
 @pytest.mark.parametrize(
     ("case", "code"),
     [
-        ("auto_empty", "no_active_sender_account"),
+        ("auto_empty", "no_campaign_sender_account"),
         ("manual_disabled", "no_enabled_campaign_sender"),
         ("manual_inactive", "campaign_sender_inactive"),
         ("manual_mismatch", "campaign_sender_platform_mismatch"),
@@ -272,8 +279,13 @@ def test_sender_validation_fails_before_writes(sender_env, case, code):
 def test_prepare_is_idempotent_and_keeps_assignments(sender_env):
     session, make_campaign, make_account = sender_env
     campaign = make_campaign(contact_count=4)
-    make_account()
-    make_account()
+    first, second = make_account(), make_account()
+    session.add_all(
+        [
+            CampaignAccount(campaign_id=campaign.id, account_id=first.id, priority=1),
+            CampaignAccount(campaign_id=campaign.id, account_id=second.id, priority=2),
+        ]
+    )
     session.commit()
     prepare_campaign_messages(session, campaign.id, PrepareMessagesRequest())
     first = [(row.id, row.account_id) for row in _assignments(session, campaign.id)]
@@ -300,6 +312,22 @@ def test_start_and_debug_prepare_use_the_same_assignment_algorithm(
     debug_campaign = make_campaign(contact_count=4)
     start_campaign = make_campaign(contact_count=4)
     first, second = make_account(), make_account()
+    session.add_all(
+        [
+            CampaignAccount(
+                campaign_id=debug_campaign.id, account_id=first.id, priority=1
+            ),
+            CampaignAccount(
+                campaign_id=debug_campaign.id, account_id=second.id, priority=2
+            ),
+            CampaignAccount(
+                campaign_id=start_campaign.id, account_id=first.id, priority=1
+            ),
+            CampaignAccount(
+                campaign_id=start_campaign.id, account_id=second.id, priority=2
+            ),
+        ]
+    )
     session.commit()
 
     prepare_campaign_messages(session, debug_campaign.id, PrepareMessagesRequest())

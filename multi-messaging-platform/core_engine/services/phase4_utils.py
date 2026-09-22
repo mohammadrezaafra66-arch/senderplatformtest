@@ -127,8 +127,13 @@ def build_staged_queue_payload(
     channel_handle: str | None,
     final_text: str,
     metadata: dict[str, Any] | None = None,
+    dry_run: bool = True,
 ) -> dict[str, Any]:
-    """Build a pure dict for DB staging — never pushes to Redis or workers."""
+    """Build a pure dict for DB staging — never pushes to Redis or workers.
+
+    ``dry_run`` defaults to experimental. Prepare must pass settings.DRY_RUN
+    explicitly so DRY_RUN=false stages a real queue flag.
+    """
     settings = get_settings()
     payload: dict[str, Any] = {
         "campaign_id": campaign_id,
@@ -140,7 +145,7 @@ def build_staged_queue_payload(
         "phone": normalize_phone(phone),
         "channel_handle": channel_handle,
         "final_text": final_text,
-        "dry_run": True,
+        "dry_run": bool(dry_run),
         "real_queue_push_enabled": settings.REAL_QUEUE_PUSH_ENABLED,
         "ready_for_queue": True,
         "safety_note": "DB staging only. Not pushed to Redis.",

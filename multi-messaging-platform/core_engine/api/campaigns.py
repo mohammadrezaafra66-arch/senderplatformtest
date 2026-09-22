@@ -64,6 +64,7 @@ from core_engine.models import (
 from core_engine.services.audit_service import record_audit
 from core_engine.services.campaign_sender_assignment import (
     ensure_automatic_campaign_sender_assignments,
+    resync_campaign_prepared_senders,
 )
 from core_engine.services.contact_delete import is_contact_deleted
 from core_engine.services.campaign_control import start_campaign, stop_campaign
@@ -353,6 +354,8 @@ def _sync_campaign_accounts(
             ))
         else:
             link.priority = priority
+    db.flush()
+    resync_campaign_prepared_senders(db, campaign)
 
 
 @router.get("", response_model=CampaignsListResponse)
@@ -619,6 +622,8 @@ def update_campaign_accounts(
     try:
         if not payload.account_ids and campaign.platform == PlatformType.RUBIKA:
             ensure_automatic_campaign_sender_assignments(db, campaign)
+            db.flush()
+            resync_campaign_prepared_senders(db, campaign)
         else:
             _sync_campaign_accounts(db, campaign, payload.account_ids)
         db.commit()

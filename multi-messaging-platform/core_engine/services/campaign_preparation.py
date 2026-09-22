@@ -65,7 +65,7 @@ def evaluate_preparation_readiness(db: Session, campaign: Campaign) -> list[dict
         return blockers
 
     try:
-        senders = resolve_campaign_sender_accounts(db, campaign)
+        senders = resolve_campaign_sender_accounts(db, campaign, persist_required=True)
         if not senders:
             blockers.append(_issue(NO_SENDERS))
     except HTTPException as exc:

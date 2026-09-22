@@ -28,10 +28,12 @@ from core_engine.models import (
     RenderedMessage,
     StagedQueueItem,
 )
+from core_engine.services.campaign_footer import append_campaign_footer
 
 AUTH = {"Authorization": "Bearer fake_token"}
 ISOLATED_DB = DEFAULT_PYTEST_DATABASE
 TEMPLATE = "سلام {{first_name}}، پیام تست."
+APPROVED_PILOT_TEXT = "این یک پیام آزمایشی سامانه افرا پیام است. لطفاً نادیده بگیرید."
 
 
 @pytest.fixture(autouse=True)
@@ -72,6 +74,33 @@ def _account(session: Session, *, label: str | None = None) -> Account:
     return account
 
 
+def _account_with_id(session: Session, account_id: int) -> Account:
+    existing = session.get(Account, account_id)
+    if existing is not None:
+        existing.platform = PlatformType.RUBIKA
+        existing.status = AccountStatus.ACTIVE
+        existing.archived_at = None
+        existing.label = existing.label or f"put-acc-{account_id}"
+        session.flush()
+        return existing
+    account = Account(
+        id=account_id,
+        platform=PlatformType.RUBIKA,
+        status=AccountStatus.ACTIVE,
+        label=f"put-acc-{account_id}",
+        phone_number=_phone().lstrip("+"),
+    )
+    session.add(account)
+    session.flush()
+    session.execute(
+        text(
+            "SELECT setval(pg_get_serial_sequence('accounts', 'id'), "
+            "(SELECT COALESCE(MAX(id), 1) FROM accounts))"
+        )
+    )
+    return account
+
+
 def _contact(session: Session) -> Contact:
     phone = _phone()
     contact = Contact(
@@ -85,13 +114,18 @@ def _contact(session: Session) -> Contact:
     return contact
 
 
-def _draft_campaign(session: Session, *, with_recipient: bool = True) -> Campaign:
+def _draft_campaign(
+    session: Session,
+    *,
+    with_recipient: bool = True,
+    template_text: str = TEMPLATE,
+) -> Campaign:
     campaign = Campaign(
         name=f"put-no-prep-{uuid.uuid4().hex[:8]}",
         title="put-no-prep",
         channel="rubika",
         platform=PlatformType.RUBIKA,
-        template_text=TEMPLATE,
+        template_text=template_text,
         use_gpt=False,
         include_products=False,
         status=CampaignStatus.DRAFT.value,
@@ -238,3 +272,231 @@ def test_explicit_prepare_still_works_after_put_accounts(client, pg_session_fact
     assert counts["rendered"] >= 1
     assert counts["queue"] >= 1
     assert counts["accounts"] == 1
+
+
+def test_prepare_without_campaign_account_creates_no_artifacts(client, pg_session_factory):
+    session = pg_session_factory()
+    _assert_isolated(session)
+    _account(session)
+    campaign = _draft_campaign(session)
+
+    prepared = client.post(
+        f"/campaigns/{campaign.id}/prepare",
+        json={},
+        headers=AUTH,
+    )
+    assert prepared.status_code == 400, prepared.text
+    session.expire_all()
+    row = session.query(Campaign).filter(Campaign.id == campaign.id).one()
+    assert row.status == CampaignStatus.DRAFT.value
+    counts = _counts(session, campaign.id)
+    assert counts["messages"] == 0
+    assert counts["rendered"] == 0
+    assert counts["queue"] == 0
+
+
+def test_prepare_after_replacing_sender_174_uses_only_197(client, pg_session_factory):
+    session = pg_session_factory()
+    _assert_isolated(session)
+    stale = _account_with_id(session, 174)
+    ready = _account_with_id(session, 197)
+    campaign = _draft_campaign(session)
+    assert stale.id == 174
+    assert ready.id == 197
+
+    first = client.put(
+        f"/campaigns/{campaign.id}/accounts",
+        json={"account_ids": [174]},
+        headers=AUTH,
+    )
+    assert first.status_code == 200, first.text
+    _assert_not_prepared(first.json(), session, campaign)
+    assert first.json()["account_ids"] == [174]
+
+    replaced = client.put(
+        f"/campaigns/{campaign.id}/accounts",
+        json={"account_ids": [197]},
+        headers=AUTH,
+    )
+    assert replaced.status_code == 200, replaced.text
+    _assert_not_prepared(replaced.json(), session, campaign)
+    assert replaced.json()["account_ids"] == [197]
+
+    prepared = client.post(
+        f"/campaigns/{campaign.id}/prepare",
+        json={},
+        headers=AUTH,
+    )
+    assert prepared.status_code == 200, prepared.text
+    session.expire_all()
+    messages = (
+        session.query(Message).filter(Message.campaign_id == campaign.id).all()
+    )
+    assert [message.account_id for message in messages] == [197]
+    assert session.query(Message).filter(Message.account_id == 174).count() == 0
+    staged = (
+        session.query(StagedQueueItem)
+        .filter(StagedQueueItem.campaign_id == campaign.id)
+        .all()
+    )
+    assert staged
+    assert all(item.queue_payload.get("account_id") == 197 for item in staged)
+    links = (
+        session.query(CampaignAccount)
+        .filter(CampaignAccount.campaign_id == campaign.id)
+        .all()
+    )
+    assert [link.account_id for link in links] == [197]
+
+
+def test_put_accounts_resyncs_stale_message_from_174_to_197(client, pg_session_factory):
+    session = pg_session_factory()
+    _assert_isolated(session)
+    _account_with_id(session, 174)
+    _account_with_id(session, 197)
+    campaign = _draft_campaign(session)
+
+    assigned = client.put(
+        f"/campaigns/{campaign.id}/accounts",
+        json={"account_ids": [174]},
+        headers=AUTH,
+    )
+    assert assigned.status_code == 200, assigned.text
+    prepared = client.post(
+        f"/campaigns/{campaign.id}/prepare",
+        json={},
+        headers=AUTH,
+    )
+    assert prepared.status_code == 200, prepared.text
+    session.expire_all()
+    assert [
+        row.account_id
+        for row in session.query(Message).filter(Message.campaign_id == campaign.id)
+    ] == [174]
+
+    replaced = client.put(
+        f"/campaigns/{campaign.id}/accounts",
+        json={"account_ids": [197]},
+        headers=AUTH,
+    )
+    assert replaced.status_code == 200, replaced.text
+    auto = replaced.json().get("auto_prepare") or {}
+    assert auto.get("attempted") is False
+    assert auto.get("prepared") is False
+    assert auto.get("skip_reason") == "accounts_update_does_not_prepare"
+    session.expire_all()
+    row = session.query(Campaign).filter(Campaign.id == campaign.id).one()
+    assert row.status == CampaignStatus.PREPARED.value
+    messages = (
+        session.query(Message).filter(Message.campaign_id == campaign.id).all()
+    )
+    assert [message.account_id for message in messages] == [197]
+    counts = _counts(session, campaign.id)
+    assert counts["messages"] == 1
+    assert counts["rendered"] == 1
+    assert counts["queue"] == 1
+    staged = (
+        session.query(StagedQueueItem)
+        .filter(StagedQueueItem.campaign_id == campaign.id)
+        .one()
+    )
+    assert staged.queue_payload.get("account_id") == 197
+
+
+def _assign_197_and_prepare(client, campaign_id: int):
+    assigned = client.put(
+        f"/campaigns/{campaign_id}/accounts",
+        json={"account_ids": [197]},
+        headers=AUTH,
+    )
+    assert assigned.status_code == 200, assigned.text
+    prepared = client.post(
+        f"/campaigns/{campaign_id}/prepare",
+        json={},
+        headers=AUTH,
+    )
+    assert prepared.status_code == 200, prepared.text
+    return prepared
+
+
+def _assert_message_bound_to_197(session: Session, campaign_id: int) -> StagedQueueItem:
+    messages = session.query(Message).filter(Message.campaign_id == campaign_id).all()
+    assert [message.account_id for message in messages] == [197]
+    links = (
+        session.query(CampaignAccount)
+        .filter(CampaignAccount.campaign_id == campaign_id)
+        .all()
+    )
+    assert [link.account_id for link in links] == [197]
+    staged = (
+        session.query(StagedQueueItem)
+        .filter(StagedQueueItem.campaign_id == campaign_id)
+        .one()
+    )
+    assert staged.queue_payload.get("account_id") == 197
+    return staged
+
+
+def test_prepare_footer_off_matches_approved_62_char_text(
+    client, pg_session_factory, monkeypatch
+):
+    monkeypatch.setenv("CAMPAIGN_FOOTER_ENABLED", "false")
+    monkeypatch.setenv("DRY_RUN", "false")
+    get_settings.cache_clear()
+    session = pg_session_factory()
+    _assert_isolated(session)
+    _account_with_id(session, 197)
+    campaign = _draft_campaign(session, template_text=APPROVED_PILOT_TEXT)
+
+    _assign_197_and_prepare(client, campaign.id)
+    session.expire_all()
+    staged = _assert_message_bound_to_197(session, campaign.id)
+    assert len(APPROVED_PILOT_TEXT) == 62
+    assert staged.final_text == APPROVED_PILOT_TEXT
+    assert len(staged.final_text) == 62
+    assert staged.queue_payload.get("dry_run") is False
+
+
+def test_prepare_footer_on_keeps_previous_append_behavior(
+    client, pg_session_factory, monkeypatch
+):
+    monkeypatch.setenv("CAMPAIGN_FOOTER_ENABLED", "true")
+    monkeypatch.setenv("CAMPAIGN_CONTACT_PHONE", "02174393000")
+    monkeypatch.setenv("CAMPAIGN_WHATSAPP_CHANNEL_URL", "https://whatsapp.example/channel")
+    monkeypatch.setenv("CAMPAIGN_TELEGRAM_CHANNEL_URL", "https://t.me/example")
+    monkeypatch.setenv("CAMPAIGN_RUBIKA_CHANNEL_URL", "https://rubika.ir/example")
+    monkeypatch.setenv("CAMPAIGN_BALE_CHANNEL_URL", "https://ble.ir/example")
+    monkeypatch.setenv("CAMPAIGN_SOROUSH_CHANNEL_URL", "https://splus.ir/example")
+    monkeypatch.setenv("DRY_RUN", "true")
+    get_settings.cache_clear()
+    session = pg_session_factory()
+    _assert_isolated(session)
+    _account_with_id(session, 197)
+    campaign = _draft_campaign(session, template_text=APPROVED_PILOT_TEXT)
+
+    _assign_197_and_prepare(client, campaign.id)
+    session.expire_all()
+    staged = _assert_message_bound_to_197(session, campaign.id)
+    expected = append_campaign_footer(APPROVED_PILOT_TEXT)
+    assert expected != APPROVED_PILOT_TEXT
+    assert staged.final_text == expected
+    assert staged.final_text.startswith(APPROVED_PILOT_TEXT)
+    assert staged.queue_payload.get("dry_run") is True
+
+
+def test_prepare_dry_run_true_stages_experimental_queue(
+    client, pg_session_factory, monkeypatch
+):
+    monkeypatch.setenv("CAMPAIGN_FOOTER_ENABLED", "false")
+    monkeypatch.setenv("DRY_RUN", "true")
+    get_settings.cache_clear()
+    session = pg_session_factory()
+    _assert_isolated(session)
+    _account_with_id(session, 197)
+    campaign = _draft_campaign(session, template_text=APPROVED_PILOT_TEXT)
+
+    _assign_197_and_prepare(client, campaign.id)
+    session.expire_all()
+    staged = _assert_message_bound_to_197(session, campaign.id)
+    assert staged.final_text == APPROVED_PILOT_TEXT
+    assert staged.queue_payload.get("dry_run") is True

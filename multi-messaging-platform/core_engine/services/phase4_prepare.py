@@ -117,6 +117,11 @@ def _persist_metadata(result: FinalRenderResult) -> dict:
     return build_persisted_render_metadata(result)
 
 
+def _explicit_staged_queue_dry_run() -> bool:
+    """Forward settings.DRY_RUN into staged payloads. Omitted callers stay experimental."""
+    return bool(get_settings().DRY_RUN)
+
+
 def _mark_recipient_rendered(recipient: CampaignRecipient) -> None:
     recipient.render_status = RenderStatus.RENDERED
 
@@ -204,10 +209,11 @@ def prepare_campaign_messages(
     skipped_contacts = total_contacts - allowed_contacts
 
     sender_accounts = (
-        resolve_campaign_sender_accounts(db, campaign)
+        resolve_campaign_sender_accounts(db, campaign, persist_required=True)
         if allowed_recipient_rows
         else []
     )
+    staged_dry_run = _explicit_staged_queue_dry_run()
 
     existing_staged: dict[int, StagedQueueItem] = {
         item.contact_id: item
@@ -371,6 +377,15 @@ def prepare_campaign_messages(
         except ProductFeedError as exc:
             raise _product_http_error(exc) from exc
 
+    if allowed_recipient_rows and not sender_accounts:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "no_campaign_sender_account",
+                "message": "No sender account is assigned to this campaign.",
+            },
+        )
+
     try:
         for recipient_index, (recipient, contact) in enumerate(allowed_recipient_rows):
             assigned_account = sender_accounts[recipient_index % len(sender_accounts)]
@@ -446,6 +461,7 @@ def prepare_campaign_messages(
                         channel_handle=contact.channel_handle,
                         final_text=current_text,
                         metadata=product_meta,
+                        dry_run=staged_dry_run,
                     )
                     if existing_item.rendered_message_id is not None:
                         stale_rendered = db.get(
@@ -530,6 +546,7 @@ def prepare_campaign_messages(
                 channel_handle=contact.channel_handle,
                 final_text=final_text,
                 metadata=product_meta,
+                dry_run=staged_dry_run,
             )
             rendered_message.queue_payload = queue_payload
 
