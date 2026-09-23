@@ -219,6 +219,8 @@ class CampaignPreflightResult:
     controlled_production_confirmation_required: bool = False
     allowed_to_start_after_confirmation: bool = False
     controlled_production_max_messages: int | None = None
+    effective_cap: int | None = None
+    unlimited: bool = True
     controlled_production_label: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -1390,9 +1392,8 @@ async def evaluate_campaign_send_preflight(
 
     from core_engine.models import PlatformType as _PlatformType
     from core_engine.services.campaign_production_guards import (
-        controlled_production_default_max,
+        campaign_cap_view,
         controlled_production_enabled,
-        resolve_campaign_max_total_messages,
     )
 
     technical_ready = bool(allowed and code == CAMPAIGN_READY)
@@ -1402,7 +1403,8 @@ async def evaluate_campaign_send_preflight(
         and campaign.platform == _PlatformType.RUBIKA
         and technical_ready
     )
-    cp_max = resolve_campaign_max_total_messages(campaign) if cp_enabled else None
+    cap_view = campaign_cap_view(campaign)
+    cp_max = cap_view["effective_cap"]
     cp_label = (
         "حالت ارسال کنترل‌شده فعال است — تأیید نهایی برای هر شروع لازم است."
         if cp_enabled and campaign.platform == _PlatformType.RUBIKA
@@ -1524,5 +1526,7 @@ async def evaluate_campaign_send_preflight(
         controlled_production_confirmation_required=cp_confirmation_required,
         allowed_to_start_after_confirmation=allowed_after_confirmation,
         controlled_production_max_messages=cp_max,
+        effective_cap=cap_view["effective_cap"],
+        unlimited=bool(cap_view["unlimited"]),
         controlled_production_label=cp_label,
     )

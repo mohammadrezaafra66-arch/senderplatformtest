@@ -76,7 +76,6 @@ def _reset_settings(monkeypatch):
     monkeypatch.setenv("RUBIKA_DELIVERY_MODE", "user_account")
     monkeypatch.setenv("RUBIKA_USER_ACCOUNT_ENABLED", "true")
     monkeypatch.setenv("CONTROLLED_PRODUCTION_ENABLED", "true")
-    monkeypatch.setenv("CONTROLLED_PRODUCTION_DEFAULT_MAX_TOTAL_MESSAGES", "5")
     monkeypatch.setenv("REAL_QUEUE_PUSH_ENABLED", "true")
     monkeypatch.setattr(
         "workers.rubika_account_pool.resolve_current_phase",

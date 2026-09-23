@@ -117,20 +117,20 @@ def controlled_production_enabled() -> bool:
     return bool(getattr(get_settings(), "CONTROLLED_PRODUCTION_ENABLED", False))
 
 
-def controlled_production_default_max() -> int:
-    return int(
-        getattr(get_settings(), "CONTROLLED_PRODUCTION_DEFAULT_MAX_TOTAL_MESSAGES", 5)
-        or 5
-    )
-
-
 def resolve_campaign_max_total_messages(campaign: Campaign) -> int | None:
-    """Operator max_contacts wins; else controlled-production default when enabled."""
-    if campaign.max_contacts is not None:
-        return int(campaign.max_contacts)
-    if controlled_production_enabled():
-        return controlled_production_default_max()
-    return None
+    """Return a stored campaign cap, or None when the campaign is uncapped.
+
+    NULL ``max_contacts`` means no campaign-wide recipient ceiling. The former
+    controlled-production default of 5 is not applied.
+    """
+    if campaign.max_contacts is None:
+        return None
+    return int(campaign.max_contacts)
+
+
+def campaign_cap_view(campaign: Campaign) -> dict[str, int | bool | None]:
+    cap = resolve_campaign_max_total_messages(campaign)
+    return {"effective_cap": cap, "unlimited": cap is None}
 
 
 def scan_campaign_recipient_phones(

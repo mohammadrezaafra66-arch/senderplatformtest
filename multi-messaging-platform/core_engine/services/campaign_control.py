@@ -122,9 +122,8 @@ async def start_campaign(
         )
 
     from core_engine.services.campaign_production_guards import (
-        controlled_production_default_max,
+        campaign_cap_view,
         controlled_production_enabled,
-        resolve_campaign_max_total_messages,
     )
 
     cp_enabled = bool(controlled_production_enabled())
@@ -145,6 +144,7 @@ async def start_campaign(
         and campaign.platform == PlatformType.RUBIKA
         and not confirm_controlled_production
     ):
+        cap_view = campaign_cap_view(campaign)
         raise HTTPException(
             status_code=409,
             detail={
@@ -153,10 +153,8 @@ async def start_campaign(
                     "Controlled production mode requires explicit operator approval "
                     "(confirm_controlled_production=true) before start."
                 ),
-                "default_max_total_messages": controlled_production_default_max(),
-                "campaign_max_total_messages": resolve_campaign_max_total_messages(
-                    campaign
-                ),
+                **cap_view,
+                "campaign_max_total_messages": cap_view["effective_cap"],
                 "request_id": request_id,
             },
         )

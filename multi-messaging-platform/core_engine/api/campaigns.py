@@ -27,6 +27,7 @@ from core_engine.api.schemas import (
     CampaignPreflightResponse,
     CampaignPrepareRequest,
     CampaignPrepareResponse,
+    CampaignReprepareResponse,
     CampaignRecipientDetailResponse,
     CampaignRecipientsListResponse,
     CampaignRenderPreviewRequest,
@@ -574,6 +575,9 @@ def get_campaign_detail(
     stats_dict = get_campaign_stats(db, campaign_id)
     stats = CampaignStatsData(**stats_dict)
 
+    from core_engine.services.campaign_production_guards import campaign_cap_view
+
+    cap_view = campaign_cap_view(campaign)
     senders = _sender_accounts(campaign, db)
     committed_renders, latest_batch = fetch_committed_render_samples(db, campaign_id)
     from core_engine.services.campaign_render import RENDER_VERSION
@@ -591,6 +595,8 @@ def get_campaign_detail(
         intent=campaign.intent,
         message_goal=campaign.message_goal,
         max_contacts=campaign.max_contacts,
+        effective_cap=cap_view["effective_cap"],
+        unlimited=bool(cap_view["unlimited"]),
         daily_limit=campaign.daily_limit,
         schedule_start_at=campaign.schedule_start_at,
         created_at=campaign.created_at,
@@ -935,6 +941,50 @@ def prepare_campaign_endpoint(
         raise HTTPException(
             status_code=500, detail="Failed to prepare campaign messages."
         ) from exc
+
+
+@router.post("/{campaign_id}/reprepare", response_model=CampaignReprepareResponse)
+def reprepare_campaign_endpoint(
+    campaign_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    """Reset unsent staged rows and prepare again. Does not start delivery."""
+    from core_engine.services.campaign_reprepare import ReprepareRejected, reprepare_campaign
+
+    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found.")
+    try:
+        result = reprepare_campaign(db, campaign_id)
+        record_audit(
+            db,
+            current_user["username"],
+            "reprepare_campaign",
+            "campaign",
+            str(campaign_id),
+            {
+                "reset_unsent_staged": result["reset_unsent_staged"],
+                "ready_count": result["ready_count"],
+            },
+        )
+        db.commit()
+        return CampaignReprepareResponse(**result)
+    except ReprepareRejected as exc:
+        db.rollback()
+        status = 404 if exc.code == "CAMPAIGN_NOT_FOUND" else 409
+        raise HTTPException(
+            status_code=status,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to reprepare campaign.") from exc
 
 
 @router.get("/{campaign_id}/recipients/export")

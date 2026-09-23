@@ -1006,12 +1006,13 @@ export default function CampaignMonitorPage() {
                         0}
                       /{preflight.assigned_accounts}
                     </li>
-                    {typeof preflight.controlled_production_max_messages === "number" ? (
-                      <li>
-                        {t("campaignControlledConfirmMaxMessages")}:{" "}
-                        {preflight.controlled_production_max_messages}
-                      </li>
-                    ) : null}
+                    <li>
+                      {t("campaignControlledConfirmMaxMessages")}:{" "}
+                      {preflight.unlimited ||
+                      typeof preflight.effective_cap !== "number"
+                        ? t("campaignUnlimitedTotalCap")
+                        : preflight.effective_cap}
+                    </li>
                   </ul>
                 ) : null}
               </div>

@@ -25,7 +25,6 @@ AUTH = {"Authorization": "Bearer fake_token"}
 @pytest.fixture
 def enable_cp(monkeypatch):
     monkeypatch.setenv("CONTROLLED_PRODUCTION_ENABLED", "true")
-    monkeypatch.setenv("CONTROLLED_PRODUCTION_DEFAULT_MAX_TOTAL_MESSAGES", "5")
     from core_engine.config import get_settings
 
     get_settings.cache_clear()

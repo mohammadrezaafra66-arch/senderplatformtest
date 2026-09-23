@@ -86,9 +86,9 @@ class Settings(BaseSettings):
     RUBIKA_MAX_IN_FLIGHT_PER_ACCOUNT: int = 8
     RUBIKA_INFLIGHT_TTL_SECONDS: int = 180
 
-    # Post-R10 controlled production defaults (first limited real campaign).
+    # Controlled production still requires an explicit start confirmation.
+    # It does not impose a campaign-wide recipient cap.
     CONTROLLED_PRODUCTION_ENABLED: bool = True
-    CONTROLLED_PRODUCTION_DEFAULT_MAX_TOTAL_MESSAGES: int = 5
 
     # Phase 4 safety gates — defaults must remain dry-run safe.
     REAL_QUEUE_PUSH_ENABLED: bool = False

@@ -46,7 +46,6 @@ AUTH = {"Authorization": "Bearer fake_token"}
 @pytest.fixture
 def enable_controlled_production(monkeypatch):
     monkeypatch.setenv("CONTROLLED_PRODUCTION_ENABLED", "true")
-    monkeypatch.setenv("CONTROLLED_PRODUCTION_DEFAULT_MAX_TOTAL_MESSAGES", "5")
     get_settings.cache_clear()
     yield
     monkeypatch.setenv("CONTROLLED_PRODUCTION_ENABLED", "false")

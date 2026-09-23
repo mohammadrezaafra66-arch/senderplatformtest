@@ -308,6 +308,8 @@ export type CampaignPreflight = {
   controlled_production_confirmation_required?: boolean;
   allowed_to_start_after_confirmation?: boolean;
   controlled_production_max_messages?: number | null;
+  effective_cap?: number | null;
+  unlimited?: boolean;
   controlled_production_label?: string | null;
 };
 

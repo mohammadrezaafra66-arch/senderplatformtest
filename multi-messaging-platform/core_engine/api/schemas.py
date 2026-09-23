@@ -365,6 +365,8 @@ class CampaignDetailResponse(BaseModel):
     intent: str | None = None
     message_goal: str | None = None
     max_contacts: int | None = None
+    effective_cap: int | None = None
+    unlimited: bool = True
     daily_limit: int | None = None
     schedule_start_at: datetime | None = None
     created_at: datetime
@@ -460,6 +462,8 @@ class CampaignPreflightResponse(BaseModel):
     controlled_production_confirmation_required: bool = False
     allowed_to_start_after_confirmation: bool = False
     controlled_production_max_messages: int | None = None
+    effective_cap: int | None = None
+    unlimited: bool = True
     controlled_production_label: str | None = None
 
 
@@ -483,6 +487,18 @@ class CampaignPrepareResponse(BaseModel):
     force_mock_output: bool
     real_gpt_called: bool = False
     message: str = "Campaign messages prepared."
+
+
+class CampaignReprepareResponse(BaseModel):
+    campaign_id: int
+    reset_unsent_staged: int
+    ready_count: int
+    staged_count: int
+    allowed_contacts: int
+    total_contacts: int
+    real_gpt_called: bool = False
+    redis_queue_pushed: bool = False
+    status: str
 
 
 class CampaignStopResponse(BaseModel):

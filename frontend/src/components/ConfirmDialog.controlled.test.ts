@@ -25,7 +25,7 @@ function renderControlledModal(opts: {
   prepared: number;
   sendersReady: number;
   sendersAssigned: number;
-  maxMessages?: number;
+  maxMessages?: number | null;
   confirmLoading?: boolean;
   onCancel?: () => void;
   onConfirm?: () => void;
@@ -44,9 +44,13 @@ function renderControlledModal(opts: {
         null,
         `اکانت‌های فرستنده آماده: ${opts.sendersReady}/${opts.sendersAssigned}`,
       ),
-      typeof opts.maxMessages === "number"
-        ? createElement("li", null, `سقف پیام در حالت کنترل‌شده: ${opts.maxMessages}`)
-        : null,
+      createElement(
+        "li",
+        null,
+        `سقف کل مخاطبان: ${
+          typeof opts.maxMessages === "number" ? opts.maxMessages : "بدون سقف کل"
+        }`,
+      ),
     ),
   );
   return renderToStaticMarkup(
@@ -74,14 +78,15 @@ describe("isolated controlled production modal", () => {
       prepared: 1,
       sendersReady: 1,
       sendersAssigned: 1,
-      maxMessages: 5,
+      maxMessages: null,
     });
     expect(html).toContain(TITLE);
     expect(html).toContain(BODY);
     expect(html).toContain("تعداد گیرندگان: 1");
     expect(html).toContain("تعداد پیام‌های آماده: 1");
     expect(html).toContain("اکانت‌های فرستنده آماده: 1/1");
-    expect(html).toContain("سقف پیام در حالت کنترل‌شده: 5");
+    expect(html).toContain("سقف کل مخاطبان: بدون سقف کل");
+    expect(html).not.toContain("سقف کل مخاطبان: 5");
     expect(html).toContain(CANCEL);
     expect(html).toContain(CONFIRM);
     expect(html).not.toContain("confirm_controlled_production");

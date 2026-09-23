@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy.exc import IntegrityError
@@ -126,10 +127,29 @@ def _mark_recipient_rendered(recipient: CampaignRecipient) -> None:
     recipient.render_status = RenderStatus.RENDERED
 
 
+PREPARE_BATCH_SIZE = 400
+
+
+def dedupe_recipient_rows(rows: list) -> list:
+    """Keep the first row for each contact. Input order is the audience order."""
+    seen: set[int] = set()
+    unique: list = []
+    for recipient, contact in rows:
+        contact_id = int(contact.id)
+        if contact_id in seen:
+            continue
+        seen.add(contact_id)
+        unique.append((recipient, contact))
+    return unique
+
+
 def prepare_campaign_messages(
     db: Session,
     campaign_id: int,
     request: PrepareMessagesRequest,
+    *,
+    preserved_gpt_pool: Any | None = None,
+    preserved_product_snapshot: Any | None = None,
 ) -> PrepareMessagesResultResponse:
     campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
     if not campaign:
@@ -200,6 +220,9 @@ def prepare_campaign_messages(
         allowed_contacts_list = [c for _r, c in allowed_recipient_rows]
         allowed_contact_ids = {c.id for c in allowed_contacts_list}
 
+    allowed_recipient_rows = dedupe_recipient_rows(allowed_recipient_rows)
+    allowed_contacts_list = [contact for _recipient, contact in allowed_recipient_rows]
+    allowed_contact_ids = {contact.id for contact in allowed_contacts_list}
     allowed_contacts = len(allowed_contacts_list)
     blocked_count = sum(
         1
@@ -269,7 +292,9 @@ def prepare_campaign_messages(
         new_ready_slots > 0 and unstaged_allowed > 0
     )
 
-    if (
+    if preserved_gpt_pool is not None:
+        gpt_pool = preserved_gpt_pool
+    elif (
         campaign.use_gpt
         and not request.force_mock_output
         and will_render
@@ -290,7 +315,10 @@ def prepare_campaign_messages(
                 raise _gpt_http_error(exc) from exc
             gpt_called = True
 
-    if campaign.include_products and will_render:
+    if preserved_product_snapshot is not None:
+        locked_snapshot = preserved_product_snapshot
+        used_products = True
+    elif campaign.include_products and will_render:
         from core_engine.services.product_feed.service import snapshot_from_queue_payload
 
         locked_snapshot = None
@@ -388,6 +416,8 @@ def prepare_campaign_messages(
 
     try:
         for recipient_index, (recipient, contact) in enumerate(allowed_recipient_rows):
+            if recipient_index and recipient_index % PREPARE_BATCH_SIZE == 0:
+                db.flush()
             assigned_account = sender_accounts[recipient_index % len(sender_accounts)]
             existing_item = existing_staged.get(contact.id)
             if existing_item is not None:
