@@ -13,6 +13,7 @@ import json
 import logging
 from typing import Any
 
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from core_engine.config import get_settings
@@ -282,6 +283,10 @@ async def push_staged_items_to_worker_queue(
 
         owned = SessionLocal()
         try:
+            # Start flushes RUNNING on the caller session before this refill.
+            # A blocking FOR UPDATE here deadlocks that same thread and stops
+            # the API, including login. Fail the refill instead of waiting.
+            owned.execute(text("SET lock_timeout = '2s'"))
             for campaign_id in list(ordered_ids):
                 try:
                     refill_campaign_staging(owned, int(campaign_id))
