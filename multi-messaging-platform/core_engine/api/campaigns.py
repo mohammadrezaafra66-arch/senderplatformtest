@@ -21,6 +21,7 @@ from core_engine.api.schemas import (
     CampaignFromContactsRequest,
     CampaignFromContactsResponse,
     CampaignDetailResponse,
+    CampaignPilotConfigureRequest,
     CampaignFromImportRequest,
     CampaignFromImportResponse,
     CampaignListItemResponse,
@@ -554,6 +555,12 @@ async def get_campaign_preflight(
     return CampaignPreflightResponse(**result.to_dict())
 
 
+def _pilot_detail_fields(db: Session, campaign_id: int) -> dict:
+    from core_engine.services.campaign_pilot_cohort import pilot_progress_view
+
+    return pilot_progress_view(db, campaign_id)
+
+
 def _campaign_stop_label(db: Session, campaign: Campaign) -> str | None:
     if campaign.status != CampaignStatus.PAUSED.value:
         return None
@@ -610,6 +617,7 @@ def get_campaign_detail(
         unlimited=bool(cap_view["unlimited"]),
         daily_limit=campaign.daily_limit,
         stop_label=_campaign_stop_label(db, campaign),
+        **_pilot_detail_fields(db, campaign.id),
         schedule_start_at=campaign.schedule_start_at,
         created_at=campaign.created_at,
         updated_at=campaign.updated_at,
@@ -952,6 +960,117 @@ def prepare_campaign_endpoint(
         db.rollback()
         raise HTTPException(
             status_code=500, detail="Failed to prepare campaign messages."
+        ) from exc
+
+
+@router.post("/{campaign_id}/pilot")
+def configure_campaign_pilot(
+    campaign_id: int,
+    payload: CampaignPilotConfigureRequest,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    """Store the pilot recipient cap. Does not start the campaign or build membership."""
+    from core_engine.services.campaign_pilot_cohort import (
+        PilotCohortRejected,
+        configure_pilot_recipient_limit,
+        pilot_progress_view,
+    )
+
+    try:
+        configure_pilot_recipient_limit(db, campaign_id, payload.recipient_limit)
+        record_audit(
+            db,
+            current_user["username"],
+            "configure_campaign_pilot",
+            "campaign",
+            str(campaign_id),
+            {"recipient_limit": payload.recipient_limit},
+        )
+        db.commit()
+        return pilot_progress_view(db, campaign_id)
+    except PilotCohortRejected as exc:
+        db.rollback()
+        status = 404 if exc.code == "CAMPAIGN_NOT_FOUND" else 409
+        raise HTTPException(
+            status_code=status,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+
+
+@router.post("/{campaign_id}/pilot/cohort")
+def materialize_campaign_pilot_cohort(
+    campaign_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    """Freeze the first N recipients. A repeated call keeps the same members."""
+    from core_engine.services.campaign_pilot_cohort import (
+        PilotCohortRejected,
+        materialize_pilot_cohort,
+    )
+
+    try:
+        view = materialize_pilot_cohort(db, campaign_id)
+        record_audit(
+            db,
+            current_user["username"],
+            "materialize_pilot_cohort",
+            "campaign",
+            str(campaign_id),
+            {
+                "pilot_cohort_size": view["pilot_cohort_size"],
+                "pilot_first_recipient_id": view["pilot_first_recipient_id"],
+                "pilot_last_recipient_id": view["pilot_last_recipient_id"],
+            },
+        )
+        db.commit()
+        return view
+    except PilotCohortRejected as exc:
+        db.rollback()
+        status = 404 if exc.code == "CAMPAIGN_NOT_FOUND" else 409
+        raise HTTPException(
+            status_code=status,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+
+
+@router.post("/{campaign_id}/pilot/reset")
+def reset_campaign_pilot(
+    campaign_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[
+        dict[str, str], Depends(requires_role(RoleType.ADMIN, RoleType.OPERATOR))
+    ] = None,
+):
+    """Disable the pilot only when the campaign is stopped and has no live queue."""
+    from core_engine.services.campaign_pilot_cohort import (
+        PilotCohortRejected,
+        reset_pilot_cohort,
+    )
+
+    try:
+        view = reset_pilot_cohort(db, campaign_id)
+        record_audit(
+            db,
+            current_user["username"],
+            "reset_campaign_pilot",
+            "campaign",
+            str(campaign_id),
+            {"pilot_active": view["pilot_active"]},
+        )
+        db.commit()
+        return view
+    except PilotCohortRejected as exc:
+        db.rollback()
+        status = 404 if exc.code == "CAMPAIGN_NOT_FOUND" else 409
+        raise HTTPException(
+            status_code=status,
+            detail={"code": exc.code, "message": exc.message},
         ) from exc
 
 

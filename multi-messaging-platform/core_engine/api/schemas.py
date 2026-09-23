@@ -369,6 +369,14 @@ class CampaignDetailResponse(BaseModel):
     unlimited: bool = True
     daily_limit: int | None = None
     stop_label: str | None = None
+    pilot_recipient_limit: int | None = None
+    pilot_cohort_size: int = 0
+    pilot_first_recipient_id: int | None = None
+    pilot_last_recipient_id: int | None = None
+    pilot_unique_attempted: int = 0
+    pilot_success_count: int = 0
+    pilot_remaining: int = 0
+    pilot_active: bool = False
     schedule_start_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
@@ -390,6 +398,10 @@ class CampaignsListResponse(BaseModel):
     total_count: int
     limit: int
     offset: int
+
+
+class CampaignPilotConfigureRequest(BaseModel):
+    recipient_limit: int = Field(ge=1, le=100000)
 
 
 class CampaignStartRequest(BaseModel):

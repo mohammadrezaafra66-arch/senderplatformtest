@@ -503,6 +503,11 @@ def update_message_attempt_result(
             if inserted:
                 confirm_pilot_success(session, campaign_id_int)
 
+        if campaign_id_int is not None:
+            from core_engine.services.campaign_pilot_cohort import pause_if_cohort_exhausted
+
+            pause_if_cohort_exhausted(session, campaign_id_int)
+
         _finalize_campaign_if_terminal(session, campaign_id_int)
 
         session.commit()

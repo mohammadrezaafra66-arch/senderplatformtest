@@ -55,6 +55,30 @@ from workers.redis_keys import campaign_dispatch_fairness_key, queue_key
 
 logger = logging.getLogger(__name__)
 
+
+async def emergency_stop_allows_claim(redis: Any) -> bool:
+    """False when the global stop is on or the flag cannot be read."""
+    from workers.redis_flags import parse_redis_truthy
+    from workers.redis_keys import kill_switch_key
+
+    try:
+        value = await redis.get(kill_switch_key())
+    except Exception:
+        return False
+    return not parse_redis_truthy(value)
+
+
+def _idle_dispatch() -> dict[str, int]:
+    return {
+        "pushed": 0,
+        "skipped_consent": 0,
+        "skipped_no_account": 0,
+        "skipped_invalid": 0,
+        "failed": 0,
+        "deferred_backpressure": 0,
+    }
+
+
 def campaign_accepts_new_dispatch(status: str | None) -> bool:
     """Only RUNNING campaigns may receive a new queue push.
 
@@ -265,6 +289,9 @@ async def push_staged_items_to_worker_queue(
                     owned.rollback()
         finally:
             owned.close()
+
+    if not await emergency_stop_allows_claim(redis):
+        return _idle_dispatch()
 
     claimed_items = claim_ready_items(
         db,

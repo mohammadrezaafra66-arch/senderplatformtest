@@ -128,6 +128,10 @@ def record_definitive_success(
     message_id: int | None,
 ) -> bool:
     """Insert one ledger row. False means this logical send was already counted."""
+    from core_engine.services.campaign_pilot_cohort import pilot_blocks_new_success
+
+    if pilot_blocks_new_success(db, int(campaign_id), int(contact_id)):
+        return False
     key = logical_send_key(campaign_id, contact_id)
     statement = (
         pg_insert(CampaignSendSuccess)

@@ -391,6 +391,52 @@ class MultiAccountWorker(ABC):
         )
         return True
 
+    async def _refuse_unadmitted_send(
+        self,
+        payload: WorkerPayload,
+        raw: str,
+        account_id: int | str,
+    ) -> bool:
+        """Re-check stop, window, cohort, idempotency, and the success cap before the connector."""
+        from core_engine.database import SessionLocal
+        from core_engine.services.campaign_pilot_cohort import connector_admission
+        from core_engine.services.campaign_send_safety import rubika_window_open
+
+        session = SessionLocal()
+        try:
+            try:
+                window_open, _next_at = rubika_window_open(session)
+            except Exception:
+                window_open = False
+            decision = connector_admission(
+                session,
+                campaign_id=payload.campaign_id,
+                contact_id=payload.contact_id,
+                kill_switch=await self.check_kill_switch(),
+                window_open=window_open,
+            )
+            if decision == "stop":
+                session.commit()
+            else:
+                session.rollback()
+        finally:
+            session.close()
+        if decision == "allow":
+            return False
+        if decision == "defer":
+            await self._defer_outside_window(payload, raw, account_id)
+            return True
+        log_worker_event(
+            self.logger,
+            event="pilot_connector_blocked",
+            status=decision,
+            message_id=payload.message_id,
+            campaign_id=payload.campaign_id,
+            platform=self.platform,
+            account_id=account_id,
+        )
+        return True
+
     async def run_once(self) -> None:
         if not self.execution_enabled:
             log_worker_event(
@@ -462,6 +508,9 @@ class MultiAccountWorker(ABC):
                 return
 
             if await self._defer_outside_window(payload, raw, active_account_id):
+                return
+
+            if await self._refuse_unadmitted_send(payload, raw, active_account_id):
                 return
 
             result = await self.send_message(payload)

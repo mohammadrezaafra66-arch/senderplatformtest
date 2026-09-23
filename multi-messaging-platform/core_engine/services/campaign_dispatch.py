@@ -15,6 +15,8 @@ from sqlalchemy.orm import Session
 
 from core_engine.models import (
     Campaign,
+    CampaignPilotCohortMember,
+    CampaignPilotState,
     CampaignRecipient,
     CampaignStatus,
     Message,
@@ -275,6 +277,21 @@ def claim_ready_items(
                 )
             )
             query = query.filter(~StagedQueueItem.id.in_(blocked_item_ids))
+        pilot = (
+            db.query(CampaignPilotState)
+            .filter(CampaignPilotState.campaign_id == int(campaign_id))
+            .first()
+        )
+        if (
+            pilot is not None
+            and bool(pilot.enabled)
+            and pilot.recipient_limit is not None
+        ):
+            query = query.join(
+                CampaignPilotCohortMember,
+                (CampaignPilotCohortMember.campaign_id == StagedQueueItem.campaign_id)
+                & (CampaignPilotCohortMember.contact_id == StagedQueueItem.contact_id),
+            )
         rows = (
             query.order_by(StagedQueueItem.id.asc())
             .limit(take)

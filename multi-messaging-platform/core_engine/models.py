@@ -940,6 +940,41 @@ class CampaignPilotState(Base):
     admin_resume_confirmed: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False
     )
+    recipient_limit: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class CampaignPilotCohortMember(Base):
+    """Frozen pilot membership. Later audience edits do not change this set."""
+
+    __tablename__ = "campaign_pilot_cohort_members"
+    __table_args__ = (
+        UniqueConstraint(
+            "campaign_id",
+            "campaign_recipient_id",
+            name="uq_pilot_cohort_campaign_recipient",
+        ),
+        UniqueConstraint(
+            "campaign_id",
+            "ordinal",
+            name="uq_pilot_cohort_campaign_ordinal",
+        ),
+        UniqueConstraint(
+            "campaign_id",
+            "contact_id",
+            name="uq_pilot_cohort_campaign_contact",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    campaign_id: Mapped[int] = mapped_column(ForeignKey("campaigns.id"), nullable=False)
+    campaign_recipient_id: Mapped[int] = mapped_column(
+        ForeignKey("campaign_recipients.id"), nullable=False
+    )
+    contact_id: Mapped[int] = mapped_column(ForeignKey("contacts.id"), nullable=False)
+    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
 
 
 class ProductSendSnapshot(Base):
