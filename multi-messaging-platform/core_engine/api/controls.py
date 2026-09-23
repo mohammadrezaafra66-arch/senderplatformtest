@@ -53,6 +53,32 @@ async def controls_get_kill_switch():
         _handle_service_error(exc)
 
 
+@router.post("/emergency-stop")
+async def controls_emergency_stop(
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[dict, Depends(requires_role(RoleType.ADMIN))] = None,
+):
+    """Stop every running campaign and block new connector calls."""
+    from core_engine.services.campaign_send_safety import pause_all_running
+
+    paused = pause_all_running(db)
+    db.commit()
+    try:
+        await set_kill_switch(True)
+    except ControlServiceError as exc:
+        _handle_service_error(exc)
+    record_audit(
+        db,
+        current_user["username"],
+        "global_emergency_stop",
+        "kill_switch",
+        "global",
+        {"paused_campaigns": paused},
+    )
+    db.commit()
+    return {"paused_campaigns": paused, "kill_switch": True}
+
+
 @router.post("/kill-switch")
 async def controls_set_kill_switch(
     payload: KillSwitchUpdateRequest,

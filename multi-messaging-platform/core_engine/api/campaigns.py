@@ -554,6 +554,17 @@ async def get_campaign_preflight(
     return CampaignPreflightResponse(**result.to_dict())
 
 
+def _campaign_stop_label(db: Session, campaign: Campaign) -> str | None:
+    if campaign.status != CampaignStatus.PAUSED.value:
+        return None
+    from core_engine.services.campaign_send_safety import (
+        inflight_staged_count,
+        stop_progress_label,
+    )
+
+    return stop_progress_label(inflight_staged_count(db, campaign.id))
+
+
 @router.get("/{campaign_id}", response_model=CampaignDetailResponse)
 def get_campaign_detail(
     campaign_id: int,
@@ -598,6 +609,7 @@ def get_campaign_detail(
         effective_cap=cap_view["effective_cap"],
         unlimited=bool(cap_view["unlimited"]),
         daily_limit=campaign.daily_limit,
+        stop_label=_campaign_stop_label(db, campaign),
         schedule_start_at=campaign.schedule_start_at,
         created_at=campaign.created_at,
         updated_at=campaign.updated_at,

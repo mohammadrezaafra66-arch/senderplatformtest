@@ -901,6 +901,57 @@ class MessageAttempt(Base):
     message: Mapped["Message"] = relationship("Message", back_populates="attempts")
 
 
+class CampaignSendSuccess(Base):
+    """One definitive connector success per campaign recipient. The counter is this table."""
+
+    __tablename__ = "campaign_send_successes"
+    __table_args__ = (
+        UniqueConstraint(
+            "campaign_id",
+            "contact_id",
+            name="uq_campaign_send_success_recipient",
+        ),
+        UniqueConstraint("idempotency_key", name="uq_campaign_send_success_idempotency"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    campaign_id: Mapped[int] = mapped_column(ForeignKey("campaigns.id"), nullable=False)
+    contact_id: Mapped[int] = mapped_column(ForeignKey("contacts.id"), nullable=False)
+    message_id: Mapped[int | None] = mapped_column(ForeignKey("messages.id"), nullable=True)
+    idempotency_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+
+class CampaignPilotState(Base):
+    """Optional pilot permit ledger. Absent row means the campaign is not in pilot."""
+
+    __tablename__ = "campaign_pilot_states"
+
+    campaign_id: Mapped[int] = mapped_column(
+        ForeignKey("campaigns.id"), primary_key=True
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    success_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+    reserved: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    confirmed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    auto_pause: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    admin_resume_confirmed: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+
+
+class ProductSendSnapshot(Base):
+    """One shared send-time catalog. Workers lock this row to refresh it."""
+
+    __tablename__ = "product_send_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    payload: Mapped[list | None] = mapped_column(JSON_TYPE, nullable=True)
+    fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
 class RatePolicy(Base):
     __tablename__ = "rate_policies"
 

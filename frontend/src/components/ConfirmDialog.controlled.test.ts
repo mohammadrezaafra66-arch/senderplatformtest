@@ -44,13 +44,7 @@ function renderControlledModal(opts: {
         null,
         `اکانت‌های فرستنده آماده: ${opts.sendersReady}/${opts.sendersAssigned}`,
       ),
-      createElement(
-        "li",
-        null,
-        `سقف کل مخاطبان: ${
-          typeof opts.maxMessages === "number" ? opts.maxMessages : "بدون سقف کل"
-        }`,
-      ),
+      createElement("li", null, "سقف کل مخاطبان: بدون سقف کل"),
     ),
   );
   return renderToStaticMarkup(

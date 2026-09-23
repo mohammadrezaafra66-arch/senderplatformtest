@@ -828,6 +828,7 @@ export default function CampaignMonitorPage() {
                     </span>
                     <span>
                       {t("status")}: {campaignStatusLabel(campaign.status, t)}
+                      {campaign.stop_label ? ` — ${campaign.stop_label}` : ""}
                     </span>
                     <span>
                       {t("renderBatch")}: {campaign.latest_render_batch_id ?? "—"}
@@ -1008,10 +1009,7 @@ export default function CampaignMonitorPage() {
                     </li>
                     <li>
                       {t("campaignControlledConfirmMaxMessages")}:{" "}
-                      {preflight.unlimited ||
-                      typeof preflight.effective_cap !== "number"
-                        ? t("campaignUnlimitedTotalCap")
-                        : preflight.effective_cap}
+                      {t("campaignUnlimitedTotalCap")}
                     </li>
                   </ul>
                 ) : null}

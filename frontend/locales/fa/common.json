@@ -542,6 +542,8 @@
   "campaignControlledConfirmSenders": "اکانت‌های فرستنده آماده",
   "campaignControlledConfirmMaxMessages": "سقف کل مخاطبان",
   "campaignUnlimitedTotalCap": "بدون سقف کل",
+  "campaignStopStopping": "در حال توقف؛ منتظر پایان ارسال‌های جاری",
+  "campaignStopStopped": "کاملاً متوقف شد",
   "campaignControlledConfirmAction": "تأیید و شروع ارسال",
   "campaignControlledConfirmCancel": "انصراف",
   "campaignPreparationBlockersTitle": "موانع آماده‌سازی",

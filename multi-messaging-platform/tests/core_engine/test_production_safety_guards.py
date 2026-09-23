@@ -34,7 +34,6 @@ from core_engine.schemas.phase4 import PrepareMessagesRequest
 from core_engine.services.campaign_capacity import SendWindowSpec
 from core_engine.services.campaign_preflight import (
     CAMPAIGN_READY,
-    CAMPAIGN_SEND_LIMIT_REACHED,
     INVALID_MESSAGE_ASSIGNMENT,
     INVALID_RECIPIENT_PHONE,
     UNRESOLVED_TEMPLATE_PLACEHOLDER,
@@ -382,32 +381,19 @@ async def test_success_message_not_redispatched(pg_session_factory):
     assert int(result.get("pushed") or 0) == 0
 
 
-@pytest.mark.asyncio
-async def test_campaign_cap_five_blocks_sixth(pg_session_factory):
+def test_stored_campaign_cap_is_not_enforced(pg_session_factory):
     session = pg_session_factory()
     acc = _make_account(session, label="cap")
     contacts = [_contact(session, valid=True, first_name=f"C{i}") for i in range(6)]
     camp = _campaign(session, acc, contacts, template="متن ثابت", max_contacts=5)
     prepare_campaign_messages(
-        session, camp.id, PrepareMessagesRequest(limit=10, force_mock_output=False)
+        session, camp.id, PrepareMessagesRequest(force_mock_output=False)
     )
     prepared = session.query(Message).filter(Message.campaign_id == camp.id).count()
-    assert prepared <= 5
-    session.add(
-        Message(
-            campaign_id=camp.id,
-            account_id=acc.id,
-            contact_id=contacts[5].id,
-            rendered_text="x",
-            dedupe_key=f"extra-{uuid.uuid4().hex}",
-        )
-    )
-    session.commit()
-    r = get_redis_client()
-    await _publish_coverage(r, acc.id)
-    pf = await evaluate_campaign_send_preflight(session, camp.id)
-    assert pf.allowed_to_start is False
-    assert pf.code == CAMPAIGN_SEND_LIMIT_REACHED
+    assert prepared == 6
+    from core_engine.services.campaign_production_guards import evaluate_send_limit
+
+    assert evaluate_send_limit(session, camp, prepared_or_ready_count=prepared) is None
 
 
 @pytest.mark.asyncio

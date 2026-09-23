@@ -35,7 +35,9 @@ from core_engine.services.product_feed.advertising_eligibility import (
 )
 from core_engine.services.product_feed.composition import compose_campaign_message
 from core_engine.services.product_feed.errors import ProductFeedError
-from core_engine.services.product_feed.service import _max_staleness_seconds, _unit_label
+from core_engine.services.product_feed.service import _unit_label
+
+PRODUCT_SNAPSHOT_MAX_AGE_SECONDS = 30
 
 PRODUCT_UNAVAILABLE_AT_SEND = "PRODUCT_UNAVAILABLE_AT_SEND"
 PRODUCT_NOT_ADVERTISING_AT_SEND = "PRODUCT_NOT_ADVERTISING_AT_SEND"
@@ -64,7 +66,7 @@ class SendTimeRefreshCycle:
     def limit(self) -> int:
         if self.max_age_seconds is not None:
             return int(self.max_age_seconds)
-        return _max_staleness_seconds()
+        return PRODUCT_SNAPSHOT_MAX_AGE_SECONDS
 
 
 @dataclass
@@ -302,26 +304,24 @@ def render_outbound_from_selection(
         )
 
     rendered_at = _now(clock)
-    if blocked_code is not None:
+    products = [
+        item.product
+        for item in decisions
+        if item.eligible and item.product is not None
+    ]
+    if not products:
         for item in audit_products:
             item["sent"] = False
         return _blocked(
             data,
-            blocked_code,
+            blocked_code or PRODUCT_REFRESH_FAILED,
             refreshed_at=refreshed_at,
             products=audit_products,
             rendered_at=rendered_at,
         )
-
-    products = [item.product for item in decisions if item.product is not None]
-    if len(products) != len(selected):
-        return _blocked(
-            data,
-            PRODUCT_REFRESH_FAILED,
-            refreshed_at=refreshed_at,
-            products=audit_products,
-            rendered_at=rendered_at,
-        )
+    for item in audit_products:
+        if item.get("reason_code") is None:
+            item["sent"] = True
 
     composed = compose_campaign_message(
         prose,

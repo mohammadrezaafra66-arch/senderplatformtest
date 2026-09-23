@@ -94,15 +94,13 @@ def _compute_effective_limit(
     allowed_contacts: int,
     request_limit: int | None,
     daily_limit: int | None,
-    max_contacts: int | None,
 ) -> int:
+    """Audience size for one prepare. Campaign max_contacts is not a limit."""
     limits = [allowed_contacts]
     if request_limit is not None:
         limits.append(request_limit)
     if daily_limit is not None:
         limits.append(daily_limit)
-    if max_contacts is not None:
-        limits.append(max_contacts)
     return min(limits)
 
 
@@ -150,8 +148,15 @@ def prepare_campaign_messages(
     *,
     preserved_gpt_pool: Any | None = None,
     preserved_product_snapshot: Any | None = None,
+    keep_campaign_status: bool = False,
+    external_active: int = 0,
 ) -> PrepareMessagesResultResponse:
-    campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+    campaign = (
+        db.query(Campaign)
+        .filter(Campaign.id == campaign_id)
+        .with_for_update()
+        .first()
+    )
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found.")
 
@@ -260,31 +265,43 @@ def prepare_campaign_messages(
         else {}
     )
 
-    from core_engine.services.campaign_production_guards import (
-        resolve_campaign_max_total_messages,
-    )
-
-    production_max = resolve_campaign_max_total_messages(campaign)
-    effective_max_contacts = campaign.max_contacts
-    if production_max is not None:
-        effective_max_contacts = (
-            production_max
-            if effective_max_contacts is None
-            else min(int(effective_max_contacts), int(production_max))
-        )
-
     effective_limit = _compute_effective_limit(
         allowed_contacts=allowed_contacts,
         request_limit=request.limit,
         daily_limit=campaign.daily_limit,
-        max_contacts=effective_max_contacts,
     )
     limit_was_applied = effective_limit < allowed_contacts
 
     existing_ready_count = sum(
         1 for item in existing_staged.values() if item.status == "ready"
     )
-    new_ready_slots = max(0, effective_limit - existing_ready_count)
+    from core_engine.services.campaign_staging_window import (
+        STAGING_HIGH_WATER,
+        excluded_contact_ids,
+    )
+
+    active_staged = sum(
+        1
+        for item in existing_staged.values()
+        if item.status in {"ready", "queued", "pushing"}
+    ) + max(0, int(external_active))
+    room = max(0, STAGING_HIGH_WATER - active_staged)
+    new_ready_slots = min(max(0, effective_limit - existing_ready_count), room)
+    blocked_contacts = excluded_contact_ids(db, campaign_id)
+    window_rows = []
+    budget = new_ready_slots
+    for recipient, contact in allowed_recipient_rows:
+        if int(contact.id) in blocked_contacts and contact.id not in existing_staged:
+            continue
+        if contact.id in existing_staged:
+            if existing_staged[contact.id].status == "ready":
+                window_rows.append((recipient, contact))
+            continue
+        if budget <= 0:
+            continue
+        window_rows.append((recipient, contact))
+        budget -= 1
+    allowed_recipient_rows = window_rows
     unstaged_allowed = sum(
         1 for _recipient, contact in allowed_recipient_rows if contact.id not in existing_staged
     )
@@ -605,7 +622,7 @@ def prepare_campaign_messages(
             newly_staged_count += 1
 
         ready_count = sum(1 for item in returned_items if item.status == "ready")
-        if ready_count > 0 or existing_ready_count > 0:
+        if not keep_campaign_status and (ready_count > 0 or existing_ready_count > 0):
             campaign.status = CampaignStatus.PREPARED.value
 
         db.commit()

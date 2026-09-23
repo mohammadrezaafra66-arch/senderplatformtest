@@ -234,6 +234,38 @@ async def push_staged_items_to_worker_queue(
                     db, redis, ordered_ids, circuit_open=True, windows=windows
                 )
 
+    from core_engine.services.campaign_send_safety import rubika_window_open
+    from core_engine.services.campaign_staging_window import refill_campaign_staging
+
+    window_open, _next_at = True, None
+    try:
+        window_open, _next_at = rubika_window_open(db)
+    except Exception:
+        window_open = False
+    if not window_open:
+        rubika_ids = {
+            int(row[0])
+            for row in db.query(Campaign.id)
+            .filter(
+                Campaign.id.in_(ordered_ids or [0]),
+                Campaign.platform == PlatformType.RUBIKA,
+            )
+            .all()
+        }
+        ordered_ids = [cid for cid in ordered_ids if cid not in rubika_ids]
+    elif ordered_ids:
+        from core_engine.database import SessionLocal
+
+        owned = SessionLocal()
+        try:
+            for campaign_id in list(ordered_ids):
+                try:
+                    refill_campaign_staging(owned, int(campaign_id))
+                except Exception:
+                    owned.rollback()
+        finally:
+            owned.close()
+
     claimed_items = claim_ready_items(
         db,
         campaign_ids=ordered_ids,

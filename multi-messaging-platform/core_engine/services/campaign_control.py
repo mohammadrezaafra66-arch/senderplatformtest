@@ -121,6 +121,17 @@ async def start_campaign(
             detail=f"Campaign cannot be started from status '{campaign.status}'.",
         )
 
+    from core_engine.services.campaign_send_safety import pilot_blocks_start
+
+    if pilot_blocks_start(db, campaign.id):
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "PILOT_RESUME_REQUIRED",
+                "message": "ادامه این کمپین بعد از سقف آزمایشی فقط با تأیید مدیر ممکن است.",
+            },
+        )
+
     from core_engine.services.campaign_production_guards import (
         campaign_cap_view,
         controlled_production_enabled,
@@ -327,6 +338,14 @@ async def stop_campaign(db: Session, campaign: Campaign) -> dict[str, Any]:
 
     already_paused = campaign.status == CampaignStatus.PAUSED.value
     campaign.status = CampaignStatus.PAUSED.value
+    from core_engine.services.campaign_send_safety import (
+        inflight_staged_count,
+        invalidate_unsent_leases,
+        stop_progress_label,
+    )
+
+    invalidate_unsent_leases(db, campaign.id)
+    inflight = inflight_staged_count(db, campaign.id)
     db.flush()
 
     try:
@@ -335,10 +354,14 @@ async def stop_campaign(db: Session, campaign: Campaign) -> dict[str, Any]:
         db.rollback()
         raise HTTPException(status_code=exc.status_code, detail=exc.message) from exc
 
-    message = "Campaign is already paused." if already_paused else "Campaign stopped successfully."
+    message = stop_progress_label(inflight)
+    if already_paused and inflight == 0:
+        message = stop_progress_label(0)
     return {
         "status": "paused",
         "campaign_id": campaign.id,
         "message": message,
         "paused_in_redis": True,
+        "inflight": inflight,
+        "fully_stopped": inflight == 0,
     }

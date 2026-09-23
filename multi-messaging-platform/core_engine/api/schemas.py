@@ -368,6 +368,7 @@ class CampaignDetailResponse(BaseModel):
     effective_cap: int | None = None
     unlimited: bool = True
     daily_limit: int | None = None
+    stop_label: str | None = None
     schedule_start_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
@@ -506,6 +507,8 @@ class CampaignStopResponse(BaseModel):
     campaign_id: int
     message: str
     paused_in_redis: bool
+    inflight: int = 0
+    fully_stopped: bool = True
 
 
 class MessageSenderAccountResponse(BaseModel):

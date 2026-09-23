@@ -50,6 +50,7 @@ export type CampaignDetail = {
   channel: string;
   platform: PlatformOption;
   status: string;
+  stop_label?: string | null;
   template_text: string | null;
   use_gpt: boolean;
   include_products: boolean;

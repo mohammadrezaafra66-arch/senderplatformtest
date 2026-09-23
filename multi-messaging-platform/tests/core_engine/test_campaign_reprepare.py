@@ -35,7 +35,8 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def test_null_cap_semantics_and_no_hidden_default_five():
     assert resolve_campaign_max_total_messages(SimpleNamespace(max_contacts=None)) is None
-    view = campaign_cap_view(SimpleNamespace(max_contacts=None))
+    assert resolve_campaign_max_total_messages(SimpleNamespace(max_contacts=5)) is None
+    view = campaign_cap_view(SimpleNamespace(max_contacts=5))
     assert view == {"effective_cap": None, "unlimited": True}
     guards = (ROOT / "core_engine" / "services" / "campaign_production_guards.py").read_text(
         encoding="utf-8"
@@ -79,6 +80,30 @@ def _quiet(campaign_id: int) -> str | None:
     return None
 
 
+def test_stored_max_contacts_does_not_limit_prepare(pg_session_factory, monkeypatch):
+    """A stored 5 must not cap prepare, preflight, or dispatch."""
+    monkeypatch.setenv("CONTROLLED_PRODUCTION_ENABLED", "true")
+    from core_engine.config import get_settings
+    from core_engine.services.campaign_production_guards import (
+        evaluate_send_limit,
+        would_exceed_send_limit,
+    )
+
+    get_settings.cache_clear()
+    session = pg_session_factory()
+    account = _make_account(session, label="stored-five")
+    contacts = [_contact(session, valid=True, first_name=f"S{i}") for i in range(6)]
+    campaign = _campaign(session, account, contacts, template="متن ثابت", max_contacts=5)
+    prepare_campaign_messages(
+        session, campaign.id, PrepareMessagesRequest(force_mock_output=False)
+    )
+    prepared = session.query(Message).filter(Message.campaign_id == campaign.id).count()
+    assert prepared == 6
+    assert evaluate_send_limit(session, campaign, prepared_or_ready_count=6) is None
+    assert would_exceed_send_limit(session, campaign, additional=1) is None
+    assert campaign.max_contacts == 5
+
+
 def test_null_max_contacts_prepares_every_recipient(pg_session_factory, monkeypatch):
     """Controlled production must not invent a campaign-wide cap of 5."""
     monkeypatch.setenv("CONTROLLED_PRODUCTION_ENABLED", "true")
@@ -107,7 +132,7 @@ def test_reprepare_resets_unsent_rows_and_keeps_order(pg_session_factory):
         session, account, contacts, template="متن ثابت", max_contacts=2
     )
     prepare_campaign_messages(
-        session, campaign.id, PrepareMessagesRequest(force_mock_output=False)
+        session, campaign.id, PrepareMessagesRequest(limit=2, force_mock_output=False)
     )
     ready_before = (
         session.query(StagedQueueItem)
@@ -224,6 +249,30 @@ def test_reprepare_rejects_attempts(pg_session_factory):
     with pytest.raises(ReprepareRejected) as caught:
         reprepare_campaign(session, campaign.id, activity_probe=_quiet)
     assert caught.value.code == "CAMPAIGN_HAS_ATTEMPTS"
+
+
+def test_other_campaign_attempts_do_not_block_reprepare(pg_session_factory):
+    session = pg_session_factory()
+    account = _make_account(session, label="other-attempt")
+    contact = _contact(session, valid=True)
+    other_contact = _contact(session, valid=True)
+    campaign = _campaign(session, account, [contact], template="متن ثابت")
+    other = _campaign(session, account, [other_contact], template="متن ثابت")
+    prepare_campaign_messages(
+        session, other.id, PrepareMessagesRequest(force_mock_output=False)
+    )
+    other_message = session.query(Message).filter_by(campaign_id=other.id).one()
+    session.add(
+        MessageAttempt(
+            message_id=other_message.id,
+            attempt_no=1,
+            status=MessageAttemptStatus.SUCCESS,
+        )
+    )
+    session.commit()
+    result = reprepare_campaign(session, campaign.id, activity_probe=_quiet)
+    assert result["ready_count"] == 1
+    assert result["redis_queue_pushed"] is False
 
 
 def test_reprepare_rejects_successful_send(pg_session_factory):

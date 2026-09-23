@@ -118,19 +118,19 @@ def controlled_production_enabled() -> bool:
 
 
 def resolve_campaign_max_total_messages(campaign: Campaign) -> int | None:
-    """Return a stored campaign cap, or None when the campaign is uncapped.
+    """Campaign-wide recipient caps are removed.
 
-    NULL ``max_contacts`` means no campaign-wide recipient ceiling. The former
-    controlled-production default of 5 is not applied.
+    The ``max_contacts`` column stays for database compatibility. NULL and any
+    stored number are both ignored. Account hourly and daily limits are
+    unchanged.
     """
-    if campaign.max_contacts is None:
-        return None
-    return int(campaign.max_contacts)
+    _ = getattr(campaign, "max_contacts", None)
+    return None
 
 
 def campaign_cap_view(campaign: Campaign) -> dict[str, int | bool | None]:
-    cap = resolve_campaign_max_total_messages(campaign)
-    return {"effective_cap": cap, "unlimited": cap is None}
+    resolve_campaign_max_total_messages(campaign)
+    return {"effective_cap": None, "unlimited": True}
 
 
 def scan_campaign_recipient_phones(
@@ -336,18 +336,8 @@ def count_campaign_success_messages(db: Session, campaign_id: int) -> int:
 def evaluate_send_limit(
     db: Session, campaign: Campaign, *, prepared_or_ready_count: int
 ) -> GuardIssue | None:
-    limit = resolve_campaign_max_total_messages(campaign)
-    if limit is None:
-        return None
-    if prepared_or_ready_count > int(limit):
-        return GuardIssue(
-            code=CAMPAIGN_SEND_LIMIT_REACHED,
-            message=f"سقف ارسال کمپین ({limit}) رد شده است.",
-            details={
-                "max_total_messages": int(limit),
-                "prepared_or_ready_count": int(prepared_or_ready_count),
-            },
-        )
+    """Campaign-wide send caps are removed. Account limits stay elsewhere."""
+    del db, campaign, prepared_or_ready_count
     return None
 
 
@@ -405,19 +395,8 @@ def count_campaign_dispatch_progress(db: Session, campaign_id: int) -> int:
 def would_exceed_send_limit(
     db: Session, campaign: Campaign, *, additional: int = 1
 ) -> GuardIssue | None:
-    limit = resolve_campaign_max_total_messages(campaign)
-    if limit is None:
-        return None
-    progress = count_campaign_dispatch_progress(db, int(campaign.id))
-    if progress + int(additional) > int(limit):
-        return GuardIssue(
-            code=CAMPAIGN_SEND_LIMIT_REACHED,
-            message=f"سقف ارسال کمپین ({limit}) رد شده است.",
-            details={
-                "max_total_messages": int(limit),
-                "dispatch_progress": int(progress),
-            },
-        )
+    """Campaign-wide send caps are removed. Account limits stay elsewhere."""
+    del db, campaign, additional
     return None
 
 

@@ -343,6 +343,54 @@ class MultiAccountWorker(ABC):
             error_message=error_message,
         )
 
+    async def _defer_outside_window(
+        self,
+        payload: WorkerPayload,
+        raw: str,
+        account_id: int | str,
+    ) -> bool:
+        """Outside the Rubika window: do not call the connector and do not record an attempt."""
+        if str(self.platform).strip().lower() != "rubika":
+            return False
+        from core_engine.database import SessionLocal
+        from core_engine.services.campaign_send_safety import pre_connector_decision, rubika_window_open
+
+        session = SessionLocal()
+        try:
+            window_open, next_at = rubika_window_open(session)
+        except Exception:
+            window_open, next_at = False, None
+        finally:
+            session.close()
+        decision = pre_connector_decision(
+            kill_switch=False,
+            campaign_paused=False,
+            window_open=window_open,
+            already_submitted=False,
+        )
+        if decision != "defer":
+            return False
+        if next_at is not None:
+            from core_engine.services.campaign_inflight import enqueue_delayed_retry
+
+            await enqueue_delayed_retry(
+                self.redis,
+                payload_json=raw,
+                retry_at_unix=next_at.timestamp(),
+            )
+        else:
+            await self.redis.rpush(self.queue_key_for(account_id), raw)
+        log_worker_event(
+            self.logger,
+            event="outside_send_window_deferred",
+            status="deferred",
+            message_id=payload.message_id,
+            campaign_id=payload.campaign_id,
+            platform=self.platform,
+            account_id=account_id,
+        )
+        return True
+
     async def run_once(self) -> None:
         if not self.execution_enabled:
             log_worker_event(
@@ -407,6 +455,13 @@ class MultiAccountWorker(ABC):
                 raw,
                 account_id=active_account_id,
             ):
+                return
+
+            if await self.check_kill_switch():
+                await self.redis.rpush(self.queue_key_for(active_account_id), raw)
+                return
+
+            if await self._defer_outside_window(payload, raw, active_account_id):
                 return
 
             result = await self.send_message(payload)

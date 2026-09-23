@@ -476,6 +476,33 @@ def update_message_attempt_result(
                 )
                 session.add(attempt)
 
+        if success is True and campaign_id_int is not None and contact_id_int is not None:
+            from core_engine.services.campaign_send_safety import (
+                confirm_pilot_success,
+                record_definitive_success,
+            )
+
+            ledger_message_id = None
+            if campaign_id_int is not None:
+                linked = (
+                    session.query(CampaignRecipient)
+                    .filter(
+                        CampaignRecipient.campaign_id == campaign_id_int,
+                        CampaignRecipient.contact_id == contact_id_int,
+                    )
+                    .first()
+                )
+                if linked is not None:
+                    ledger_message_id = linked.final_message_id
+            inserted = record_definitive_success(
+                session,
+                campaign_id=campaign_id_int,
+                contact_id=contact_id_int,
+                message_id=ledger_message_id,
+            )
+            if inserted:
+                confirm_pilot_success(session, campaign_id_int)
+
         _finalize_campaign_if_terminal(session, campaign_id_int)
 
         session.commit()
