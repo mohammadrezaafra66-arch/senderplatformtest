@@ -365,3 +365,320 @@ async def stop_campaign(db: Session, campaign: Campaign) -> dict[str, Any]:
         "inflight": inflight,
         "fully_stopped": inflight == 0,
     }
+
+
+def _resume_result(
+    *,
+    accepted: bool,
+    code: str,
+    campaign_id: int,
+    campaign_status: str | None,
+    emergency_stop_enabled: bool,
+    message: str,
+    status_code: int = 200,
+    bridge_result: dict[str, int] | None = None,
+) -> dict[str, Any]:
+    return {
+        "accepted": accepted,
+        "code": code,
+        "campaign_id": int(campaign_id),
+        "campaign_status": campaign_status,
+        "emergency_stop_enabled": emergency_stop_enabled,
+        "message": message,
+        "status_code": status_code,
+        "bridge_result": bridge_result,
+    }
+
+
+async def resume_running_campaign_queue(
+    db: Session,
+    campaign_id: int,
+    *,
+    actor: str,
+) -> dict[str, Any]:
+    """Push the remaining pilot cohort of one running campaign.
+
+    Does not call Start, does not reprepare, and does not dispatch other
+    campaigns. Claim stays blocked while the emergency stop is on. When the
+    gates pass, this turns the stop off and pushes; any failure turns it back on.
+    """
+    from sqlalchemy import text
+    from sqlalchemy.exc import OperationalError
+
+    from core_engine.models import (
+        CampaignPilotCohortMember,
+        CampaignPilotState,
+        StagedQueueItem,
+        StagedQueueItemStatus,
+    )
+    from core_engine.services.audit_service import record_audit
+    from core_engine.services.campaign_pilot_cohort import cohort_guard_active
+    from core_engine.services.campaign_send_safety import rubika_window_open
+    from core_engine.services.queue_bridge import emergency_stop_allows_claim
+    from workers.redis_flags import set_system_kill_switch
+
+    def _audit(code: str, extra: dict[str, Any] | None = None) -> None:
+        record_audit(
+            db,
+            actor,
+            "resume_campaign_queue",
+            "campaign",
+            str(int(campaign_id)),
+            {"code": code, **(extra or {})},
+        )
+
+    try:
+        db.execute(text("SET lock_timeout = '2s'"))
+        campaign = (
+            db.query(Campaign)
+            .filter(Campaign.id == int(campaign_id))
+            .with_for_update()
+            .one_or_none()
+        )
+    except OperationalError:
+        db.rollback()
+        return _resume_result(
+            accepted=False,
+            code="LOCK_TIMEOUT",
+            campaign_id=campaign_id,
+            campaign_status=None,
+            emergency_stop_enabled=True,
+            message="قفل کمپین در مهلت تعیین‌شده آزاد نشد.",
+            status_code=503,
+        )
+
+    if campaign is None:
+        return _resume_result(
+            accepted=False,
+            code="CAMPAIGN_NOT_FOUND",
+            campaign_id=campaign_id,
+            campaign_status=None,
+            emergency_stop_enabled=True,
+            message="Campaign not found.",
+            status_code=404,
+        )
+    if campaign.archived_at is not None:
+        db.rollback()
+        return _resume_result(
+            accepted=False,
+            code="CAMPAIGN_ARCHIVED",
+            campaign_id=campaign.id,
+            campaign_status=str(campaign.status),
+            emergency_stop_enabled=True,
+            message="Campaign is archived.",
+            status_code=409,
+        )
+    if str(campaign.status) != CampaignStatus.RUNNING.value:
+        db.rollback()
+        return _resume_result(
+            accepted=False,
+            code="NOT_RUNNING",
+            campaign_id=campaign.id,
+            campaign_status=str(campaign.status),
+            emergency_stop_enabled=True,
+            message="Resume فقط برای کمپین running مجاز است.",
+            status_code=409,
+        )
+
+    state = (
+        db.query(CampaignPilotState)
+        .filter(CampaignPilotState.campaign_id == campaign.id)
+        .first()
+    )
+    cohort_size = (
+        db.query(CampaignPilotCohortMember.id)
+        .filter(CampaignPilotCohortMember.campaign_id == campaign.id)
+        .count()
+    )
+    if not cohort_guard_active(state) or cohort_size < 1:
+        db.rollback()
+        return _resume_result(
+            accepted=False,
+            code="PILOT_COHORT_REQUIRED",
+            campaign_id=campaign.id,
+            campaign_status=str(campaign.status),
+            emergency_stop_enabled=True,
+            message="Pilot Cohort فعال لازم است.",
+            status_code=409,
+        )
+
+    status_name = str(campaign.status)
+    redis = get_redis_client()
+    try:
+        stop_allows_claim = await emergency_stop_allows_claim(redis)
+    except Exception:
+        db.rollback()
+        return _resume_result(
+            accepted=False,
+            code="EMERGENCY_STOP_UNKNOWN",
+            campaign_id=campaign.id,
+            campaign_status=status_name,
+            emergency_stop_enabled=True,
+            message="وضعیت Emergency Stop خوانده نشد.",
+            status_code=503,
+        )
+
+    if campaign.platform == PlatformType.RUBIKA:
+        try:
+            window_open, _next_at = rubika_window_open(db)
+        except Exception:
+            window_open = False
+        if not window_open:
+            db.rollback()
+            _audit("WINDOW_CLOSED")
+            db.commit()
+            return _resume_result(
+                accepted=False,
+                code="WINDOW_CLOSED",
+                campaign_id=campaign.id,
+                campaign_status=status_name,
+                emergency_stop_enabled=not stop_allows_claim,
+                message="خارج از پنجره ارسال، Resume صف نمی‌سازد.",
+                status_code=409,
+            )
+        try:
+            from core_engine.services.rubika_circuit import get_circuit_snapshot
+            from workers.config import get_worker_settings
+
+            wsettings = get_worker_settings()
+            snap = await get_circuit_snapshot(
+                redis,
+                probe_budget=int(wsettings.RUBIKA_CIRCUIT_PROBE_BUDGET),
+                window_seconds=int(wsettings.RUBIKA_CIRCUIT_WINDOW_SECONDS),
+            )
+            if snap.state == "open":
+                db.rollback()
+                _audit("CIRCUIT_OPEN")
+                db.commit()
+                return _resume_result(
+                    accepted=False,
+                    code="CIRCUIT_OPEN",
+                    campaign_id=campaign.id,
+                    campaign_status=status_name,
+                    emergency_stop_enabled=not stop_allows_claim,
+                    message="Circuit باز است.",
+                    status_code=409,
+                )
+        except Exception:
+            db.rollback()
+            return _resume_result(
+                accepted=False,
+                code="CIRCUIT_UNKNOWN",
+                campaign_id=campaign.id,
+                campaign_status=status_name,
+                emergency_stop_enabled=True,
+                message="وضعیت Circuit خوانده نشد.",
+                status_code=503,
+            )
+
+    ready_cohort = (
+        db.query(StagedQueueItem.id)
+        .join(
+            CampaignPilotCohortMember,
+            (CampaignPilotCohortMember.campaign_id == StagedQueueItem.campaign_id)
+            & (CampaignPilotCohortMember.contact_id == StagedQueueItem.contact_id),
+        )
+        .filter(
+            StagedQueueItem.campaign_id == campaign.id,
+            StagedQueueItem.status == StagedQueueItemStatus.READY.value,
+        )
+        .count()
+    )
+    active_cohort = (
+        db.query(StagedQueueItem.id)
+        .join(
+            CampaignPilotCohortMember,
+            (CampaignPilotCohortMember.campaign_id == StagedQueueItem.campaign_id)
+            & (CampaignPilotCohortMember.contact_id == StagedQueueItem.contact_id),
+        )
+        .filter(
+            StagedQueueItem.campaign_id == campaign.id,
+            StagedQueueItem.status.in_(
+                (
+                    StagedQueueItemStatus.QUEUED.value,
+                    StagedQueueItemStatus.PUSHING.value,
+                )
+            ),
+        )
+        .count()
+    )
+    campaign_pk = int(campaign.id)
+    if ready_cohort < 1:
+        db.rollback()
+        code = "ALREADY_QUEUED" if active_cohort else "NOTHING_READY"
+        _audit(code, {"active_cohort": int(active_cohort)})
+        db.commit()
+        return _resume_result(
+            accepted=True,
+            code=code,
+            campaign_id=campaign_pk,
+            campaign_status=status_name,
+            emergency_stop_enabled=not stop_allows_claim,
+            message="صف جدیدی ساخته نشد.",
+            bridge_result={"pushed": 0},
+        )
+
+    # Release the campaign row before the bridge commits item locks.
+    db.rollback()
+    disabled_here = False
+    try:
+        if not stop_allows_claim:
+            await set_system_kill_switch(redis, enabled=False)
+            disabled_here = True
+        bridge_result = await push_staged_items_to_worker_queue(
+            db,
+            batch_size=max(1, int(cohort_size)),
+            campaign_id=campaign_pk,
+            refill_staging=False,
+            safety_pause_others=False,
+        )
+        pushed = int(bridge_result.get("pushed") or 0)
+        if disabled_here and pushed < 1:
+            await set_system_kill_switch(redis, enabled=True)
+            disabled_here = False
+            _audit("REFILL_EMPTY", {"bridge_result": bridge_result})
+            db.commit()
+            return _resume_result(
+                accepted=False,
+                code="REFILL_EMPTY",
+                campaign_id=campaign_pk,
+                campaign_status=status_name,
+                emergency_stop_enabled=True,
+                message="صف ساخته نشد و Emergency Stop دوباره روشن شد.",
+                status_code=409,
+                bridge_result=bridge_result,
+            )
+        stop_enabled = not await emergency_stop_allows_claim(redis)
+        _audit("RESUMED", {"bridge_result": bridge_result, "disabled_here": disabled_here})
+        db.commit()
+        return _resume_result(
+            accepted=True,
+            code="RESUMED",
+            campaign_id=campaign_pk,
+            campaign_status=status_name,
+            emergency_stop_enabled=stop_enabled,
+            message="صف Cohort از مسیر رسمی ساخته شد.",
+            bridge_result=bridge_result,
+        )
+    except Exception as exc:
+        db.rollback()
+        if disabled_here:
+            try:
+                await set_system_kill_switch(redis, enabled=True)
+            except Exception:
+                logger.exception("resume_restore_kill_switch_failed campaign_id=%s", campaign_id)
+        logger.exception("resume_running_campaign_queue_failed campaign_id=%s", campaign_id)
+        try:
+            _audit("RESUME_FAILED", {"error": type(exc).__name__})
+            db.commit()
+        except Exception:
+            db.rollback()
+        return _resume_result(
+            accepted=False,
+            code="RESUME_FAILED",
+            campaign_id=campaign_id,
+            campaign_status=status_name,
+            emergency_stop_enabled=True,
+            message="Resume ناموفق بود و Emergency Stop روشن ماند.",
+            status_code=503,
+        )

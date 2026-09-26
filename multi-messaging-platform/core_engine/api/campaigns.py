@@ -28,6 +28,7 @@ from core_engine.api.schemas import (
     CampaignPreflightResponse,
     CampaignPrepareRequest,
     CampaignPrepareResponse,
+    CampaignResumeQueueResponse,
     CampaignReprepareResponse,
     CampaignRecipientDetailResponse,
     CampaignRecipientsListResponse,
@@ -823,7 +824,24 @@ async def start_campaign_endpoint(
         raise HTTPException(status_code=500, detail="Failed to start campaign.") from exc
 
 
-@router.post("/{campaign_id}/stop", response_model=CampaignStopResponse)
+@router.post("/{campaign_id}/resume-queue", response_model=CampaignResumeQueueResponse)
+async def resume_campaign_queue_endpoint(
+    campaign_id: int,
+    db: Annotated[Session, Depends(get_db)] = None,
+    current_user: Annotated[dict[str, str], Depends(requires_role(RoleType.ADMIN))] = None,
+):
+    """صف Cohort یک کمپین running را می‌سازد. Start، Stop و Reprepare انجام نمی‌دهد."""
+    from core_engine.services.campaign_control import resume_running_campaign_queue
+
+    result = await resume_running_campaign_queue(
+        db,
+        campaign_id,
+        actor=current_user["username"],
+    )
+    status_code = int(result.pop("status_code", 200))
+    if not result["accepted"] or status_code >= 400:
+        raise HTTPException(status_code=status_code, detail=result)
+    return CampaignResumeQueueResponse(**result)
 async def stop_campaign_endpoint(
     campaign_id: int,
     db: Annotated[Session, Depends(get_db)] = None,

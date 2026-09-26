@@ -119,6 +119,10 @@ def _is_baileys_mode() -> bool:
 async def push_staged_items_to_worker_queue(
     db: Session,
     batch_size: int | None = None,
+    *,
+    campaign_id: int | None = None,
+    refill_staging: bool = True,
+    safety_pause_others: bool = True,
 ) -> dict[str, int]:
     settings = get_settings()
     if not settings.REAL_QUEUE_PUSH_ENABLED:
@@ -171,12 +175,16 @@ async def push_staged_items_to_worker_queue(
         pass
 
     campaign_ids = running_campaign_ids_with_ready_items(db)
-    cursor = 0
-    try:
-        cursor = int(await redis.incr(campaign_dispatch_fairness_key()))
-    except Exception:
+    if campaign_id is not None:
+        wanted = int(campaign_id)
+        ordered_ids = [cid for cid in campaign_ids if int(cid) == wanted]
+    else:
         cursor = 0
-    ordered_ids = rotate_campaign_ids(campaign_ids, cursor)
+        try:
+            cursor = int(await redis.incr(campaign_dispatch_fairness_key()))
+        except Exception:
+            cursor = 0
+        ordered_ids = rotate_campaign_ids(campaign_ids, cursor)
 
     in_flight = count_in_flight(db, ordered_ids)
     max_in_flight = int(cfg["max_in_flight"])
@@ -223,7 +231,7 @@ async def push_staged_items_to_worker_queue(
         )
         circuit_open = snap.state == "open"
         windows = load_send_windows(db)
-        if circuit_open:
+        if circuit_open and safety_pause_others:
             await maybe_safety_pause_running_campaigns(db, redis, circuit_open=True)
     except Exception:
         circuit_unknown = True
@@ -278,7 +286,7 @@ async def push_staged_items_to_worker_queue(
             .all()
         }
         ordered_ids = [cid for cid in ordered_ids if cid not in rubika_ids]
-    elif ordered_ids:
+    elif ordered_ids and refill_staging:
         from core_engine.database import SessionLocal
 
         owned = SessionLocal()

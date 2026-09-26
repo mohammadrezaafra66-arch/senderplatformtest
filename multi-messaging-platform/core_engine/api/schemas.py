@@ -410,6 +410,16 @@ class CampaignStartRequest(BaseModel):
     confirm_controlled_production: bool = False
 
 
+class CampaignResumeQueueResponse(BaseModel):
+    accepted: bool
+    code: str
+    campaign_id: int
+    campaign_status: str | None = None
+    emergency_stop_enabled: bool
+    message: str
+    bridge_result: dict | None = None
+
+
 class CampaignStartResponse(BaseModel):
     status: str
     campaign_id: int
